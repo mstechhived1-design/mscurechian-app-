@@ -21,6 +21,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -53,8 +54,11 @@ const getBaseUrl = (): string => {
     return envUrl;
   }
   
-  // Directly point the app to the MSCureChain Production Server 
-  // ensuring the mobile app hits the live portals (doctors, emergencies, bookings, etc).
+  // Point to local backend in development mode or the MSCureChain Production Server 
+  if (__DEV__) {
+    // For Android Emulator hit 10.0.2.2, for iOS/Web hit localhost
+    return Platform.OS === 'android' ? 'http://10.0.2.2:5003/api' : 'http://localhost:5003/api';
+  }
   return 'https://www.mscurechain.com/api';
 };
 

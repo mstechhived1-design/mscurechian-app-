@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MSCureChain",
-    "slug": "mscurechain-patient-app",
+    "slug": "mscurechain-patient-app-v1",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,6 +31,11 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "970ddc5b-7480-4da1-b637-cd95ecb947ba"
+      }
+    }
   }
 }

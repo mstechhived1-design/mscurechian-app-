@@ -38,3 +38,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# huge binaries
+node-v*/
+*.zip
+*.exe
+*.cmd
+*.msi
+*.7z
