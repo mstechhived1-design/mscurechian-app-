@@ -26,6 +26,9 @@ import {
   Info,
   Stethoscope,
   HeartPulse,
+  Activity,
+  Brain,
+  Bone,
 } from 'lucide-react-native';
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
@@ -40,10 +43,18 @@ import { apiClient, PATIENT_ENDPOINTS } from '@/api';
 import SYMPTOM_DATA from '../../assets/symptoms.json';
 import RESPONSES_DATA from '../../assets/responses.json';
 
-const { width } = Dimensions.get('window');
+// 1. IMPROVED CATEGORIZATION
+const SYMPTOM_CATEGORIES = [
+  { id: 'all', name: 'All Symptoms', icon: 'Bot' },
+  { id: 'neurology', name: 'Neurology', icon: 'Bot', keywords: ['headache', 'dizziness', 'tremors', 'numbness', 'tingling', 'insomnia'] },
+  { id: 'cardiology', name: 'Cardiology', icon: 'HeartPulse', keywords: ['chest pain', 'palpitations', 'high blood pressure', 'shortness of breath'] },
+  { id: 'orthopedics', name: 'Orthopedics', icon: 'Stethoscope', keywords: ['back pain', 'joint pain', 'knee pain', 'shoulder pain', 'stiff neck'] },
+  { id: 'skin', name: 'Dermatology', icon: 'Bot', keywords: ['rash', 'acne', 'dry skin', 'sunburn', 'bruising'] },
+  { id: 'digestive', name: 'Gastroenterology', icon: 'Stethoscope', keywords: ['stomach ache', 'nausea', 'bloating', 'constipation', 'diarrhea', 'heartburn'] },
+  { id: 'respiratory', name: 'Pulmonology', icon: 'Bot', keywords: ['cough', 'cold', 'breath', 'sneezing', 'runny nose'] },
+];
 
-// Generate 8 most common chips from the JSON keys
-const COMMON_SYMPTOMS = Object.keys(SYMPTOM_DATA).slice(0, 8);
+const COMMON_SYMPTOMS = Object.keys(SYMPTOM_DATA);
 
 const GENERAL_RESPONSES = [
   "Symptoms can sometimes be subtle and multifaceted. It's always wise to consult a specialist for a professional diagnostic workup.",
@@ -102,6 +113,7 @@ export default function AISymptomCheckerScreen() {
   const [allDoctors, setDoctors] = useState<Doctor[]>(MOCK_DOCS);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [activeSearch, setActiveSearch] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState('all');
 
   useEffect(() => {
     const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
@@ -120,7 +132,11 @@ export default function AISymptomCheckerScreen() {
         const uniqueDocsMap = new Map<string, Doctor>();
         const apts = Array.isArray(data.appointments) ? data.appointments : (data.appointments?.data || []);
         apts.forEach((a: any) => { if (a.doctor?._id) uniqueDocsMap.set(a.doctor._id, a.doctor); });
-        setDoctors(Array.from(uniqueDocsMap.values()));
+        
+        // If we found local doctors, use them, otherwise stick to MOCK_DOCS but add them to the map first
+        if (uniqueDocsMap.size > 0) {
+            setDoctors(Array.from(uniqueDocsMap.values()));
+        }
       } catch (err) {}
     };
     init();
@@ -138,14 +154,17 @@ export default function AISymptomCheckerScreen() {
         if (text.toLowerCase().includes('yes') || text.toLowerCase().includes('recommend')) {
             const sympInfo = (SYMPTOM_DATA as any)[activeSearch.toLowerCase()];
             const targetSpecs = sympInfo?.specialties?.map((s: string) => s.toLowerCase()) || [];
+            
+            // IMPROVED MATCHING LOGIC
             const matched = allDoctors.filter(doc => {
-                const docSpecs = (doc.specialties || []).map(s => s.toLowerCase());
-                return docSpecs.some(s => targetSpecs.includes(s));
-            }).slice(0, 4);
+                const docSpecs = (doc.specialties || []).map((s: string) => s.toLowerCase());
+                // Fuzzy matching: check if any target specialty is a substring of doc's specialty or vice versa
+                return docSpecs.some((ds: string) => targetSpecs.some((ts: string) => ds.includes(ts) || ts.includes(ds)));
+            }).slice(0, 3); // SHOW ONLY 2 OR 3 DOCTORS
 
             await new Promise(r => setTimeout(r, 800));
             // Ensure we have at least SOME doctors to show
-            const finalDoctors = matched.length > 0 ? matched : (allDoctors.length > 0 ? allDoctors.slice(0, 4) : MOCK_DOCS);
+            const finalDoctors = matched.length > 0 ? matched : (allDoctors.length > 0 ? allDoctors.slice(0, 3) : MOCK_DOCS.slice(0, 3));
             
             setMessages(prev => [...prev, { 
                 role: 'assistant', 
@@ -294,14 +313,19 @@ export default function AISymptomCheckerScreen() {
 
         <View style={[styles.bottomContainer, { marginBottom: keyboardHeight > 0 ? keyboardHeight + 25 : 0 }]}>
            {!keyboardHeight && !input && (
-                <View style={styles.chipRow}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                    {COMMON_SYMPTOMS.map((s: string) => (
-                      <TouchableOpacity key={s} style={[styles.chip, selectedChips.includes(s) && styles.chipActive]} onPress={() => setChips(prev => prev.includes(s) ? prev.filter(c=>c!==s) : [...prev, s])}>
-                        <SanctuaryText variant="label_sm" style={{ color: selectedChips.includes(s) ? '#FFF' : '#64748B', fontWeight: '800', fontSize: 12 }}>{s.toUpperCase()}</SanctuaryText>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                <View style={styles.chipArea}>
+                    <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false} 
+                        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+                        style={{ overflow: 'visible' }}
+                    >
+                      {COMMON_SYMPTOMS.slice(0, 15).map((s: string) => (
+                        <TouchableOpacity key={s} style={[styles.chip, selectedChips.includes(s) && styles.chipActive]} onPress={() => setChips(prev => prev.includes(s) ? prev.filter(c=>c!==s) : [...prev, s])}>
+                          <SanctuaryText variant="label_sm" style={{ color: selectedChips.includes(s) ? '#FFF' : '#64748B', fontWeight: '800', fontSize: 12 }}>{s.toUpperCase()}</SanctuaryText>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                 </View>
            )}
            <View style={styles.inputAreaOuter}>
@@ -329,8 +353,8 @@ const styles = StyleSheet.create({
   headerTitleArea: { position: 'absolute', left: 0, right: 0, top: Platform.OS === 'ios' ? 55 : 35, bottom: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   backBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
   scrollInside: { padding: 16, paddingBottom: 40 },
-  bottomContainer: { backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12 },
-  chipRow: { marginBottom: 10 },
+  bottomContainer: { backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 },
+  chipArea: { height: 60, marginBottom: 8 },
   chip: { 
     paddingHorizontal: 16, 
     paddingVertical: 8, 
@@ -344,6 +368,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    marginVertical: 4, // Added to prevent clipping from elevation
   },
   chipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5', elevation: 4 },
   quickReply: { flexDirection: 'row', gap: 12, marginTop: 10, justifyContent: 'center' },
