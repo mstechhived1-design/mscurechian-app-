@@ -1,0 +1,347 @@
+{
+  "headache": {
+    "explanation": "Headaches are classified into tension, migraine, or cluster types. They are often triggered by stress, sleep deprivation, or chemical imbalances.",
+    "advice": "• Rest in a dark, quiet room.\n• Apply a cold compress to the forehead.\n• Check for light sensitivity or nausea.",
+    "specialties": ["Neurology", "Neurologist", "Internal Medicine"]
+  },
+  "fever": {
+    "explanation": "A fever is a temporary increase in your body temperature, often due to an illness.",
+    "advice": "• Increase water intake.\n• Use a lukewarm sponge bath.\n• Monitor temperature every 4-6 hours.\n• Seek care if fever exceeds 103°F.",
+    "specialties": ["Internal Medicine", "General Medicine", "Physician"]
+  },
+  "cough": {
+    "explanation": "A cough is a reflex to clear irritants from your airways.",
+    "advice": "• Inhale steam or use a humidifier.\n• Warm herbal tea with honey.\n• Avoid environmental smoke.",
+    "specialties": ["Pulmonology", "Internal Medicine", "ENT"]
+  },
+  "chest pain": {
+    "explanation": "Chest pain can stem from heart, lung, or digestive issues. Cardiac-related pain often feels like pressure, squeezing, or fullness.",
+    "advice": "• STOP ALL ACTIVITY.\n• If pain radiates to the jaw or left arm, seek emergency help immediately.",
+    "specialties": ["Cardiology", "Cardiologist", "Internal Medicine"]
+  },
+  "stomach ache": {
+    "explanation": "Abdominal discomfort can be caused by indigestion, gas, or conditions like appendicitis.",
+    "advice": "• Sip clear liquids; avoid solids.\n• Use a heating pad.\n• Seek help if pain is in the lower right abdomen.",
+    "specialties": ["Gastroenterologist", "Gastroenterology", "General Medicine"]
+  },
+  "rash": {
+    "explanation": "Rashes are inflammatory responses of the skin from allergies, infections, or heat.",
+    "advice": "• Avoid scratching.\n• Use a cool compress.\n• Identify any new allergens in your routine.",
+    "specialties": ["Dermatology", "Dermatologist"]
+  },
+  "cold": {
+    "explanation": "The common cold is a viral infection of your nose and throat.",
+    "advice": "• Drink warm fluids.\n• Get plenty of rest.\n• Saltwater gargles help reduce throat inflammation.",
+    "specialties": ["General Medicine", "ENT", "Physician"]
+  },
+  "diabetes": {
+    "explanation": "Diabetes refers to a group of diseases that affect how your body uses blood sugar.",
+    "advice": "• Monitor blood glucose levels frequently.\n• Maintain a consistent diet low in sugar.\n• Check for symptoms of hypo/hyperglycemia.",
+    "specialties": ["Endocrinologist", "Endocrinology"]
+  },
+  "back pain": {
+    "explanation": "Low back pain can be caused by muscle strain, disc issues, or poor posture.",
+    "advice": "• Apply heat or ice packs.\n• Gentle stretching (child's pose).\n• Sleep on a medium-firm mattress with a pillow under your knees.",
+    "specialties": ["Orthopedics", "Physiotherapist", "Orthopedic Surgeon"]
+  },
+  "eye strain": {
+    "explanation": "Digital eye strain results from prolonged screen time and poor lighting.",
+    "advice": "• Follow the 20-20-20 rule (Look 20 feet away every 20 mins for 20 secs).\n• Adjust screen brightness and contrast.\n• Blink frequently to prevent dryness.",
+    "specialties": ["Ophthalmologist", "Optometrist"]
+  },
+  "joint pain": {
+    "explanation": "Joint pain can be caused by injury, arthritis, or repetitive stress.",
+    "advice": "• Use the RICE method (Rest, Ice, Compression, Elevation).\n• Gentle movement to prevent stiffness.\n• Avoid overhead activities for shoulder pain.",
+    "specialties": ["Orthopedics", "Rheumatologist"]
+  },
+  "anxiety": {
+    "explanation": "Anxiety is a feeling of unease, such as worry or fear, that can be mild or severe.",
+    "advice": "• Practice deep breathing exercises.\n• Limit caffeine and alcohol intake.\n• Maintain a regular sleep schedule.",
+    "specialties": ["Psychiatrist", "Psychologist", "Mental Health"]
+  },
+  "insomnia": {
+    "explanation": "Insomnia is a sleep disorder where people have trouble falling or staying asleep.",
+    "advice": "• Establish a consistent sleep routine.\n• Limit screen time 1 hour before bed.\n• Ensure your bedroom is cool and dark.",
+    "specialties": ["Psychiatrist", "Sleep Specialist", "Neurologist"]
+  },
+  "burnout": {
+    "explanation": "Burnout is a state of emotional, physical, and mental exhaustion caused by excessive stress.",
+    "advice": "• Set clear boundaries at work.\n• Prioritize self-care and hobbies.\n• Seek support from family or professionals.",
+    "specialties": ["Psychologist", "Internal Medicine"]
+  },
+  "nausea": {
+    "explanation": "Nausea is a sensation of unease and discomfort in the stomach with an urge to vomit.",
+    "advice": "• Drink ginger or peppermint tea.\n• Eat bland foods (BRAT diet: Banana, Rice, Applesauce, Toast).\n• Stay in a ventilated room.",
+    "specialties": ["Gastroenterologist", "General Medicine"]
+  },
+  "dizziness": {
+    "explanation": "Dizziness is a feeling of faintness, spinning, or lightheadedness, often linked to hydration or inner ear issues.",
+    "advice": "• Sit or lie down immediately.\n• Drink a full glass of water.\n• Avoid sudden head movements.",
+    "specialties": ["ENT", "Neurologist", "Cardiologist"]
+  },
+  "high blood pressure": {
+    "explanation": "Hypertension is a condition where the force of the blood against your artery walls is too high.",
+    "advice": "• Reduce salt and sodium intake.\n• Engage in daily aerobic exercise.\n• Track readings in a medical diary.",
+    "specialties": ["Cardiologist", "Internal Medicine"]
+  },
+  "allergies": {
+    "explanation": "Allergies occur when your immune system reacts to a foreign substance (pollen, dust, food).",
+    "advice": "• Avoid known triggers.\n• Use an air purifier at home.\n• Keep windows closed during high pollen seasons.",
+    "specialties": ["Allergy", "Immunologist", "ENT"]
+  },
+  "toothache": {
+    "explanation": "Toothaches are usually caused by dental decay, infection, or gum disease.",
+    "advice": "• Rinse with warm salt water.\n• Avoid very cold or hot foods.\n• Use a cold compress on the outside of your cheek.",
+    "specialties": ["Dentist", "Oral Surgeon", "Dentistry"]
+  },
+  "ear pain": {
+    "explanation": "Ear pain can result from infections, pressure changes, or earwax buildup.",
+    "advice": "• Do not insert anything into the ear canal.\n• Keep the ear dry while showering.\n• Use a warm compress behind the ear.",
+    "specialties": ["ENT", "General Practice", "Otolaryngologist"]
+  },
+  "nosebleed": {
+    "explanation": "Nosebleeds (epistaxis) occur when tiny blood vessels in the nose burst from dry air or trauma.",
+    "advice": "• Sit upright and lean slightly forward.\n• Pinch the soft part of your nose for 10 minutes.\n• Apply ice to the bridge of your nose.",
+    "specialties": ["ENT", "General Medicine"]
+  },
+  "constipation": {
+    "explanation": "Constipation is a common condition where bowel movements are infrequent or difficult.",
+    "advice": "• Increase dietary fiber (fruits, vegetables).\n• Drink 8-10 glasses of water daily.\n• Engage in moderate physical activity.",
+    "specialties": ["Gastroenterologist", "Internal Medicine"]
+  },
+  "diarrhea": {
+    "explanation": "Diarrhea is characterized by loose, watery stools and is often caused by viral or bacterial infections.",
+    "advice": "• Stay hydrated with electrolytes.\n• Eat bland foods (Rice, Toast).\n• Avoid dairy and fatty foods.",
+    "specialties": ["Gastroenterologist", "Internal Medicine"]
+  },
+  "heartburn": {
+    "explanation": "Heartburn is a burning sensation in the chest caused by stomach acid backflow into the esophagus.",
+    "advice": "• Eat smaller, more frequent meals.\n• Avoid lying down for 3 hours after eating.\n• Limit spicy or acidic foods.",
+    "specialties": ["Gastroenterologist", "Internal Medicine"]
+  },
+  "muscle cramp": {
+    "explanation": "Muscle cramps are sudden, involuntary contractions caused by dehydration or overuse.",
+    "advice": "• Gently stretch and massage the muscle.\n• Stay hydrated and monitor salt intake.\n• Apply heat to tense muscles.",
+    "specialties": ["Physiotherapist", "General Medicine", "Orthopedics"]
+  },
+  "knee pain": {
+    "explanation": "Knee pain can result from injury, arthritis, or mechanical issues like a knee cap misalignment.",
+    "advice": "• Use the RICE method (Rest, Ice, Compression, Elevation).\n• Wear supportive footwear.\n• Avoid heavy lifting or squatting.",
+    "specialties": ["Orthopedic Surgeon", "Orthopedics", "Physiotherapist"]
+  },
+  "shoulder pain": {
+    "explanation": "Shoulder pain is often linked to rotator cuff injuries, bursitis, or frozen shoulder.",
+    "advice": "• Rest the affected arm.\n• Avoid overhead movements.\n• Regular gentle shoulder stretches.",
+    "specialties": ["Orthopedics", "Physiotherapist"]
+  },
+  "blurry vision": {
+    "explanation": "Blurry vision can be caused by refractive errors, cataracts, or sudden changes in blood sugar.",
+    "advice": "• Rest your eyes from all digital screens.\n• Check if your glasses need a new prescription.\n• Seek immediate help if vision loss is sudden.",
+    "specialties": ["Ophthalmologist", "Optometrist"]
+  },
+  "dry eyes": {
+    "explanation": "Dry eyes occur when your eyes don't produce enough tears for lubrication.",
+    "advice": "• Use lubricating eye drops (artificial tears).\n• Avoid direct air from fans or AC.\n• Take breaks during computer use.",
+    "specialties": ["Ophthalmologist", "Optometrist"]
+  },
+  "mouth sores": {
+    "explanation": "Mouth sores (canker sores) are small, painful ulcers inside the mouth.",
+    "advice": "• Avoid spicy or acidic foods.\n• Rinse with a mix of baking soda and water.\n• Use a soft-bristled toothbrush.",
+    "specialties": ["Dentist", "Dentistry", "General Medicine"]
+  },
+  "hair loss": {
+    "explanation": "Hair loss (alopecia) can be caused by genetics, hormonal changes, or nutrition deficiencies.",
+    "advice": "• Avoid harsh chemical treatments.\n• Maintain a diet rich in iron and protein.\n• Reduce stress through meditation.",
+    "specialties": ["Dermatologist", "Endocrinologist"]
+  },
+  "brittle nails": {
+    "explanation": "Brittle nails often result from lack of moisture or deficiency in vitamins like biotin.",
+    "advice": "• Moisturize your hands and nails daily.\n• Wear gloves while handling detergents.\n• Consider a biotin supplement after consulting a doctor.",
+    "specialties": ["Dermatologist", "Internal Medicine"]
+  },
+  "night sweats": {
+    "explanation": "Night sweats are episodes of excessive perspiration that occur during sleep.",
+    "advice": "• Sleep in a cool, ventilated room.\n• Wear lightweight cotton pajamas.\n• Avoid alcohol or spicy foods before bed.",
+    "specialties": ["Internal Medicine", "Endocrinologist"]
+  },
+  "shortness of breath": {
+    "explanation": "Dyspnea can be caused by lung conditions, heart issues, or high-intensity exercise.",
+    "advice": "• Sit upright and lean forward slightly.\n• Practice pursed-lip breathing.\n• If persistent and accompanied by pain, seek emergency help.",
+    "specialties": ["Pulmonologist", "Cardiologist", "Internal Medicine"]
+  },
+  "palpitations": {
+    "explanation": "Heart palpitations are feelings of having a fast-beating, fluttering, or pounding heart.",
+    "advice": "• Reduce caffeine and nicotine intake.\n• Practice relaxation techniques (deep breathing).\n• Log when they occur and for how long.",
+    "specialties": ["Cardiologist", "Internal Medicine"]
+  },
+  "ankle swelling": {
+    "explanation": "Edema in the ankles can be caused by long periods of standing, pregnancy, or circulatory issues.",
+    "advice": "• Elevate your feet above heart level.\n• Reduce your daily salt intake.\n• Walk around every hour to improve circulation.",
+    "specialties": ["Cardiologist", "Vascular Surgeon", "Internal Medicine"]
+  },
+  "frequent urination": {
+    "explanation": "Needing to urinate often can be a sign of diabetes, UTI, or bladder issues.",
+    "advice": "• Log your daily fluid intake.\n• Avoid bladder irritants like caffeine.\n• See a doctor if there is pain or blood.",
+    "specialties": ["Urologist", "Internal Medicine"]
+  },
+  "low energy": {
+    "explanation": "Chronic low energy (lethargy) can be a sign of anemia, poor sleep, or thyroid issues.",
+    "advice": "• Prioritize 7-9 hours of quality sleep.\n• Check iron and Vitamin D levels.\n• Maintain regular hydration.",
+    "specialties": ["Internal Medicine", "Endocrinologist"]
+  },
+  "tremors": {
+    "explanation": "Tremors are involuntary, rhythmic muscle contractions that cause shaking in one or more body parts.",
+    "advice": "• Reduce intake of stimulants like caffeine.\n• Avoid emotional stress and fatigue.\n• Log if the shaking happens at rest or during action.",
+    "specialties": ["Neurologist", "Internal Medicine"]
+  },
+  "bloating": {
+    "explanation": "Bloating is a feeling of fullness and tightness in the abdomen, often due to gas or digestion issues.",
+    "advice": "• Eat slowly and chew thoroughly.\n• Avoid carbonated drinks.\n• Light walking after meals can help.",
+    "specialties": ["Gastroenterologist", "Internal Medicine"]
+  },
+  "stiff neck": {
+    "explanation": "A stiff neck is often the result of muscles weakening over time from poor posture or sleeping position.",
+    "advice": "• Apply heat or ice packs for 15 minutes.\n• Gentle neck stretches (ear to shoulder).\n• Check your pillow height and support.",
+    "specialties": ["Physiotherapist", "Orthopedics"]
+  },
+  "heel pain": {
+    "explanation": "Plantar fasciitis is a leading cause of heel pain, involving inflammation of tissue across the bottom of your foot.",
+    "advice": "• Stretch your calves and arches daily.\n• Wear shoes with good arch support.\n• Avoid walking barefoot on hard surfaces.",
+    "specialties": ["Orthopedics", "Podiatrist", "Physiotherapist"]
+  },
+  "wrist pain": {
+    "explanation": "Wrist pain can result from sudden injury or long-term problems like carpal tunnel or arthritis.",
+    "advice": "• Take frequent breaks from typing.\n• Use ergonomic keyboards/mice.\n• Wear a wrist splint at night for carpal tunnel.",
+    "specialties": ["Orthopedics", "Physiotherapist"]
+  },
+  "hip pain": {
+    "explanation": "Hip pain can be caused by problems with the joint itself or surrounding ligaments and tendons.",
+    "advice": "• Avoid sleeping on the painful side.\n• Low-impact exercises like swimming.\n• Maintain a healthy weight to reduce pressure.",
+    "specialties": ["Orthopedics", "Rheumatologist"]
+  },
+  "leg cramps": {
+    "explanation": "Leg cramps are sudden contractions usually in the calf, often happening at night.",
+    "advice": "• Forcefully stretch the muscle (flex foot up).\n• Stay hydrated and check electrolyte levels.\n• Take a warm bath before bed.",
+    "specialties": ["Internal Medicine", "Physiotherapist"]
+  },
+  "foot numbness": {
+    "explanation": "Numbness in the feet can be caused by nerve compression or poor circulation.",
+    "advice": "• Wear properly fitting shoes.\n• Avoid crossing your legs for long periods.\n• Check for signs of diabetes or vitamin B12 deficiency.",
+    "specialties": ["Neurologist", "Podiatrist", "Internal Medicine"]
+  },
+  "hand tingling": {
+    "explanation": "Tingling in hands (pins and needles) often points to nerve pressure in the wrist or neck.",
+    "advice": "• Check your workstation ergonomics.\n• Note if tingling affects specific fingers.\n• Avoid repetitive vibrations (power tools).",
+    "specialties": ["Neurologist", "Orthopedics"]
+  },
+  "loss of appetite": {
+    "explanation": "A decreased desire to eat can be linked to stress, infections, or digestive issues.",
+    "advice": "• Eat smaller, colorful meals frequently.\n• Stay hydrated even without hunger.\n• Monitor any sudden weight changes.",
+    "specialties": ["Gastroenterologist", "Internal Medicine", "Nutritionist"]
+  },
+  "weight loss": {
+    "explanation": "Unexplained weight loss of more than 5% of body weight in 6 months needs medical review.",
+    "advice": "• Keep a log of your daily caloric intake.\n• Check for symptoms of hyperthyroidism.\n• Note any changes in appetite or energy.",
+    "specialties": ["Endocrinologist", "Internal Medicine", "Oncologist"]
+  },
+  "excessive thirst": {
+    "explanation": "Polydipsia (excessive thirst) can be a sign of high blood sugar or dehydration.",
+    "advice": "• Check your daily water intake versus output.\n• Monitor blood glucose if history of diabetes.\n• Avoid salty foods and sugary drinks.",
+    "specialties": ["Endocrinologist", "Internal Medicine"]
+  },
+  "dry mouth": {
+    "explanation": "Dry mouth (xerostomia) occurs when salivary glands don't make enough saliva to keep the mouth wet.",
+    "advice": "• Sip water frequently throughout the day.\n• Chew sugar-free gum to stimulate saliva.\n• Avoid mouthwashes containing alcohol.",
+    "specialties": ["Dentist", "ENT", "Internal Medicine"]
+  },
+  "runny nose": {
+    "explanation": "Rhinorrhea is excess nasal drainage and can be caused by allergies or the common cold.",
+    "advice": "• Stay hydrated to keep mucus thin.\n• Use a saline nasal spray.\n• Avoid known allergens like dust or pollen.",
+    "specialties": ["ENT", "Allergy", "General Medicine"]
+  },
+  "sneezing": {
+    "explanation": "Sneezing is a reflex to expel irritants from the nasal cavity.",
+    "advice": "• Identify and avoid environmental triggers.\n• Use an air purifier at home.\n• Wash bedding in hot water weekly.",
+    "specialties": ["Allergy", "ENT"]
+  },
+  "itchy eyes": {
+    "explanation": "Itchy eyes are most commonly a symptom of seasonal or indoor allergies.",
+    "advice": "• Do not rub your eyes; it makes it worse.\n• Use a cool compress over closed eyelids.\n• Wear sunglasses outdoors to block pollen.",
+    "specialties": ["Ophthalmologist", "Allergy"]
+  },
+  "watery eyes": {
+    "explanation": "Excessive tearing can result from irritation, allergies, or blocked tear ducts.",
+    "advice": "• Flush eyes with clean water or saline.\n• Rest eyes from contact lenses if you use them.\n• Check for foreign objects like eyelashes.",
+    "specialties": ["Ophthalmologist", "Optometrist"]
+  },
+  "acne": {
+    "explanation": "Acne is a skin condition that occurs when hair follicles become plugged with oil and dead skin cells.",
+    "advice": "• Wash your face gently twice a day.\n• Use non-comedogenic (oil-free) products.\n• Avoid picking or squeezing pimples.",
+    "specialties": ["Dermatologist"]
+  },
+  "dry skin": {
+    "explanation": "Xerosis (dry skin) can be caused by cold weather, hot showers, or low humidity.",
+    "advice": "• Apply moisturizer while skin is damp.\n• Use mild, fragrance-free cleansers.\n• Install a humidifier in your home.",
+    "specialties": ["Dermatologist"]
+  },
+  "oily skin": {
+    "explanation": "Oily skin is the result of overactive sebaceous glands producing too much sebum.",
+    "advice": "• Use a foaming face wash.\n• Apply moisturizer (yes, oily skin needs it too!).\n• Avoid touching your face throughout the day.",
+    "specialties": ["Dermatologist"]
+  },
+  "sunburn": {
+    "explanation": "Sunburn is skin damage caused by ultraviolet (UV) light.",
+    "advice": "• Take a cool bath or shower.\n• Apply aloe vera or moisturizer.\n• Drink extra water to prevent dehydration.",
+    "specialties": ["Dermatologist", "General Medicine"]
+  },
+  "insect bite": {
+    "explanation": "Most insect bites cause minor swelling, redness, and itching.",
+    "advice": "• Wash the area with soap and water.\n• Apply a cold pack to reduce swelling.\n• Seek help if you have a known allergy or trouble breathing.",
+    "specialties": ["General Medicine", "Allergy"]
+  },
+  "bruising": {
+    "explanation": "A bruise forms when blood vessels under the skin tear and leak blood.",
+    "advice": "• Apply ice immediately after injury.\n• Elevate the bruised area if possible.\n• Seek help if bruising happens easily without injury.",
+    "specialties": ["Internal Medicine", "General Practice"]
+  },
+  "chills": {
+    "explanation": "Chills are your body's way of generating heat when it feels cold, often preceding a fever.",
+    "advice": "• Dress in light layers.\n• Drink warm fluids like soup or tea.\n• Monitor your temperature.",
+    "specialties": ["Internal Medicine", "General Medicine"]
+  },
+  "hot flashes": {
+    "explanation": "Hot flashes are sudden feelings of warmth, usually most intense over the face, neck, and chest.",
+    "advice": "• Dress in layers that can be removed.\n• Keep a cool drink nearby.\n• Avoid triggers like caffeine or spicy foods.",
+    "specialties": ["Endocrinologist", "Internal Medicine"]
+  },
+  "dark circles": {
+    "explanation": "Dark circles under the eyes are often caused by fatigue, genetics, or allergies.",
+    "advice": "• Prioritize 8 hours of sleep.\n• Apply a cold compress or tea bags.\n• Elevate your head while sleeping.",
+    "specialties": ["Dermatologist", "General Medicine"]
+  },
+  "puffy eyes": {
+    "explanation": "Swelling under the eyes can result from water retention, allergies, or lack of sleep.",
+    "advice": "• Reduce salt intake in your diet.\n• Use a chilled jade roller or spoon.\n• Rinse eyes with cool water.",
+    "specialties": ["Ophthalmologist", "Dermatologist"]
+  },
+  "bad taste": {
+    "explanation": "A metallic or bitter taste in the mouth can be caused by medications, sinus issues, or dental problems.",
+    "advice": "• Brush your tongue regularly.\n• Floss once a day.\n• Stay hydrated to keep saliva flowing.",
+    "specialties": ["Dentist", "ENT", "Internal Medicine"]
+  },
+  "sneezing fits": {
+    "explanation": "Rapid consecutive sneezing is usually an acute response to an airborne irritant.",
+    "advice": "• Move to a different environment immediately.\n• Use a saline rinse to clear your nose.\n• Note if it happens near pets or dust.",
+    "specialties": ["Allergy", "ENT"]
+  },
+  "numb fingers": {
+    "explanation": "Numbness in fingers is often due to circulation issues or nerve endings in the neck or wrist.",
+    "advice": "• Shake your hands gently to restore flow.\n• Avoid resting your elbows on hard surfaces.\n• Check for Raynaud's syndrome if skin turns white.",
+    "specialties": ["Neurologist", "Orthopedics"]
+  },
+  "morning stiffness": {
+    "explanation": "Stiffness in joints upon waking is common in aging or autoimmune conditions like RA.",
+    "advice": "• Take a warm shower first thing in the morning.\n• Gentle bed stretches before standing up.\n• Use heat wraps on stiff joints.",
+    "specialties": ["Rheumatologist", "Orthopedics"]
+  }
+}
