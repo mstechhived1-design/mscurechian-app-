@@ -82,33 +82,93 @@ export const notificationService = {
   },
 
   /**
-   * Schedule a local notification
+   * Schedule multiple reminders for a follow-up visit
+   * Timing: 3 days, 2 days, 1 day, and 6 hours before
    */
-  async scheduleFollowupReminder(doctorName: string, followupDate: string | Date) {
+  async schedulePrescriptionFollowup(prescription: any) {
     if (isExpoGoAndroid || !Notifications) return;
 
-    const targetDate = new Date(followupDate);
-    targetDate.setHours(9, 0, 0, 0);
+    const followupDateStr = prescription.followupDate || prescription.followUpDate || prescription.nextVisit;
+    if (!followupDateStr) return;
 
-    if (targetDate.getTime() < Date.now()) return;
+    const targetDate = new Date(followupDateStr);
+    const now = Date.now();
+    const doctorName = prescription.doctor?.user?.name || prescription.doctor?.name || 'your specialist';
+    
+    // 1. Helper to schedule a single point in time
+    const scheduleAt = async (date: Date, label: string, body: string) => {
+      if (date.getTime() <= now) return;
+      
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `🏥 ${label}`,
+            body,
+            data: { prescriptionId: prescription._id, type: 'followup_reminder' },
+            sound: true,
+          },
+          trigger: { type: 'date', date },
+        });
+        console.log(`[NotificationService] Scheduled: ${label} for ${date.toLocaleString()}`);
+      } catch (e) {
+        console.error(`[NotificationService] Failed to schedule ${label}:`, e);
+      }
+    };
+
+    // 2. Schedule the timeline
+    const times = [
+      { offsetDays: 3, label: '3-Day Reminder', body: `Your follow-up with ${doctorName} is in 3 days.` },
+      { offsetDays: 2, label: '2-Day Reminder', body: `Don't forget your follow-up with ${doctorName} in 2 days.` },
+      { offsetDays: 1, label: 'Final Reminder', body: `You have a follow-up visit scheduled with ${doctorName} tomorrow.` },
+      { offsetHours: 6, label: 'Upcoming Visit', body: `Your follow-up with ${doctorName} is in just 6 hours.` },
+    ];
+
+    for (const t of times) {
+      const triggerDate = new Date(targetDate);
+      if (t.offsetDays) {
+        triggerDate.setDate(triggerDate.getDate() - t.offsetDays);
+        triggerDate.setHours(9, 0, 0, 0); // Morning reminder
+      } else if (t.offsetHours) {
+        triggerDate.setHours(triggerDate.getHours() - t.offsetHours);
+      }
+      
+      await scheduleAt(triggerDate, t.label, t.body);
+    }
+  },
+
+  /**
+   * Schedule a random helpful notification (e.g. hydration, medication check)
+   */
+  async scheduleRandomHealthTip() {
+    if (isExpoGoAndroid || !Notifications) return;
+
+    const tips = [
+      { title: "💧 Stay Hydrated", body: "Drinking enough water is essential for your recovery. Keep a bottle nearby!" },
+      { title: "💊 Medication Check", body: "Remember to take your prescribed medications on time for the best results." },
+      { title: "🚶 Gentle Movement", body: "If your doctor allows, a short 5-minute walk can improve your circulation." },
+      { title: "🍏 Healthy Eating", body: "A balanced diet helps your body heal faster. Try to include more greens today." },
+      { title: "🧘 Mindful Minute", body: "Take a deep breath. Reducing stress is a key part of your wellness journey." },
+    ];
+
+    const randomTip = tips[Math.floor(Math.random() * tips.length)];
+    
+    // Schedule it for some time in the next 1-4 hours randomly
+    const randomHours = Math.floor(Math.random() * 3) + 1;
+    const triggerDate = new Date();
+    triggerDate.setHours(triggerDate.getHours() + randomHours);
 
     try {
-      const identifier = await Notifications.scheduleNotificationAsync({
+      await Notifications.scheduleNotificationAsync({
         content: {
-          title: "🏥 Upcoming Follow-up Visit",
-          body: `You have a scheduled follow-up with ${doctorName} today. Please check your medical records.`,
-          data: { doctorName, followupDate },
+          title: randomTip.title,
+          body: randomTip.body,
           sound: true,
         },
-        trigger: {
-          type: 'date', // Use string instead of enum to follow JS-only mode if needed
-          date: targetDate,
-        },
+        trigger: { type: 'date', date: triggerDate },
       });
-      console.log(`[NotificationService] Reminder scheduled for ${doctorName}`);
-      return identifier;
+      console.log(`[NotificationService] Scheduled random tip for ${triggerDate.toLocaleTimeString()}`);
     } catch (e) {
-      console.warn('[NotificationService] Failed to schedule local notification:', e);
+      console.error('[NotificationService] Random tip error:', e);
     }
   },
 

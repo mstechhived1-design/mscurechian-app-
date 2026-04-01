@@ -50,6 +50,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { apiClient, REPORT_ENDPOINTS, PATIENT_ENDPOINTS } from '@/api';
 import { RootStackParamList } from '@/navigation/types';
 import { safeFormat } from '@/utils/dateUtils';
+import { notificationService } from '@/services/notificationService';
 
 interface Medicine {
   name: string;
@@ -154,6 +155,12 @@ export default function ReportsScreen() {
           const prescs = Array.isArray(data) ? data : (Array.isArray(data.prescriptions) ? data.prescriptions : []);
           const filtered = prescs.filter((p: any) => (p.displayType || p.type) !== 'Hospital Administration');
           setPrescriptions(filtered);
+          
+          // Schedule reminders for the most recent prescription's followup
+          if (filtered.length > 0) {
+            notificationService.schedulePrescriptionFollowup(filtered[0]);
+            notificationService.scheduleRandomHealthTip();
+          }
         }
       }
     } catch (err: any) {
