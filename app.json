@@ -3,6 +3,7 @@
     "name": "MSCureChain",
     "slug": "mscurechain-patient-app-v1",
     "version": "1.0.0",
+    "scheme": "mscurechain-patient",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -30,7 +31,11 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-notifications",
+      "expo-location",
+      "expo-system-ui",
+      "expo-build-properties"
     ],
     "extra": {
       "eas": {

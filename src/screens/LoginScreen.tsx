@@ -145,7 +145,7 @@ export default function LoginScreen() {
             {/* Top Compassion Header */}
             <View style={styles.heroWrapper}>
               <Image 
-                source={require('../../assets/patient_hero.png')} 
+                source={require('../../assets/patient_hero.jpg')} 
                 style={styles.heroImg}
                 resizeMode="cover"
               />
