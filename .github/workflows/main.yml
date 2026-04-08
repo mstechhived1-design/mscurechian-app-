@@ -8,11 +8,13 @@ jobs:
         run: echo "this is a build job"
   test:
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - name: test job
         run: echo "this is a test job"
   deploy:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: deploy job
         run: |
