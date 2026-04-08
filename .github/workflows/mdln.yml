@@ -1,0 +1,9 @@
+name: narasimha
+on: workflow_dispatch
+jobs:
+  narasimha:
+   runs-on: ubuntu-latest
+   steps:
+     - name: narasimha
+       run: echo "Hellow dln workflow"
+       
