@@ -159,10 +159,7 @@ export default function ProfileScreen() {
       {/* Header */}
       <Surface style={styles.header} elevation={1}>
         <View style={styles.headerRow}>
-          <IconButton 
-            icon={() => <ChevronLeft size={24} color="#1A1A1A" />} 
-            onPress={() => navigation.goBack()} 
-          />
+          <View style={{ width: 48 }} />
           <Text variant="titleLarge" style={styles.headerTitle}>{t('profile.title') || 'Medical Vault'}</Text>
           <View style={styles.row}>
             <LanguageSelector />
@@ -291,6 +288,8 @@ export default function ProfileScreen() {
         >
           Sign out of Account
         </Button>
+        {/* Bottom clearance for the tab bar */}
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       {/* Edit Modal */}
@@ -360,7 +359,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 10 },
   headerTitle: { fontWeight: 'bold', color: '#1A1A1A' },
   row: { flexDirection: 'row', alignItems: 'center' },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  scrollContent: { padding: 20, paddingBottom: 60 },
   userCard: { backgroundColor: '#fff', borderRadius: 24, marginBottom: 20, elevation: 2 },
   userCardContent: { flexDirection: 'row', alignItems: 'center', padding: 15 },
   avatarBox: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#E6F4FE', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFF' },

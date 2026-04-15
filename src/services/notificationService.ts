@@ -5,7 +5,7 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 // Detect if we are in Expo Go on Android where SDK 53+ forbids use of expo-notifications
 const isExpoGoAndroid = 
   Platform.OS === 'android' && 
-  (Constants.executionEnvironment === ExecutionEnvironment.StoreClient || !Constants.expoConfig?.extra?.eas?.projectId);
+  (Constants.executionEnvironment === ExecutionEnvironment.StoreClient || (Constants.expoConfig && !Constants.expoConfig.extra?.eas?.projectId));
 
 // Lazy-load Notifications only if supported to prevent the fatal error at import time
 let Notifications: any = null;
@@ -19,8 +19,6 @@ if (!isExpoGoAndroid) {
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
       }),
     });
   } catch (e) {

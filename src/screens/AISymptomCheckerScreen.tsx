@@ -10,9 +10,9 @@ import {
   Keyboard,
   Dimensions,
   StatusBar,
-  SafeAreaView,
   Text as RNText,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text as PaperText } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -276,7 +276,7 @@ export default function AISymptomCheckerScreen() {
                     <TouchableOpacity key={d._id} style={styles.docCard} onPress={() => navigation.navigate('Appointments')}>
                       <Avatar.Image 
                         size={52} 
-                        source={(d.user?.avatar || d.avatar) ? { uri: d.user?.avatar || d.avatar } : require('../../assets/Logo.jpeg')} 
+                        source={(d.user?.avatar || d.avatar) ? { uri: d.user?.avatar || d.avatar } : require('../../assets/image.png')} 
                         style={{ backgroundColor: '#F1F5F9' }}
                       />
                       <View style={{ flex: 1, justifyContent: 'center' }}>

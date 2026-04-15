@@ -1,8 +1,8 @@
-import { format, isValid } from 'date-fns';
+import dayjs from 'dayjs';
 
 /**
  * Safely format a date string or object, returning a fallback if invalid.
- * Prevents app crashes from date-fns format() on invalid dates.
+ * Prevents app crashes from dayjs format() on invalid dates.
  */
 export const safeFormat = (date: any, formatStr: string, fallback: string = '--'): string => {
   try {
@@ -10,11 +10,11 @@ export const safeFormat = (date: any, formatStr: string, fallback: string = '--'
     
     // Handle MongoDB $date object if present
     const dateToParse = date?.$date || date;
-    const dateObj = new Date(dateToParse);
+    const dateObj = dayjs(dateToParse);
     
-    if (!isValid(dateObj)) return fallback;
+    if (!dateObj.isValid()) return fallback;
     
-    return format(dateObj, formatStr);
+    return dateObj.format(formatStr);
   } catch (error) {
     console.warn('[dateUtils] Error formatting date:', error);
     return fallback;

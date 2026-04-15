@@ -22,7 +22,7 @@ import {
   List,
   Divider,
 } from 'react-native-paper';
-import { format } from 'date-fns';
+import dayjs from 'dayjs';
 import {
   FlaskConical,
   Calendar,
@@ -387,10 +387,10 @@ export default function ReportsScreen() {
                     </View>
                     <View style={styles.dateBadge}>
                       <Text style={styles.dateMonth}>
-                        {format(new Date(item.prescriptionDate || item.createdAt || new Date()), 'MMM')}
+                        {dayjs(item.prescriptionDate || item.createdAt).format('MMM')}
                       </Text>
                       <Text style={styles.dateDay}>
-                        {format(new Date(item.prescriptionDate || item.createdAt || new Date()), 'dd')}
+                        {dayjs(item.prescriptionDate || item.createdAt).format('DD')}
                       </Text>
                     </View>
                   </View>

@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
 import React from 'react';
 import {
   useFonts,
@@ -23,6 +24,17 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { COLORS } from './src/constants/designSystem';
 import { DigitalAtriumLoader } from './src/components/SanctuaryComponents';
 import './src/utils/i18n';
+
+// Configure how notifications are handled when the app is foregrounded
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const theme = {
   ...DefaultTheme,

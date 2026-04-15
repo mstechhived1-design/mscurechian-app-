@@ -45,22 +45,35 @@ export const TOKEN_KEYS = {
  * 
  * Production URL: https://www.mscurechain.com/api
  */
+// ─── LOCAL BACKEND CONFIGURATION ─────────────────────────────────────────────
+//
+// Change this ONE value to switch backends:
+//   Local dev  : http://192.168.29.48:5003/api   ← current
+//   iOS sim    : http://localhost:5003/api
+//   Android emu: http://10.0.2.2:5003/api
+//   Production : https://www.mscurechain.com/api
+//
+const LOCAL_BACKEND_URL = 'http://192.168.29.48:5003/api';
+
 const getBaseUrl = (): string => {
-  // 1. Check environment variable first (highest priority)
-  const envUrl = process.env.REACT_APP_API_URL || 
-                 (global as any).REACT_APP_API_URL;
-  if (envUrl) {
-    console.log('[AxiosConfig] Using API URL from environment:', envUrl);
+  // 1. Runtime env var (EXPO_PUBLIC_ prefix required for Expo to expose it to JS)
+  //    Note: Expo caches env vars at bundle time, so changes require --clear restart
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && envUrl !== 'undefined' && envUrl.startsWith('http')) {
+    console.log('[AxiosConfig] Using API URL from EXPO_PUBLIC_API_URL:', envUrl);
     return envUrl;
   }
-  
-  // Point to local backend in development mode or the MSCureChain Production Server 
+
+  // 2. In development, always use the local backend (hardcoded for reliability)
   if (__DEV__) {
-    // For Android Emulator hit 10.0.2.2, for iOS/Web hit localhost
-    return Platform.OS === 'android' ? 'http://10.0.2.2:5003/api' : 'http://localhost:5003/api';
+    console.log('[AxiosConfig] DEV mode: Using local backend:', LOCAL_BACKEND_URL);
+    return LOCAL_BACKEND_URL;
   }
+
+  // 3. Production fallback
   return 'https://www.mscurechain.com/api';
 };
+
 
 const BASE_URL = getBaseUrl();
 

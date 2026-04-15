@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Portal, Modal, Button } from 'react-native-paper';
 import {
-  ChevronLeft,
   Banknote,
   Receipt,
   FileText,
@@ -132,11 +131,7 @@ export default function PaymentsScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={22} color="#1E293B" />
-        </TouchableOpacity>
         <SanctuaryText variant="headline_sm" style={styles.headerTitle}>{t('payments.title')}</SanctuaryText>
-        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
@@ -263,7 +258,8 @@ export default function PaymentsScreen() {
           )}
         </View>
 
-        <View style={{ height: 40 }} />
+        {/* Bottom clearance for tab bar */}
+        <View style={{ height: 90 }} />
       </ScrollView>
 
       {/* ── Bill Detail Modal ── */}
@@ -337,14 +333,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     paddingTop: Platform.OS === 'ios' ? 56 : 36,
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { color: '#1E293B', fontWeight: '900', fontSize: 18 },
+  headerTitle: { color: '#1E293B', fontWeight: '900', fontSize: 22 },
 
   scroll: { paddingTop: 20, paddingHorizontal: 20 },
 

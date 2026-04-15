@@ -27,7 +27,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@/navigation/types';
-import { format } from 'date-fns';
+import dayjs from 'dayjs';
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
 import { Portal, Modal, Surface as PaperSurface, IconButton as PaperIconButton, Chip, Divider } from 'react-native-paper';
 import { safeFormat } from '@/utils/dateUtils';

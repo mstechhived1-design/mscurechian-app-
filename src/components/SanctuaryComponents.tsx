@@ -101,7 +101,7 @@ export const SanctuaryInput = ({ label, value, onChangeText, secureTextEntry, er
 // --- LOADING ---
 export const DigitalAtriumLoader = () => (
     <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator animating={true} size="large" color={COLORS.primary} />
         <SanctuaryText variant="body_md" style={{ marginTop: 12, opacity: 0.6 }}>Synchronizing Health Data...</SanctuaryText>
     </View>
 );

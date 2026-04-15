@@ -115,7 +115,7 @@ const VitalsScreen = () => {
   return (
     <View style={styles.container}>
       <Surface style={styles.header} elevation={2}>
-         <IconButton icon="arrow-left" mode="contained-tonal" onPress={() => navigation.goBack()} />
+         <View style={{ width: 48 }} />
          <Text variant="titleLarge" style={styles.headerTitle}>{t('vitals.title')}</Text>
          <IconButton icon="plus" mode="contained" containerColor="#006AF5" onPress={() => {}} />
       </Surface>
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
      backgroundColor: '#FFF',
   },
   headerTitle: { fontWeight: 'bold' },
-  scroll: { padding: 20, paddingBottom: 60 },
+  scroll: { padding: 20, paddingBottom: 100 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   vitalBox: { 
      width: (width - 60) / 2, 

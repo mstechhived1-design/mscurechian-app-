@@ -10,9 +10,9 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -115,11 +115,31 @@ export default function LoginScreen() {
         password: data.password,
       });
       const { tokens, user } = resp.data;
-      if (user.role !== 'patient') throw new Error('Unrecognized Account Type');
+
+      // Only patients can log in to the patient app
+      if (user.role !== 'patient') {
+        setServerError('This account is not a patient account. Please use the correct portal.');
+        return;
+      }
+
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
       navigation.replace('Dashboard');
     } catch (e: any) {
-      setServerError(e.response?.data?.message || 'Login failed. Please check your credentials.');
+      // Pick the most specific error message available
+      const msg =
+        e?.error?.message ||
+        e?.response?.data?.message ||
+        e?.message ||
+        'Login failed. Please check your credentials.';
+
+      // Clean up generic connectivity errors into something actionable
+      if (msg.includes('Connectivity Error') || msg.includes('Network Error')) {
+        setServerError('Cannot reach server. Make sure you are on the same Wi-Fi as the backend.');
+      } else if (msg.includes('Invalid Date of Birth') || msg.includes('Invalid login') || msg.includes('Password is wrong')) {
+        setServerError('Incorrect mobile number or password. Please try again.');
+      } else {
+        setServerError(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +175,7 @@ export default function LoginScreen() {
             {/* Login Content Area */}
             <View style={styles.content}>
                <View style={styles.logoBadge}>
-                  <Image source={require('../../assets/Logo.jpeg')} style={styles.logo} resizeMode="contain" />
+                  <Image source={require('../../assets/image.png')} style={styles.logo} resizeMode="contain" />
                </View>
                
                <SanctuaryText variant="headline_md" style={styles.welcomeTitle}>{t('login.welcome')}</SanctuaryText>
@@ -231,7 +251,13 @@ export default function LoginScreen() {
                </View>
 
                <View style={styles.baseFooter}>
-                  <SanctuaryText variant="body_sm" style={{color: '#BBB', marginTop: 40}}>
+                  <View style={styles.registerRow}>
+                    <SanctuaryText variant="body_sm" style={styles.registerHint}>New patient? </SanctuaryText>
+                    <TouchableOpacity onPress={() => navigation.navigate('Register' as any)}>
+                      <SanctuaryText variant="label_lg" style={styles.registerLink}>Register here</SanctuaryText>
+                    </TouchableOpacity>
+                  </View>
+                  <SanctuaryText variant="body_sm" style={{color: '#BBB', marginTop: 16}}>
                     MSC-APP v1.2.1 • Encryption Secured
                   </SanctuaryText>
                </View>
@@ -267,4 +293,7 @@ const styles = StyleSheet.create({
   serverAlert: { color: '#BA1A1A', textAlign: 'center', marginVertical: 16, fontWeight: '700' },
   signInBtn: { height: 60, borderRadius: 8, marginTop: 12 },
   baseFooter: { paddingBottom: 20, alignItems: 'center' },
+  registerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 24 },
+  registerHint: { color: '#888', fontSize: 13 },
+  registerLink: { color: '#005AB5', fontSize: 13, fontWeight: '800' },
 });

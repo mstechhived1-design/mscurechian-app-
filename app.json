@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "scheme": "mscurechain-patient",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/image.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mscurechain.patient"
+      "bundleIdentifier": "com.mscurechain.patient",
+      "buildNumber": "1.0.0"
     },
     "android": {
       "package": "com.mscurechain.patient",
@@ -24,7 +25,8 @@
       },
       "permissions": [
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -35,7 +37,19 @@
       "expo-notifications",
       "expo-location",
       "expo-system-ui",
-      "expo-build-properties"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useAndroidX": true,
+            "enableProguardInReleaseBuilds": true
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

@@ -318,7 +318,7 @@ export default function DashboardScreen() {
           <TouchableOpacity style={styles.avatarWrap} onPress={() => navigation.navigate('Profile')}>
             <Avatar.Image
               size={44}
-              source={profile?.user?.avatar ? { uri: profile.user.avatar } : require('../../assets/Logo.jpeg')}
+              source={profile?.user?.avatar ? { uri: profile.user.avatar } : require('../../assets/image.png')}
               style={styles.avatar}
             />
           </TouchableOpacity>
@@ -431,6 +431,9 @@ export default function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <SanctuaryText variant="headline_sm" style={styles.sectionTitle}>{t('dashboard.priorityVisit')}</SanctuaryText>
+            <TouchableOpacity onPress={() => navigation.navigate('UpcomingAppointments')}>
+              <SanctuaryText variant="label_lg" style={{ color: COLORS.primary, fontWeight: '800' }}>See All</SanctuaryText>
+            </TouchableOpacity>
           </View>
 
           {/* ── Priority Visits — only confirmed/Booked/in-progress — */}
@@ -438,6 +441,7 @@ export default function DashboardScreen() {
             const CONFIRMED_STATUSES = ['confirmed', 'Booked', 'booked'];
             const priorityApts = appointments
               .filter(a => CONFIRMED_STATUSES.includes(a.status))
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
               .slice(0, 3);
             return priorityApts.length > 0 ? (
               priorityApts.map((apt, idx) => {

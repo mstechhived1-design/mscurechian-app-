@@ -15,6 +15,9 @@ export const AUTH_ENDPOINTS = {
   /** POST — Patient login: { mobile, password } → { tokens, user } */
   LOGIN: '/auth/login',
 
+  /** POST — Patient self-registration: { name, mobile, email, password, role, consentGiven } */
+  REGISTER: '/auth/register',
+
   /** GET — Get currently authenticated user info (Bearer token required) */
   ME: '/auth/me',
 
@@ -36,6 +39,7 @@ export const AUTH_ENDPOINTS = {
   /** POST — Verify OTP: { otp } */
   VERIFY_OTP: '/auth/verify-otp',
 } as const;
+
 
 // ─── Patient Endpoints (GET /patients/*, PATCH /patients/profile) ─────────────
 export const PATIENT_ENDPOINTS = {
@@ -177,3 +181,30 @@ export const EMERGENCY_ENDPOINTS = {
   TRACKING: (requestId: string) => `/emergency/requests/${requestId}`,
 } as const;
 
+
+// ─── Payment Endpoints ────────────────────────────────────────────────────────
+export const PAYMENT_ENDPOINTS = {
+  /**
+   * POST — Create a Razorpay payment order before booking
+   * Body: { doctorId, hospitalId, date, time, amount, currency, appointmentType }
+   * Returns: { orderId, amount, currency, key, checkoutUrl?, ... }
+   */
+  CREATE_ORDER: '/payments/create-order',
+
+  /**
+   * POST — Verify Razorpay payment signature & confirm appointment
+   * Body: { razorpayOrderId, razorpayPaymentId, razorpaySignature, bookingDetails }
+   * Returns: { appointmentId, bookingReference, paymentStatus: 'paid', ... }
+   */
+  VERIFY_PAYMENT: '/payments/verify',
+
+  /**
+   * GET — Get payment receipt by order ID
+   */
+  RECEIPT: (orderId: string) => `/payments/receipt/${orderId}`,
+
+  /**
+   * GET — All payment history for the logged-in patient
+   */
+  HISTORY: '/payments/history',
+} as const;
