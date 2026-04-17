@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import {
   Text,
@@ -43,6 +44,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { apiClient, PATIENT_ENDPOINTS, clearAuthTokens } from '@/api';
 import { RootStackParamList } from '@/navigation/types';
 import LanguageSelector from '@/components/LanguageSelector';
+
+const { width, height } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -301,18 +304,14 @@ export default function ProfileScreen() {
           onDismiss={() => setEditModalVisible(false)}
           contentContainerStyle={styles.modalContainer}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-          >
-            <Surface style={styles.modalContent}>
+          <Surface style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text variant="titleLarge" style={styles.modalTitle}>{t('profile.updateProfile')}</Text>
                 <IconButton icon="close" onPress={() => setEditModalVisible(false)} />
               </View>
               
               <ScrollView 
-                style={styles.modalForm}
+                style={[styles.modalForm, { flex: 1 }]}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
@@ -360,8 +359,7 @@ export default function ProfileScreen() {
                 <Button onPress={() => setEditModalVisible(false)}>Cancel</Button>
                 <Button mode="contained" onPress={handleUpdate} style={styles.saveBtn}>{t('profile.saveChanges')}</Button>
               </View>
-            </Surface>
-          </KeyboardAvoidingView>
+          </Surface>
         </Modal>
 
         {/* QR Modal */}
@@ -408,8 +406,19 @@ const styles = StyleSheet.create({
   detailVal: { fontSize: 14, fontWeight: 'bold', color: '#333', marginTop: 2 },
   divider: { backgroundColor: '#F8F9FA' },
   logoutBtn: { marginTop: 10, marginBottom: 20 },
-  modalContainer: { padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', maxHeight: '90%' },
+  modalContainer: { 
+    height: height * 0.85,
+    width: width * 0.95,
+    alignSelf: 'center', 
+    backgroundColor: 'transparent' 
+  },
+  modalContent: { 
+    flex: 1,
+    backgroundColor: '#fff', 
+    borderRadius: 24, 
+    overflow: 'hidden', 
+    elevation: 5 
+  },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#EEE' },
   modalTitle: { fontWeight: 'bold', marginLeft: 10 },
   modalForm: { padding: 20 },

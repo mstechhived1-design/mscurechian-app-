@@ -6,7 +6,7 @@
 |-----------|--------|
 | Local Backend (`Multitenant_MsCurechain_Backend`) | ✅ Running on port 5003 |
 | Backend Health | ✅ 15 hospitals, 17 doctors loaded |
-| App → Local Backend URL | ✅ `http://192.168.29.48:5003/api` |
+| App → Local Backend URL | ✅ `http://192.168.31.47:5003/api` |
 | Timeslot booking flow | ✅ Implemented |
 | Hospital search | ✅ Implemented |
 | Specialty filter | ✅ Implemented |
@@ -42,7 +42,7 @@ The `type` field (`"online"` vs `"offline"`) distinguishes them.
 
 | Environment | URL |
 |-------------|-----|
-| **Local (current)** | `http://192.168.29.48:5003/api` |
+| **Local (current)** | `http://192.168.31.47:5003/api` |
 | Production | `https://www.mscurechain.com/api` |
 
 To switch back to production, edit `.env`:
@@ -168,14 +168,14 @@ Body:
 
 ### .env (auto-detecting local backend)
 ```env
-EXPO_PUBLIC_API_URL=http://192.168.29.48:5003/api
-REACT_APP_API_URL=http://192.168.29.48:5003/api
+EXPO_PUBLIC_API_URL=http://192.168.31.47:5003/api
+REACT_APP_API_URL=http://192.168.31.47:5003/api
 ```
 
 ### For different devices:
 | Device | URL to use |
 |--------|-----------|
-| Physical device (same WiFi) | `http://192.168.29.48:5003/api` |
+| Physical device (same WiFi) | `http://192.168.31.47:5003/api` |
 | iOS Simulator | `http://localhost:5003/api` |
 | Android Emulator | `http://10.0.2.2:5003/api` |
 
@@ -186,7 +186,7 @@ REACT_APP_API_URL=http://192.168.29.48:5003/api
 ### Patient App
 | File | Change |
 |------|--------|
-| `.env` | Switched to local backend `192.168.29.48:5003` |
+| `.env` | Switched to local backend `192.168.31.47:5003` |
 | `src/services/paymentService.ts` | Complete rewrite for local backend API |
 | `src/screens/BookAppointmentScreen.tsx` | Complete rewrite with 5-step wizard |
 | `src/screens/BookingPaymentScreen.tsx` | Uses local backend direct booking |
