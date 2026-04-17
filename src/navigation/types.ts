@@ -22,4 +22,5 @@ export type RootStackParamList = {
   DischargeRecords: undefined;
   DischargeDetail: { dischargeId: string };
   Feedback: { hospitalId?: string; hospitalName?: string };
+  TermsAndConditions: { initialTab?: 'terms' | 'privacy' };
 };

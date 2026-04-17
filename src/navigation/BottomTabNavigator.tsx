@@ -7,11 +7,12 @@ import {
   Activity,
   CreditCard,
   User,
+  Brain,
 } from 'lucide-react-native';
 
 import DashboardScreen from '@/screens/DashboardScreen';
 import AppointmentsScreen from '@/screens/AppointmentsScreen';
-import VitalsScreen from '@/screens/VitalsScreen';
+import AISymptomCheckerScreen from '@/screens/AISymptomCheckerScreen';
 import PaymentsScreen from '@/screens/PaymentsScreen';
 import ProfileScreen from '@/screens/ProfileScreen';
 import { COLORS } from '@/constants/designSystem';
@@ -27,8 +28,8 @@ export type BottomTabParamList = {
   Home: undefined;
   /** navigate('Appointments') from any tab child resolves here */
   Appointments: undefined;
-  /** navigate('Vitals') resolves here */
-  Vitals: undefined;
+  /** navigate('AISymptomChecker') resolves here */
+  AISymptomChecker: undefined;
   /** navigate('Payments') resolves here */
   Payments: undefined;
   /** navigate('Profile') resolves here */
@@ -48,9 +49,9 @@ function TabIcon({
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
       <Icon
-        size={21}
+        size={24}
         color={focused ? COLORS.primary : '#94A3B8'}
-        strokeWidth={focused ? 2.3 : 1.7}
+        strokeWidth={focused ? 2.5 : 2.0}
       />
     </View>
   );
@@ -88,11 +89,11 @@ export default function BottomTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="Vitals"
-        component={VitalsScreen}
+        name="AISymptomChecker"
+        component={AISymptomCheckerScreen}
         options={{
-          tabBarLabel: 'Health',
-          tabBarIcon: ({ focused }) => <TabIcon Icon={Activity} focused={focused} />,
+          tabBarLabel: 'AI Symptoms',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Brain} focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -115,7 +116,7 @@ export default function BottomTabNavigator() {
   );
 }
 
-const TAB_HEIGHT = Platform.OS === 'ios' ? 80 : 64;
+const TAB_HEIGHT = Platform.OS === 'ios' ? 95 : 75;
 
 const styles = StyleSheet.create({
   tabBar: {
@@ -136,14 +137,15 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     letterSpacing: 0.1,
+    marginTop: 2,
   },
   iconWrap: {
-    width: 42,
-    height: 28,
-    borderRadius: 14,
+    width: 50,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },

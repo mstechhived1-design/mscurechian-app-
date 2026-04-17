@@ -48,13 +48,11 @@ export const TOKEN_KEYS = {
 // ─── LOCAL BACKEND CONFIGURATION ─────────────────────────────────────────────
 //
 // Change this ONE value to switch backends:
-//   Local dev  : http://192.168.29.48:5003/api   ← current
+//   Local dev  : http://10.55.39.191:5003/api   ← current
 //   iOS sim    : http://localhost:5003/api
 //   Android emu: http://10.0.2.2:5003/api
 //   Production : https://www.mscurechain.com/api
 //
-const LOCAL_BACKEND_URL = 'http://192.168.29.48:5003/api';
-
 const getBaseUrl = (): string => {
   // 1. Runtime env var (EXPO_PUBLIC_ prefix required for Expo to expose it to JS)
   //    Note: Expo caches env vars at bundle time, so changes require --clear restart
@@ -64,10 +62,14 @@ const getBaseUrl = (): string => {
     return envUrl;
   }
 
-  // 2. In development, always use the local backend (hardcoded for reliability)
+  // 2. In development, prioritize envUrl, then fallback to current network IP
   if (__DEV__) {
-    console.log('[AxiosConfig] DEV mode: Using local backend:', LOCAL_BACKEND_URL);
-    return LOCAL_BACKEND_URL;
+    const fallback = 'http://10.55.39.191:5003/api';
+    const finalUrl = envUrl && envUrl !== 'undefined' && envUrl.startsWith('http') 
+        ? envUrl 
+        : fallback;
+    console.log('[AxiosConfig] DEV mode: Using API URL:', finalUrl);
+    return finalUrl;
   }
 
   // 3. Production fallback

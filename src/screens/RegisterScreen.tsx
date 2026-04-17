@@ -1,359 +1,407 @@
-/**
- * RegisterScreen — Patient Self-Registration
- *
- * New patients register here to create an account on the local backend.
- * Route: POST /api/auth/register
- *
- * Login options after registration:
- *   - Mobile + Password (set during registration)
- *   - Mobile + DOB in DDMMYYYY format (if profile DOB is set)
- */
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
+  Image,
+  Dimensions,
+  TextInput as RNTextInput,
+  TouchableWithoutFeedback,
+  Keyboard,
   Platform,
+  StatusBar,
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  User,
-  Smartphone,
-  Mail,
-  Lock,
+import { 
+  User, 
+  Smartphone, 
+  Mail, 
+  Lock, 
+  Shield, 
   ChevronLeft,
-  CheckCircle2,
+  Check,
   Eye,
   EyeOff,
-  Shield,
 } from 'lucide-react-native';
+import { 
+  useFonts,
+  Manrope_400Regular,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
 
 import { apiClient, AUTH_ENDPOINTS, saveAuthTokens } from '@/api';
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '@/constants/designSystem';
-import { SanctuaryText } from '@/components/SanctuaryComponents';
+import { SanctuaryText, PrimaryButton, DigitalAtriumLoader } from '@/components/SanctuaryComponents';
 
-type NavProp = StackNavigationProp<RootStackParamList>;
+const { width, height } = Dimensions.get('window');
+
+// --- Proper HMS Validations (Synced with Backend Policy) ---
+const registerSchema = z.object({
+  name: z.string()
+    .min(2, 'Name is too short')
+    .max(50, 'Name is too long')
+    .regex(/^[a-zA-Z\s]+$/, 'Name can only contain letters'),
+  mobile: z
+    .string()
+    .min(10, 'Mobile number must be 10 digits')
+    .regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number'),
+  email: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Needs at least one uppercase letter')
+    .regex(/[a-z]/, 'Needs at least one lowercase letter')
+    .regex(/[0-9]/, 'Needs at least one digit')
+    .regex(/[@$!%*?&#^()_+\-=]/, 'Needs at least one special character'),
+  confirmPassword: z.string(),
+  consent: z.boolean().refine((val) => val === true, {
+    message: 'Agreement is mandatory',
+  }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterScreen() {
-  const navigation = useNavigation<NavProp>();
-
-  const [name, setName] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [consent, setConsent] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const validate = (): string | null => {
-    if (!name.trim() || name.trim().length < 2) return 'Please enter your full name';
-    if (!/^[6-9]\d{9}$/.test(mobile)) return 'Enter a valid 10-digit Indian mobile number';
-    if (!/^\S+@\S+\.\S+$/.test(email)) return 'Please enter a valid email address';
-    if (password.length < 6) return 'Password must be at least 6 characters';
-    if (password !== confirmPassword) return 'Passwords do not match';
-    if (!consent) return 'You must accept the Terms & Conditions to register';
-    return null;
-  };
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
-  const handleRegister = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+  let [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
 
-    setError(null);
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { name: '', mobile: '', email: '', password: '', confirmPassword: '', consent: false },
+  });
+
+  const consentValue = watch('consent');
+
+  const onRegisterSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
-
+    setServerError(null);
     try {
       const resp = await apiClient.post(AUTH_ENDPOINTS.REGISTER || '/auth/register', {
-        name: name.trim(),
-        mobile: mobile.trim(),
-        email: email.trim().toLowerCase(),
-        password,
+        name: data.name.trim(),
+        mobile: data.mobile.trim(),
+        email: data.email?.trim().toLowerCase() || "",
+        password: data.password,
         role: 'patient',
         consentGiven: true,
+        platform: 'mobile',
       });
 
       const { tokens, user } = resp.data;
-
-      // Auto-login after successful registration
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
 
       Alert.alert(
-        '✅ Registration Successful',
-        `Welcome, ${user.name}! Your patient account has been created.`,
-        [{ text: 'Continue', onPress: () => navigation.replace('Dashboard') }],
+        '✅ Welcome to MS CureChain',
+        `Hey ${user.name}, your patient account has been successfully created.`,
+        [{ text: 'Start Journey', onPress: () => navigation.replace('Dashboard') }]
       );
     } catch (e: any) {
-      const msg =
-        e?.error?.message ||
-        e?.response?.data?.message ||
-        e?.message ||
-        'Registration failed. Please try again.';
-
-      if (msg.includes('Mobile already registered')) {
-        setError('This mobile number is already registered. Please log in instead.');
-      } else if (msg.includes('Email already registered')) {
-        setError('This email is already registered. Try a different email address.');
-      } else if (msg.includes('Connectivity') || msg.includes('Network')) {
-        setError('Cannot reach server. Make sure you are on the same Wi-Fi as the backend.');
-      } else {
-        setError(msg);
-      }
+      const msg = e?.response?.data?.message || e?.message || 'Registration failed.';
+      setServerError(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const Field = ({
-    icon: Icon,
-    label,
-    value,
-    onChangeText,
-    placeholder,
-    keyboardType,
-    secureTextEntry,
-    rightElement,
-    maxLength,
-    autoCapitalize,
-  }: any) => (
-    <View style={styles.fieldGroup}>
-      <SanctuaryText variant="label_lg" style={styles.fieldLabel}>{label}</SanctuaryText>
-      <View style={styles.inputRow}>
-        <View style={styles.inputIcon}>
-          <Icon size={16} color={COLORS.primary} />
-        </View>
-        <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor="#B0BAC9"
-          keyboardType={keyboardType || 'default'}
-          secureTextEntry={secureTextEntry}
-          maxLength={maxLength}
-          autoCapitalize={autoCapitalize || 'none'}
-          autoCorrect={false}
-        />
-        {rightElement}
-      </View>
-    </View>
-  );
+  if (!fontsLoaded) return <DigitalAtriumLoader />;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <ChevronLeft size={22} color="#1E293B" />
-          </TouchableOpacity>
-          <SanctuaryText variant="headline_sm" style={styles.headerTitle}>Create Account</SanctuaryText>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Hero */}
-          <LinearGradient colors={['#1E40AF', '#2563EB']} style={styles.hero}>
-            <View style={styles.heroIcon}>
-              <User size={32} color="#fff" />
-            </View>
-            <SanctuaryText variant="headline_sm" style={styles.heroTitle}>Patient Registration</SanctuaryText>
-            <SanctuaryText variant="body_sm" style={styles.heroSub}>
-              Register to book appointments and manage your health records
-            </SanctuaryText>
-          </LinearGradient>
-
-          <View style={styles.form}>
-            {/* Error banner */}
-            {!!error && (
-              <View style={styles.errorBox}>
-                <Shield size={14} color="#B91C1C" />
-                <SanctuaryText variant="body_sm" style={styles.errorMsg}>{error}</SanctuaryText>
-              </View>
-            )}
-
-            <Field
-              icon={User}
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Priya Sharma"
-              autoCapitalize="words"
-            />
-
-            <Field
-              icon={Smartphone}
-              label="Mobile Number"
-              value={mobile}
-              onChangeText={(t: string) => setMobile(t.replace(/[^0-9]/g, '').slice(0, 10))}
-              placeholder="10-digit mobile number"
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-
-            <Field
-              icon={Mail}
-              label="Email Address"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-            />
-
-            <Field
-              icon={Lock}
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Minimum 6 characters"
-              secureTextEntry={!showPass}
-              rightElement={
-                <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-                  {showPass ? <EyeOff size={18} color="#94A3B8" /> : <Eye size={18} color="#94A3B8" />}
-                </TouchableOpacity>
-              }
-            />
-
-            <Field
-              icon={Lock}
-              label="Confirm Password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="Re-enter your password"
-              secureTextEntry={!showConfirm}
-              rightElement={
-                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn}>
-                  {showConfirm ? <EyeOff size={18} color="#94A3B8" /> : <Eye size={18} color="#94A3B8" />}
-                </TouchableOpacity>
-              }
-            />
-
-            {/* Consent */}
-            <TouchableOpacity style={styles.consentRow} onPress={() => setConsent(!consent)} activeOpacity={0.7}>
-              <View style={[styles.checkbox, consent && styles.checkboxActive]}>
-                {consent && <CheckCircle2 size={14} color="#fff" />}
-              </View>
-              <SanctuaryText variant="body_sm" style={styles.consentTxt}>
-                I agree to the{' '}
-                <SanctuaryText variant="body_sm" style={styles.consentLink}>Terms of Service</SanctuaryText>
-                {' '}and{' '}
-                <SanctuaryText variant="body_sm" style={styles.consentLink}>Privacy Policy</SanctuaryText>
-              </SanctuaryText>
-            </TouchableOpacity>
-
-            {/* Register Button */}
-            <TouchableOpacity
-              style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
-              onPress={handleRegister}
-              disabled={isLoading}
-              activeOpacity={0.85}
+    <SafeAreaView style={styles.base}>
+      <StatusBar barStyle="dark-content" />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.flex1}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.flex1}
+          >
+            <ScrollView 
+              ref={scrollViewRef}
+              contentContainerStyle={[
+                styles.scrollContent,
+                { paddingBottom: keyboardHeight > 0 ? keyboardHeight / 2 : 40 }
+              ]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
             >
-              <LinearGradient
-                colors={isLoading ? ['#94A3B8', '#94A3B8'] : ['#1E40AF', '#2563EB']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={styles.submitGrad}
-              >
-                <SanctuaryText variant="label_lg" style={styles.submitTxt}>
-                  {isLoading ? 'Creating Account...' : 'Create My Account'}
-                </SanctuaryText>
-              </LinearGradient>
+            {/* Header / Back */}
+            <TouchableOpacity style={styles.stickyBack} onPress={() => navigation.goBack()}>
+              <ChevronLeft size={24} color="#1A1C1E" />
             </TouchableOpacity>
 
-            {/* Already have account */}
-            <View style={styles.loginRow}>
-              <SanctuaryText variant="body_sm" style={styles.loginHint}>Already have an account? </SanctuaryText>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
-                <SanctuaryText variant="label_lg" style={styles.loginLink}>Sign In</SanctuaryText>
-              </TouchableOpacity>
+            <View style={styles.heroWrapper}>
+              <Image 
+                source={require('../../assets/login_hero.jpg')} 
+                style={styles.heroImg}
+                resizeMode="cover"
+              />
+              <View style={styles.curvedOverlay} />
             </View>
 
-            {/* Info box */}
-            <View style={styles.infoBox}>
-              <Shield size={13} color="#2563EB" />
-              <SanctuaryText variant="body_sm" style={styles.infoTxt}>
-                After registering, you can log in with your mobile number and the password you set above.
-              </SanctuaryText>
-            </View>
-          </View>
+            <View style={styles.content}>
+               <SanctuaryText variant="headline_md" style={styles.mainTitle}>Create Account</SanctuaryText>
+               <SanctuaryText variant="body_md" style={styles.subTitle}>
+                  Join the most trusted digital healthcare network.
+               </SanctuaryText>
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+               <View style={styles.form}>
+                  {/* Name */}
+                  <View style={styles.fieldItem}>
+                    <SanctuaryText variant="label_lg" style={styles.fieldLabel}>Full Name</SanctuaryText>
+                    <Controller
+                      control={control}
+                      name="name"
+                      render={({ field: { onChange, value } }) => (
+                        <View style={[styles.inputBox, errors.name && styles.errorStroke]}>
+                          <User size={18} color="#005AB5" style={styles.iconSp} />
+                          <RNTextInput
+                            value={value}
+                            onChangeText={onChange}
+                            style={styles.textInput}
+                            placeholder="e.g. Rahul Verma"
+                            placeholderTextColor="#AAA"
+                          />
+                        </View>
+                      )}
+                    />
+                    {errors.name && <SanctuaryText variant="body_sm" style={styles.errMsg}>{errors.name.message}</SanctuaryText>}
+                  </View>
+
+                  {/* Mobile */}
+                  <View style={styles.fieldItem}>
+                    <SanctuaryText variant="label_lg" style={styles.fieldLabel}>Mobile Number</SanctuaryText>
+                    <Controller
+                      control={control}
+                      name="mobile"
+                      render={({ field: { onChange, value } }) => (
+                        <View style={[styles.inputBox, errors.mobile && styles.errorStroke]}>
+                          <Smartphone size={18} color="#005AB5" style={styles.iconSp} />
+                          <RNTextInput
+                            value={value}
+                            onChangeText={(t) => onChange(t.replace(/[^0-9]/g, ''))}
+                            style={styles.textInput}
+                            placeholder="10 digit number"
+                            placeholderTextColor="#AAA"
+                            keyboardType="number-pad"
+                            maxLength={10}
+                          />
+                        </View>
+                      )}
+                    />
+                    {errors.mobile && <SanctuaryText variant="body_sm" style={styles.errMsg}>{errors.mobile.message}</SanctuaryText>}
+                  </View>
+
+                  {/* Email */}
+                  <View style={styles.fieldItem}>
+                    <SanctuaryText variant="label_lg" style={styles.fieldLabel}>Email Address</SanctuaryText>
+                    <Controller
+                      control={control}
+                      name="email"
+                      render={({ field: { onChange, value } }) => (
+                        <View style={[styles.inputBox, errors.email && styles.errorStroke]}>
+                          <Mail size={18} color="#005AB5" style={styles.iconSp} />
+                          <RNTextInput
+                            value={value}
+                            onChangeText={onChange}
+                            style={styles.textInput}
+                            placeholder="name@example.com"
+                            placeholderTextColor="#AAA"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                          />
+                        </View>
+                      )}
+                    />
+                    {errors.email && <SanctuaryText variant="body_sm" style={styles.errMsg}>{errors.email.message}</SanctuaryText>}
+                  </View>
+
+                  {/* Password */}
+                  <View style={styles.fieldItem}>
+                    <SanctuaryText variant="label_lg" style={styles.fieldLabel}>Password</SanctuaryText>
+                    <Controller
+                      control={control}
+                      name="password"
+                      render={({ field: { onChange, value } }) => (
+                        <View style={[styles.inputBox, errors.password && styles.errorStroke]}>
+                          <Lock size={18} color="#005AB5" style={styles.iconSp} />
+                          <RNTextInput
+                            value={value}
+                            onChangeText={onChange}
+                            style={styles.textInput}
+                            placeholder="••••••••"
+                            placeholderTextColor="#AAA"
+                            secureTextEntry={!showPass}
+                          />
+                          <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                            {showPass ? <EyeOff size={20} color="#005AB5" /> : <Eye size={20} color="#005AB5" />}
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    />
+                    {errors.password && <SanctuaryText variant="body_sm" style={styles.errMsg}>{errors.password.message}</SanctuaryText>}
+                  </View>
+
+                  {/* Confirm Password */}
+                  <View style={styles.fieldItem}>
+                    <SanctuaryText variant="label_lg" style={styles.fieldLabel}>Confirm Password</SanctuaryText>
+                    <Controller
+                      control={control}
+                      name="confirmPassword"
+                      render={({ field: { onChange, value } }) => (
+                        <View style={[styles.inputBox, errors.confirmPassword && styles.errorStroke]}>
+                          <Shield size={18} color="#005AB5" style={styles.iconSp} />
+                          <RNTextInput
+                            value={value}
+                            onChangeText={onChange}
+                            style={styles.textInput}
+                            placeholder="••••••••"
+                            placeholderTextColor="#AAA"
+                            secureTextEntry={!showConfirm}
+                          />
+                          <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn}>
+                            {showConfirm ? <EyeOff size={20} color="#005AB5" /> : <Eye size={20} color="#005AB5" />}
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    />
+                    {errors.confirmPassword && <SanctuaryText variant="body_sm" style={styles.errMsg}>{errors.confirmPassword.message}</SanctuaryText>}
+                  </View>
+
+                  {/* Consent */}
+                  <TouchableOpacity 
+                    style={styles.consentRow} 
+                    onPress={() => setValue('consent', !consentValue)} 
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.checkOuter, consentValue && styles.checkActive]}>
+                      {consentValue && <Check size={14} color="#fff" strokeWidth={3} />}
+                    </View>
+                    <View style={styles.consentTxtBlock}>
+                       <SanctuaryText variant="body_sm" style={styles.consentBase}>
+                          I agree to MS CureChain's 
+                          <SanctuaryText 
+                             variant="label_sm" 
+                             style={styles.legalLink}
+                             onPress={(e: any) => {
+                               e.stopPropagation();
+                               navigation.navigate('TermsAndConditions', { initialTab: 'terms' });
+                             }}
+                          > Terms </SanctuaryText>
+                          &
+                          <SanctuaryText 
+                             variant="label_sm" 
+                             style={styles.legalLink}
+                             onPress={(e: any) => {
+                               e.stopPropagation();
+                               navigation.navigate('TermsAndConditions', { initialTab: 'privacy' });
+                             }}
+                          > Privacy Policy</SanctuaryText>
+                       </SanctuaryText>
+                    </View>
+                  </TouchableOpacity>
+                  {errors.consent && <SanctuaryText variant="body_sm" style={[styles.errMsg, { marginTop: -12, marginBottom: 12 }]}>{errors.consent.message}</SanctuaryText>}
+
+                  {serverError && <SanctuaryText variant="body_sm" style={styles.serverAlert}>{serverError}</SanctuaryText>}
+
+                  <PrimaryButton
+                    label="Register Now"
+                    onPress={handleSubmit(onRegisterSubmit)}
+                    loading={isLoading}
+                    disabled={!consentValue || isLoading}
+                    style={[styles.submitBtn, !consentValue && { opacity: 0.5 }]}
+                  />
+
+                  <View style={styles.loginHintRow}>
+                    <SanctuaryText variant="body_sm" style={{color: '#888'}}>Already with us? </SanctuaryText>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                      <SanctuaryText variant="label_lg" style={styles.loginLink}>Sign In</SanctuaryText>
+                    </TouchableOpacity>
+                  </View>
+               </View>
+            </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  flex: { flex: 1 },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
-  },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { color: '#1E293B', fontWeight: '900', fontSize: 18 },
-
-  scroll: { flexGrow: 1 },
-
-  hero: { padding: 28, alignItems: 'center', gap: 10 },
-  heroIcon: { width: 64, height: 64, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  heroTitle: { color: '#fff', fontWeight: '900', fontSize: 20, textAlign: 'center' },
-  heroSub: { color: 'rgba(255,255,255,0.75)', fontSize: 13, textAlign: 'center', lineHeight: 20 },
-
-  form: { padding: 24, gap: 4 },
-
-  errorBox: { flexDirection: 'row', gap: 10, backgroundColor: '#FEF2F2', borderRadius: 12, padding: 14, marginBottom: 12, alignItems: 'flex-start' },
-  errorMsg: { color: '#B91C1C', fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
-
-  fieldGroup: { marginBottom: 18 },
-  fieldLabel: { color: '#475569', fontWeight: '800', fontSize: 12, marginBottom: 8 },
-  inputRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 14, borderWidth: 1.5, borderColor: '#E2E8F0',
-    paddingHorizontal: 14, paddingVertical: 4,
-  },
-  inputIcon: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', marginRight: 4 },
-  input: { flex: 1, color: '#1E293B', fontSize: 15, paddingVertical: 12 },
-  eyeBtn: { padding: 8 },
-
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 22, marginTop: 4 },
-  checkbox: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', flexShrink: 0, marginTop: 1 },
-  checkboxActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  consentTxt: { color: '#64748B', fontSize: 12, lineHeight: 20, flex: 1 },
-  consentLink: { color: COLORS.primary, fontWeight: '700', fontSize: 12 },
-
-  submitBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
-  submitBtnDisabled: { opacity: 0.6 },
-  submitGrad: { paddingVertical: 17, alignItems: 'center', justifyContent: 'center' },
-  submitTxt: { color: '#fff', fontWeight: '900', fontSize: 16 },
-
-  loginRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  loginHint: { color: '#94A3B8', fontSize: 13 },
-  loginLink: { color: COLORS.primary, fontSize: 13, fontWeight: '800' },
-
-  infoBox: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderRadius: 12, padding: 14, alignItems: 'flex-start' },
-  infoTxt: { color: '#1D4ED8', fontSize: 11, fontWeight: '500', flex: 1, lineHeight: 17 },
+  base: { flex: 1, backgroundColor: '#FFF' },
+  flex1: { flex: 1 },
+  scrollContent: { flexGrow: 1, backgroundColor: '#FFF' },
+  stickyBack: { position: 'absolute', top: 16, left: 16, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  heroWrapper: { height: height * 0.22, width: '100%' },
+  heroImg: { width: '100%', height: '100%' },
+  curvedOverlay: { position: 'absolute', bottom: 0, width: '100%', height: 32, backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32 },
+  content: { flex: 1, paddingHorizontal: 32, backgroundColor: '#FFF', marginTop: -10 },
+  mainTitle: { fontSize: 28, fontFamily: 'Manrope_800ExtraBold', color: '#1A1C1E', marginBottom: 4 },
+  subTitle: { color: '#666', marginBottom: 24, fontSize: 13 },
+  form: { width: '100%' },
+  fieldItem: { marginBottom: 16 },
+  fieldLabel: { color: '#1A1C1E', opacity: 0.8, marginBottom: 8, fontSize: 12 },
+  inputBox: { flexDirection: 'row', alignItems: 'center', height: 58, borderWidth: 1.5, borderColor: '#EAECF0', backgroundColor: '#FAFBFC', paddingHorizontal: 16, borderRadius: 12 },
+  iconSp: { marginRight: 12 },
+  textInput: { flex: 1, fontSize: 15, color: '#1A1C1E', fontWeight: '500' },
+  eyeBtn: { padding: 8, marginLeft: 4 },
+  errorStroke: { borderColor: '#BA1A1A' },
+  errMsg: { color: '#BA1A1A', fontSize: 11, marginTop: 4, fontWeight: '600' },
+  serverAlert: { color: '#BA1A1A', textAlign: 'center', marginBottom: 16, fontWeight: '700' },
+  submitBtn: { height: 60, borderRadius: 12, marginTop: 8 },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 16 },
+  checkOuter: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#EAECF0', backgroundColor: '#FAFBFC', justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+  checkActive: { backgroundColor: '#005AB5', borderColor: '#005AB5' },
+  consentTxtBlock: { flex: 1, marginLeft: 12 },
+  consentBase: { color: '#666', fontSize: 12, lineHeight: 18 },
+  legalLink: { color: '#005AB5', fontWeight: '800' },
+  loginHintRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 24, paddingBottom: 40 },
+  loginLink: { color: '#005AB5', fontWeight: '800' },
 });

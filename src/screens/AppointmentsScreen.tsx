@@ -39,8 +39,10 @@ const STATUS = {
   completed:   { label: 'COMPLETED',   color: '#059669', bg: '#ECFDF5' },
   'in-progress':{ label: 'IN-PROGRESS', color: '#D97706', bg: '#FFFBEB' },
   Booked:      { label: 'BOOKED',      color: '#2563EB', bg: '#EFF6FF' },
+  booked:      { label: 'BOOKED',      color: '#2563EB', bg: '#EFF6FF' },
   pending:     { label: 'PENDING',     color: '#6B7280', bg: '#F9FAFB' },
   cancelled:   { label: 'CANCELLED',   color: '#DC2626', bg: '#FEF2F2' },
+  rejected:    { label: 'REJECTED',    color: '#DC2626', bg: '#FEF2F2' },
 } as Record<string, { label: string; color: string; bg: string }>;
 
 function statusCfg(s: string) {
@@ -140,9 +142,9 @@ export default function AppointmentsScreen() {
 
   if (loading && !refreshing) return <DigitalAtriumLoader />;
 
-  const DONE_STATUSES = ['completed', 'cancelled'];
-  const upcoming = appointments.filter(apt => !DONE_STATUSES.includes(apt.status?.toLowerCase()));
-  const past = appointments.filter(apt => DONE_STATUSES.includes(apt.status?.toLowerCase()));
+  const DONE_STATUSES = ['completed', 'cancelled', 'rejected'];
+  const upcoming = appointments.filter(apt => !DONE_STATUSES.includes(apt.status?.trim().toLowerCase()));
+  const past = appointments.filter(apt => DONE_STATUSES.includes(apt.status?.trim().toLowerCase()));
 
   return (
     <View style={styles.container}>

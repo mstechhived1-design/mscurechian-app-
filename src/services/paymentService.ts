@@ -20,7 +20,8 @@
 
 import apiClient from '@/api/axiosConfig';
 
-export const RAZORPAY_KEY_ID = 'rzp_test_SbfpbKBXqOa5tv';
+// Live Razorpay Key ID — keep in sync with backend .env RAZORPAY_KEY_ID
+export const RAZORPAY_KEY_ID = 'rzp_live_SeTL2EXLADrKBu';
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -89,6 +90,11 @@ export interface HourBlock {
   bookedCount: number;
   availableCount: number;
   isFull: boolean;
+  subSlots?: Array<{
+    startTime: string;
+    endTime: string;
+    isBooked: boolean;
+  }>;
 }
 
 /** Availability response shape */
@@ -110,11 +116,18 @@ export interface BookingSlot {
   startTime: string;          // "9:00 AM"
   endTime: string;            // "10:00 AM"
   consultationFee: number;
-  appointmentType: 'OPD' | 'Video';
+  appointmentType: string;
   symptoms: string;
   notes: string;
+  vitals?: {
+    weight?: string;
+    bp?: string;
+    spO2?: string;
+    temp?: string;
+  };
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
+  razorpaySignature?: string;
 }
 
 /** Returned by backend after successful booking */
@@ -263,7 +276,7 @@ export const fetchDoctorAvailability = async (
   date: string,
 ): Promise<AvailabilityResponse> => {
   try {
-    const res = await apiClient.get('/bookings/availability', {
+    const res = await apiClient.get('/mobile/availability', {
       params: { doctorId, hospitalId, date },
     });
 
@@ -327,24 +340,27 @@ export const generateFallbackHourBlocks = (): HourBlock[] => {
 export const bookAppointment = async (booking: BookingSlot): Promise<BookingConfirmation> => {
   const payload = {
     doctorId: booking.doctorId,
+    hospitalId: booking.hospitalId,
     date: booking.date,
-    // Backend accepts "startTime - endTime" combined format
     timeSlot: `${booking.startTime} - ${booking.endTime}`,
     startTime: booking.startTime,
     endTime: booking.endTime,
+    hourlyBlock: booking.timeSlot,
     symptoms: booking.symptoms ? [booking.symptoms] : [],
     reason: booking.notes || booking.symptoms || 'General Consultation',
-    type: booking.appointmentType === 'Video' ? 'online' : 'offline',
+    appointmentType: booking.appointmentType,
+    vitals: booking.vitals,
     urgency: 'non-urgent',
-    paymentMethod: 'online',
+    paymentMethod: 'razorpay',
     paymentStatus: 'Paid',
     razorpayOrderId: booking.razorpayOrderId,
     razorpayPaymentId: booking.razorpayPaymentId,
+    razorpaySignature: booking.razorpaySignature,
   };
 
   console.log('[PaymentService] bookAppointment payload:', JSON.stringify(payload));
 
-  const res = await apiClient.post('/bookings/book', payload);
+  const res = await apiClient.post('/mobile/book', payload);
   const appt = res.data?.appointment || res.data;
 
   return {
@@ -376,22 +392,47 @@ export const simulatePaymentAndBook = async (
 
 /**
  * Create a Razorpay order via the backend.
- * Route: POST /api/bookings/create-order
+ * Route: POST /api/mobile/create-order   ← uses live keys from .env
  */
 export const createRazorpayOrder = async (amount: number): Promise<any> => {
-  const res = await apiClient.post('/bookings/create-order', { amount });
-  return res.data; // This returns the Razorpay order object (id, amount, currency, etc.)
+  const res = await apiClient.post('/mobile/create-order', { amount });
+  return res.data; // { orderId, amount, currency, receipt }
 };
 
 /**
  * Verify Razorpay payment signature via the backend.
- * Route: POST /api/bookings/verify-payment
+ * Route: POST /api/mobile/verify-payment
  */
 export const verifyRazorpayPayment = async (data: {
   razorpay_order_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
 }): Promise<any> => {
-  const res = await apiClient.post('/bookings/verify-payment', data);
+  const res = await apiClient.post('/mobile/verify-payment', data);
   return res.data;
+};
+
+/**
+ * Builds the URL to the backend's hosted Razorpay checkout HTML page.
+ * The mobile WebView loads this URL — payment happens entirely inside the app.
+ *
+ * @param orderId   Razorpay order ID returned by createRazorpayOrder
+ * @param amountPaise  Amount in paise (multiply ₹ by 100)
+ * @param patientInfo  Prefill details
+ */
+export const buildCheckoutUrl = (
+  orderId: string,
+  amountPaise: number,
+  patientInfo?: { name?: string; email?: string; contact?: string; description?: string },
+): string => {
+  const base = (process.env.EXPO_PUBLIC_API_URL || '').replace('/api', '');
+  const params = new URLSearchParams({
+    orderId,
+    amount: String(amountPaise),
+    ...(patientInfo?.name    ? { name: patientInfo.name }       : {}),
+    ...(patientInfo?.email   ? { email: patientInfo.email }     : {}),
+    ...(patientInfo?.contact ? { contact: patientInfo.contact } : {}),
+    ...(patientInfo?.description ? { description: patientInfo.description } : {}),
+  });
+  return `${base}/api/mobile/checkout?${params.toString()}`;
 };

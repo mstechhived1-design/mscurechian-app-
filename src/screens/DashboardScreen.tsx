@@ -438,9 +438,9 @@ export default function DashboardScreen() {
 
           {/* ── Priority Visits — only confirmed/Booked/in-progress — */}
           {(() => {
-            const CONFIRMED_STATUSES = ['confirmed', 'Booked', 'booked'];
+            const CONFIRMED_STATUSES = ['confirmed', 'booked'];
             const priorityApts = appointments
-              .filter(a => CONFIRMED_STATUSES.includes(a.status))
+              .filter(a => CONFIRMED_STATUSES.includes(a.status?.trim().toLowerCase()))
               .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
               .slice(0, 3);
             return priorityApts.length > 0 ? (
@@ -539,6 +539,7 @@ const APT_STATUS: Record<string, { label: string; color: string; bg: string }> =
   booked:       { label: 'BOOKED',      color: '#2563EB', bg: '#EFF6FF' },
   pending:      { label: 'PENDING',     color: '#6B7280', bg: '#F9FAFB' },
   cancelled:    { label: 'CANCELLED',   color: '#DC2626', bg: '#FEF2F2' },
+  rejected:     { label: 'REJECTED',    color: '#DC2626', bg: '#FEF2F2' },
 };
 function aptStatusCfg(s: string) {
   return APT_STATUS[s] || { label: s.toUpperCase(), color: '#64748B', bg: '#F1F5F9' };

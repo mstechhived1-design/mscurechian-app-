@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -81,10 +83,10 @@ export default function ProfileScreen() {
         address: data.address || '',
         bloodGroup: data.bloodGroup || '',
         allergies: data.allergies || '',
-        gender: data.gender || '',
+        gender: data.user?.gender || data.gender || '',
         height: String(data.height || ''),
         weight: String(data.weight || ''),
-        age: String(data.age || ''),
+        age: String(data.user?.age || data.age || ''),
         emergencyContactName: data.emergencyContactName || '',
         emergencyContactPhone: data.emergencyContactPhone || '',
         emergencyContactRelation: data.emergencyContactRelation || '',
@@ -160,7 +162,7 @@ export default function ProfileScreen() {
       <Surface style={styles.header} elevation={1}>
         <View style={styles.headerRow}>
           <View style={{ width: 48 }} />
-          <Text variant="titleLarge" style={styles.headerTitle}>{t('profile.title') || 'Medical Vault'}</Text>
+          <Text variant="titleLarge" style={styles.headerTitle}>{t('profile.title')}</Text>
           <View style={styles.row}>
             <LanguageSelector />
             <IconButton 
@@ -215,14 +217,14 @@ export default function ProfileScreen() {
         {/* Identity Details */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Identity & Bio</Text>
+            <Text variant="titleMedium" style={styles.sectionTitle}>{t('profile.identityBio')}</Text>
           </View>
           <Card style={styles.detailsCard} mode="outlined">
             <View style={styles.detailRow}>
               <User size={16} color="#666" style={styles.detailIcon} />
               <View>
                 <Text style={styles.detailLabel}>Gender / Age</Text>
-                <Text style={styles.detailVal}>{profile?.gender || 'Not set'} • {profile?.age || '--'} Yrs</Text>
+                <Text style={styles.detailVal}>{profile?.user?.gender || profile?.gender || 'Not set'} • {profile?.user?.age || profile?.age || '--'} Yrs</Text>
               </View>
             </View>
             <Divider style={styles.divider} />
@@ -255,7 +257,7 @@ export default function ProfileScreen() {
         {/* Emergency Contact */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Emergency Contact</Text>
+            <Text variant="titleMedium" style={styles.sectionTitle}>{t('profile.emergencyContact')}</Text>
           </View>
           <Card style={[styles.detailsCard, { borderColor: '#FED7D7' }]} mode="outlined">
             <View style={styles.detailRow}>
@@ -286,7 +288,7 @@ export default function ProfileScreen() {
           style={styles.logoutBtn}
           icon="logout"
         >
-          Sign out of Account
+          {t('profile.signOutOfAccount')}
         </Button>
         {/* Bottom clearance for the tab bar */}
         <View style={{ height: 80 }} />
@@ -299,48 +301,73 @@ export default function ProfileScreen() {
           onDismiss={() => setEditModalVisible(false)}
           contentContainerStyle={styles.modalContainer}
         >
-          <Surface style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text variant="titleLarge" style={styles.modalTitle}>Update Profile</Text>
-              <IconButton icon="close" onPress={() => setEditModalVisible(false)} />
-            </View>
-            
-            <ScrollView style={styles.modalForm}>
-              <Text style={styles.formSubHeader}>Personal Info</Text>
-              <PaperInput label="Full Name" value={editData.name} onChangeText={(t) => setEditData({...editData, name: t})} mode="outlined" style={styles.input} />
-              <PaperInput label="Gender" value={editData.gender} onChangeText={(t) => setEditData({...editData, gender: t})} mode="outlined" style={styles.input} placeholder="Male/Female/Other" />
-              <View style={styles.row}>
-                <PaperInput label="Age" value={editData.age} onChangeText={(t) => setEditData({...editData, age: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1, marginRight: 8 }]} />
-                <PaperInput label="Blood Group" value={editData.bloodGroup} onChangeText={(t) => setEditData({...editData, bloodGroup: t})} mode="outlined" style={[styles.input, { flex: 1 }]} />
-              </View>
-              <View style={styles.row}>
-                <PaperInput label="Height (cm)" value={editData.height} onChangeText={(t) => setEditData({...editData, height: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1, marginRight: 8 }]} />
-                <PaperInput label="Weight (kg)" value={editData.weight} onChangeText={(t) => setEditData({...editData, weight: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1 }]} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <Surface style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text variant="titleLarge" style={styles.modalTitle}>{t('profile.updateProfile')}</Text>
+                <IconButton icon="close" onPress={() => setEditModalVisible(false)} />
               </View>
               
-              <Text style={styles.formSubHeader}>Contact & Address</Text>
-              <PaperInput label="EMail Address" value={editData.email} onChangeText={(t) => setEditData({...editData, email: t})} mode="outlined" keyboardType="email-address" style={styles.input} />
-              <PaperInput label="Home Address" value={editData.address} onChangeText={(t) => setEditData({...editData, address: t})} mode="outlined" multiline numberOfLines={2}  style={styles.input} />
-              
-              <Text style={styles.formSubHeader}>Emergency SOS Contact</Text>
-              <PaperInput label="Contact Person Name" value={editData.emergencyContactName} onChangeText={(t) => setEditData({...editData, emergencyContactName: t})} mode="outlined" style={styles.input} />
-              <PaperInput label="Relationship" value={editData.emergencyContactRelation} onChangeText={(t) => setEditData({...editData, emergencyContactRelation: t})} mode="outlined" style={styles.input} placeholder="Spouse, Parent, Friend..." />
-              <PaperInput label="Contact Phone" value={editData.emergencyContactPhone} onChangeText={(t) => setEditData({...editData, emergencyContactPhone: t})} mode="outlined" keyboardType="phone-pad" style={styles.input} />
-              
-              <PaperInput label="Medical Allergies" value={editData.allergies} onChangeText={(t) => setEditData({...editData, allergies: t})} mode="outlined" style={styles.input} />
-            </ScrollView>
+              <ScrollView 
+                style={styles.modalForm}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.formSubHeader}>{t('profile.personalInfo')}</Text>
+                <PaperInput label="Full Name" value={editData.name} onChangeText={(t) => setEditData({...editData, name: t})} mode="outlined" style={styles.input} />
+                <PaperInput label="Gender" value={editData.gender} onChangeText={(t) => setEditData({...editData, gender: t})} mode="outlined" style={styles.input} placeholder="Male/Female/Other" />
+                <View style={styles.row}>
+                  <PaperInput label="Age" value={editData.age} onChangeText={(t) => setEditData({...editData, age: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1, marginRight: 8 }]} />
+                  <PaperInput label="Blood Group" value={editData.bloodGroup} onChangeText={(t) => setEditData({...editData, bloodGroup: t})} mode="outlined" style={[styles.input, { flex: 1 }]} />
+                </View>
+                <View style={styles.row}>
+                  <PaperInput label="Height (cm)" value={editData.height} onChangeText={(t) => setEditData({...editData, height: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1, marginRight: 8 }]} />
+                  <PaperInput label="Weight (kg)" value={editData.weight} onChangeText={(t) => setEditData({...editData, weight: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1 }]} />
+                </View>
+                
+                <Text style={styles.formSubHeader}>{t('profile.contactAddress')}</Text>
+                <PaperInput label="EMail Address" value={editData.email} onChangeText={(t) => setEditData({...editData, email: t})} mode="outlined" keyboardType="email-address" style={styles.input} />
+                <PaperInput label="Home Address" value={editData.address} onChangeText={(t) => setEditData({...editData, address: t})} mode="outlined" multiline numberOfLines={2}  style={styles.input} />
+                
+                <Text style={styles.formSubHeader}>{t('profile.emergencySOSContact')}</Text>
+                <PaperInput label="Contact Person Name" value={editData.emergencyContactName} onChangeText={(t) => setEditData({...editData, emergencyContactName: t})} mode="outlined" style={styles.input} />
+                <PaperInput label="Relationship" value={editData.emergencyContactRelation} onChangeText={(t) => setEditData({...editData, emergencyContactRelation: t})} mode="outlined" style={styles.input} placeholder="Spouse, Parent, Friend..." />
+                <PaperInput label="Contact Phone" value={editData.emergencyContactPhone} onChangeText={(t) => setEditData({...editData, emergencyContactPhone: t})} mode="outlined" keyboardType="phone-pad" style={styles.input} />
+                
+                <PaperInput 
+                  label="Medical Allergies" 
+                  value={editData.allergies} 
+                  onChangeText={(t) => setEditData({...editData, allergies: t})} 
+                  mode="outlined" 
+                  style={styles.input} 
+                />
+                
+                <PaperInput 
+                  label="Mobile Number" 
+                  value={editData.mobile} 
+                  onChangeText={(t) => setEditData({...editData, mobile: t})} 
+                  mode="outlined" 
+                  keyboardType="phone-pad" 
+                  style={styles.input} 
+                  disabled 
+                />
+              </ScrollView>
 
-            <View style={styles.modalFooter}>
-              <Button onPress={() => setEditModalVisible(false)}>Cancel</Button>
-              <Button mode="contained" onPress={handleUpdate} style={styles.saveBtn}>Save Changes</Button>
-            </View>
-          </Surface>
+              <View style={styles.modalFooter}>
+                <Button onPress={() => setEditModalVisible(false)}>Cancel</Button>
+                <Button mode="contained" onPress={handleUpdate} style={styles.saveBtn}>{t('profile.saveChanges')}</Button>
+              </View>
+            </Surface>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* QR Modal */}
         <Modal visible={qrModalVisible} onDismiss={() => setQrModalVisible(false)} contentContainerStyle={styles.qrModalContainer}>
           <Surface style={styles.qrModalContent}>
-             <Text variant="titleLarge" style={styles.qrTitle}>Digital ID Pass</Text>
+             <Text variant="titleLarge" style={styles.qrTitle}>{t('profile.digitalIdPass')}</Text>
              <QRCode value={profile?.mrn || 'N/A'} size={200} />
              <Text style={styles.qrName}>{profile?.user?.name}</Text>
              <Text style={styles.qrMrn}>MRN: {profile?.mrn}</Text>

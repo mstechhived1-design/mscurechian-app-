@@ -20,6 +20,7 @@ import UpcomingAppointmentsScreen from '@/screens/UpcomingAppointmentsScreen';
 import DischargeRecordsScreen from '@/screens/DischargeRecordsScreen';
 import DischargeDetailScreen from '@/screens/DischargeDetailScreen';
 import FeedbackScreen from '@/screens/FeedbackScreen';
+import TermsAndConditionsScreen from '@/screens/TermsAndConditionsScreen';
 
 // BottomTabNavigator hosts: Home (Dashboard), Appointments, Vitals, Payments, Profile
 import BottomTabNavigator from './BottomTabNavigator';
@@ -120,6 +121,7 @@ export default function AppNavigator() {
       <Stack.Screen name="DischargeRecords" component={DischargeRecordsScreen} />
       <Stack.Screen name="DischargeDetail" component={DischargeDetailScreen} />
       <Stack.Screen name="Feedback" component={FeedbackScreen} />
+      <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
 
       {/*
        * NOTE: Appointments, Vitals, Payments, Profile are NOT listed here.

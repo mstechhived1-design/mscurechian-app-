@@ -45,8 +45,8 @@ export default function UpcomingAppointmentsScreen() {
         ? res.data.data
         : (res.data?.data?.data || []);
       
-      const DONE_STATUSES = ['completed', 'cancelled'];
-      const filtered = list.filter((apt: any) => !DONE_STATUSES.includes(apt.status?.toLowerCase()));
+      const DONE_STATUSES = ['completed', 'cancelled', 'rejected'];
+      const filtered = list.filter((apt: any) => !DONE_STATUSES.includes(apt.status?.trim().toLowerCase()));
       setAppointments(filtered);
     } catch (e) {
       console.error('[UpcomingAppointments]', e);
@@ -179,8 +179,10 @@ const STATUS = {
   completed:   { label: 'COMPLETED',   color: '#059669', bg: '#ECFDF5' },
   'in-progress':{ label: 'IN-PROGRESS', color: '#D97706', bg: '#FFFBEB' },
   Booked:      { label: 'BOOKED',      color: '#2563EB', bg: '#EFF6FF' },
+  booked:      { label: 'BOOKED',      color: '#2563EB', bg: '#EFF6FF' },
   pending:     { label: 'PENDING',     color: '#6B7280', bg: '#F9FAFB' },
   cancelled:   { label: 'CANCELLED',   color: '#DC2626', bg: '#FEF2F2' },
+  rejected:    { label: 'REJECTED',    color: '#DC2626', bg: '#FEF2F2' },
 };
 
 function statusCfg(s: string) {

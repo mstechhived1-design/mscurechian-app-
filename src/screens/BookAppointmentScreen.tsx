@@ -25,6 +25,7 @@ import {
   Platform,
   Dimensions,
   ActivityIndicator,
+  GestureResponderEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -45,6 +46,7 @@ import {
   X,
   Activity,
   Star,
+  Heart,
   MapPin,
   Filter,
 } from 'lucide-react-native';
@@ -76,7 +78,7 @@ const TOTAL_STEPS = 4;
 const STEP_LABELS = ['Doctor', 'Date & Time', 'Symptoms', 'Review'];
 
 const APPOINTMENT_TYPES: Array<{
-  id: 'OPD' | 'Video';
+  id: string;
   label: string;
   icon: any;
   color: string;
@@ -88,13 +90,6 @@ const APPOINTMENT_TYPES: Array<{
     icon: Stethoscope,
     color: '#2563EB',
     desc: 'Visit the clinic physically',
-  },
-  {
-    id: 'Video',
-    label: 'Video Call',
-    icon: Activity,
-    color: '#7C3AED',
-    desc: 'Consult from anywhere',
   },
 ];
 
@@ -113,6 +108,7 @@ export default function BookAppointmentScreen() {
   const [step, setStep] = useState(1);
 
   const [notes, setNotes] = useState('');
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
 
   // ── Processing ──
   const [isProcessing, setIsProcessing] = useState(false);
@@ -126,12 +122,20 @@ export default function BookAppointmentScreen() {
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
   const [doctorSearch, setDoctorSearch] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-  const [appointmentType, setAppointmentType] = useState<'OPD' | 'Video'>('OPD');
+  const [appointmentType, setAppointmentType] = useState<string>('Consultation');
+
+  const [vitals, setVitals] = useState({
+    weight: '',
+    bp: '',
+    spO2: '',
+    temp: '',
+  });
 
   // ── Step 2 Data (Availability) ──
   const [selectedDate, setSelectedDate] = useState('');
   const [availableBlocks, setAvailableBlocks] = useState<HourBlock[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<HourBlock | null>(null);
+  const [selectedSubSlot, setSelectedSubSlot] = useState<{ startTime: string; endTime: string } | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsMessage, setSlotsMessage] = useState('');
 
@@ -207,6 +211,8 @@ export default function BookAppointmentScreen() {
         setAvailableBlocks(resp.slots);
         setSlotsMessage(resp.message || '');
         setLoadingSlots(false);
+        // Reset subslot if date changes
+        setSelectedSubSlot(null);
       },
     );
   }, [selectedDoctor, selectedDate, selectedHospital]);
@@ -224,15 +230,19 @@ export default function BookAppointmentScreen() {
   const canProceed = useCallback((): boolean => {
     switch (step) {
       case 1: return !!selectedDoctor;
-      case 2: return !!selectedDate && !!selectedBlock;
+      case 2: return !!selectedDate && !!selectedBlock && !!selectedSubSlot;
       case 3: return selectedSymptoms.length > 0 || notes.trim().length > 0 || customSymptom.trim().length > 0;
+      case 4: return hasAcceptedTerms;
       default: return true;
     }
-  }, [step, selectedDoctor, selectedDate, selectedBlock, selectedSymptoms, notes, customSymptom]);
+  }, [step, selectedDoctor, selectedDate, selectedBlock, selectedSubSlot, selectedSymptoms, notes, customSymptom, hasAcceptedTerms]);
 
   // ── Build payload ──
   const buildBookingSlot = (): BookingSlot => {
-    const [start, end] = (selectedBlock!.timeSlot).split(' - ');
+    // If we have subslot, use it, else fallback to block boundaries
+    const startTime = selectedSubSlot?.startTime || selectedBlock!.timeSlot.split(' - ')[0].trim();
+    const endTime = selectedSubSlot?.endTime || selectedBlock!.timeSlot.split(' - ')[1].trim();
+    
     return {
       doctorId: selectedDoctor!._id,
       doctorName: getDoctorDisplayName(selectedDoctor!),
@@ -241,20 +251,21 @@ export default function BookAppointmentScreen() {
       hospitalName: selectedHospital!.name,
       date: selectedDate,
       timeSlot: selectedBlock!.timeSlot,
-      startTime: start.trim(),
-      endTime: end.trim(),
+      startTime,
+      endTime,
       consultationFee: selectedDoctor!.consultationFee || 500,
       appointmentType,
       symptoms: [...selectedSymptoms, customSymptom].filter(Boolean).join(', '),
       notes: notes.trim(),
+      vitals,
     };
   };
 
   // ── Proceed to Payment ──
   const proceedToPayment = useCallback(() => {
-    if (!selectedDoctor || !selectedHospital || !selectedBlock) return;
+    if (!selectedDoctor || !selectedHospital || !selectedBlock || !selectedSubSlot) return;
     navigation.navigate('BookingPayment', { booking: buildBookingSlot() });
-  }, [selectedDoctor, selectedHospital, selectedBlock, selectedDate, selectedSymptoms, customSymptom, notes, appointmentType]);
+  }, [selectedDoctor, selectedHospital, selectedBlock, selectedSubSlot, selectedDate, selectedSymptoms, customSymptom, notes, appointmentType]);
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -300,10 +311,12 @@ export default function BookAppointmentScreen() {
           <StepDateTime
             dates={availableDates}
             selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
+            onSelectDate={(d) => { setSelectedDate(d); setSelectedBlock(null); setSelectedSubSlot(null); }}
             blocks={availableBlocks}
             selectedBlock={selectedBlock}
-            onSelectBlock={setSelectedBlock}
+            onSelectBlock={(b) => { setSelectedBlock(b); setSelectedSubSlot(null); }}
+            selectedSubSlot={selectedSubSlot}
+            onSelectSubSlot={setSelectedSubSlot}
             loading={loadingSlots}
             message={slotsMessage}
           />
@@ -319,18 +332,26 @@ export default function BookAppointmentScreen() {
             onCustomChange={setCustomSymptom}
             notes={notes}
             onNotesChange={setNotes}
+            appointmentType={appointmentType}
+            onTypeChange={setAppointmentType}
+            vitals={vitals}
+            onVitalsChange={(v: any) => setVitals(prev => ({ ...prev, ...v }))}
           />
         )}
 
-        {step === 4 && selectedDoctor && selectedHospital && selectedBlock && (
+        {step === 4 && selectedDoctor && selectedHospital && selectedBlock && selectedSubSlot && (
           <StepReview
             doctor={selectedDoctor}
             hospital={selectedHospital}
             date={selectedDate}
             block={selectedBlock}
+            subSlot={selectedSubSlot}
             symptoms={[...selectedSymptoms, customSymptom].filter(Boolean)}
             notes={notes}
             appointmentType={appointmentType}
+            vitals={vitals}
+            hasAcceptedTerms={hasAcceptedTerms}
+            onToggleTerms={() => setHasAcceptedTerms(!hasAcceptedTerms)}
           />
         )}
 
@@ -358,9 +379,14 @@ export default function BookAppointmentScreen() {
             </LinearGradient>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.payBtn} onPress={proceedToPayment} activeOpacity={0.85}>
+          <TouchableOpacity 
+            style={[styles.payBtn, !canProceed() && styles.nextBtnDisabled]} 
+            onPress={proceedToPayment} 
+            disabled={!canProceed()}
+            activeOpacity={0.85}
+          >
             <LinearGradient
-              colors={['#15803D', '#16A34A']}
+              colors={canProceed() ? ['#15803D', '#16A34A'] : ['#CBD5E1', '#CBD5E1']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={styles.nextGrad}
             >
@@ -383,7 +409,8 @@ function StepDoctor({
   doctors, loading, selected, onSelect,
   specialties, selectedSpecialty, onSelectSpecialty,
   search, onSearch,
-  appointmentType, onTypeChange,
+  appointmentType,
+  onTypeChange,
 }: {
   hospitals: Hospital[];
   selectedHospital: Hospital | null;
@@ -391,18 +418,21 @@ function StepDoctor({
   doctors: Doctor[];
   loading: boolean;
   selected: Doctor | null;
-  onSelect: (d: Doctor) => void;
+  onSelect: (d: Doctor | null) => void;
   specialties: string[];
   selectedSpecialty: string;
   onSelectSpecialty: (s: string) => void;
   search: string;
   onSearch: (t: string) => void;
-  appointmentType: 'OPD' | 'Video';
-  onTypeChange: (t: 'OPD' | 'Video') => void;
+  appointmentType: string;
+  onTypeChange: (t: string) => void;
 }) {
   const filteredByHospital = useMemo(() => {
     if (!selectedHospital) return doctors;
-    return doctors.filter(d => (d.hospital?._id || (d.hospitals?.[0] as any)?._id) === selectedHospital._id);
+    return doctors.filter(d => {
+      const hId = d.hospital?._id || (d.hospitals?.[0] as any)?._id;
+      return hId === selectedHospital._id;
+    });
   }, [doctors, selectedHospital]);
 
   return (
@@ -538,7 +568,7 @@ function StepDoctor({
             <TouchableOpacity
               key={d._id}
               style={[S.doctorCard, isSelected && S.doctorCardActive]}
-              onPress={() => onSelect(d)}
+              onPress={() => onSelect(isSelected ? null : d)}
               activeOpacity={0.8}
             >
               {/* Avatar */}
@@ -592,6 +622,7 @@ function StepDoctor({
 function StepDateTime({
   dates, selectedDate, onSelectDate,
   blocks, selectedBlock, onSelectBlock,
+  selectedSubSlot, onSelectSubSlot,
   loading, message,
 }: {
   dates: string[];
@@ -600,6 +631,8 @@ function StepDateTime({
   blocks: HourBlock[];
   selectedBlock: HourBlock | null;
   onSelectBlock: (b: HourBlock) => void;
+  selectedSubSlot: { startTime: string; endTime: string } | null;
+  onSelectSubSlot: (s: { startTime: string; endTime: string }) => void;
   loading: boolean;
   message: string;
 }) {
@@ -639,9 +672,10 @@ function StepDateTime({
       {/* Time Slots */}
       {selectedDate && (
         <View style={{ marginTop: 24 }}>
+          {/* Level 1: Select Hour */}
           <View style={S.slotHeader}>
             <Clock size={15} color={COLORS.primary} />
-            <SanctuaryText variant="label_lg" style={S.slotTitle}>Available Time Slots</SanctuaryText>
+            <SanctuaryText variant="label_lg" style={S.slotTitle}>1. Select Hour Block</SanctuaryText>
           </View>
 
           {loading ? (
@@ -682,6 +716,40 @@ function StepDateTime({
               })}
             </View>
           )}
+
+          {/* Level 2: Select 5-min Sub-slot */}
+          {selectedBlock && (
+            <View style={S.subSlotSection}>
+              <View style={S.slotHeader}>
+                <Clock size={16} color={COLORS.primary} />
+                <SanctuaryText variant="label_lg" style={S.slotTitle}>2. Choose Exact Time</SanctuaryText>
+              </View>
+              <SanctuaryText variant="body_sm" style={S.subSlotInstruct}>
+                Within the {selectedBlock.timeSlot} window
+              </SanctuaryText>
+              
+              <View style={S.subSlotGrid}>
+                {selectedBlock.subSlots?.map((sub, idx) => {
+                  const isSelected = selectedSubSlot?.startTime === sub.startTime;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[S.subSlotCard, isSelected && S.subSlotCardActive, sub.isBooked && S.subSlotCardBooked]}
+                      onPress={() => !sub.isBooked && onSelectSubSlot(sub)}
+                      disabled={sub.isBooked}
+                    >
+                      <SanctuaryText variant="label_sm" style={[S.subSlotTxt, isSelected && { color: '#fff' }, sub.isBooked && { color: '#94A3B8' }]}>
+                        {sub.startTime}
+                      </SanctuaryText>
+                      <SanctuaryText variant="label_xs" style={[S.subSlotEndTxt, isSelected && { color: 'rgba(255,255,255,0.7)' }, sub.isBooked && { color: '#CBD5E1' }]}>
+                        to {sub.endTime}
+                      </SanctuaryText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -692,6 +760,7 @@ function StepDateTime({
 
 function StepSymptoms({
   selected, onToggle, custom, onCustomChange, notes, onNotesChange,
+  appointmentType, onTypeChange, vitals, onVitalsChange
 }: {
   selected: string[];
   onToggle: (s: string) => void;
@@ -699,12 +768,31 @@ function StepSymptoms({
   onCustomChange: (t: string) => void;
   notes: string;
   onNotesChange: (t: string) => void;
+  appointmentType: string;
+  onTypeChange: (t: string) => void;
+  vitals: any;
+  onVitalsChange: (v: any) => void;
 }) {
+  const types = ['Consultation', 'Follow-up', 'Routine', 'Emergency'];
+
   return (
     <View>
+      <SanctuaryText variant="label_lg" style={S.inputLabel}>Appointment Category</SanctuaryText>
+      <View style={[S.chipWrap, { marginBottom: 24 }]}>
+        {types.map(t => (
+          <TouchableOpacity
+            key={t}
+            style={[S.typeChip, appointmentType === t && S.typeChipActive]}
+            onPress={() => onTypeChange(t)}
+          >
+            <SanctuaryText variant="label_sm" style={[S.chipTxt, appointmentType === t && { color: '#fff' }]}>{t}</SanctuaryText>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <SanctuaryText variant="headline_sm" style={S.sectionTitle}>Reason for Visit</SanctuaryText>
       <SanctuaryText variant="body_sm" style={S.sectionSub}>
-        Select symptoms or describe your concern (at least one required)
+        Select symptoms or describe your concern
       </SanctuaryText>
 
       <View style={S.chipWrap}>
@@ -722,26 +810,55 @@ function StepSymptoms({
         ))}
       </View>
 
-      <SanctuaryText variant="label_lg" style={S.inputLabel}>Other Symptom (optional)</SanctuaryText>
-      <TextInput
-        style={S.input}
-        placeholder="e.g. Swollen ankle..."
-        placeholderTextColor="#94A3B8"
-        value={custom}
-        onChangeText={onCustomChange}
-      />
+      {/* Vitals Section */}
+      <View style={{ marginTop: 28 }}>
+        <SanctuaryText variant="label_lg" style={S.inputLabel}>My Vitals (Optional)</SanctuaryText>
+        <View style={S.vitalsRow}>
+          <View style={S.vitalCol}>
+            <SanctuaryText variant="label_sm" style={S.vitalLabel}>Weight (kg)</SanctuaryText>
+            <TextInput
+              style={S.vitalInput}
+              keyboardType="decimal-pad"
+              value={vitals.weight}
+              onChangeText={(t) => onVitalsChange({ weight: t })}
+              placeholder="0"
+            />
+          </View>
+          <View style={S.vitalCol}>
+            <SanctuaryText variant="label_sm" style={S.vitalLabel}>BP</SanctuaryText>
+            <TextInput
+              style={S.vitalInput}
+              value={vitals.bp}
+              onChangeText={(t) => onVitalsChange({ bp: t })}
+              placeholder="120/80"
+            />
+          </View>
+          <View style={S.vitalCol}>
+            <SanctuaryText variant="label_sm" style={S.vitalLabel}>Temp (°F)</SanctuaryText>
+            <TextInput
+              style={S.vitalInput}
+              keyboardType="decimal-pad"
+              value={vitals.temp}
+              onChangeText={(t) => onVitalsChange({ temp: t })}
+              placeholder="98.6"
+            />
+          </View>
+        </View>
+      </View>
 
-      <SanctuaryText variant="label_lg" style={S.inputLabel}>Additional Notes for Doctor</SanctuaryText>
-      <TextInput
-        style={[S.input, S.textarea]}
-        placeholder="Any medical history, medications, or context the doctor should know..."
-        placeholderTextColor="#94A3B8"
-        value={notes}
-        onChangeText={onNotesChange}
-        multiline
-        numberOfLines={4}
-        textAlignVertical="top"
-      />
+      <View style={{ marginTop: 24 }}>
+        <SanctuaryText variant="label_lg" style={S.inputLabel}>Additional Notes</SanctuaryText>
+        <TextInput
+          style={[S.input, S.textarea]}
+          placeholder="Describe your concern in detail..."
+          placeholderTextColor="#94A3B8"
+          value={notes}
+          onChangeText={onNotesChange}
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
+      </View>
     </View>
   );
 }
@@ -749,23 +866,29 @@ function StepSymptoms({
 // ── Step 5: Review ────────────────────────────────────────────────────────────
 
 function StepReview({
-  doctor, hospital, date, block, symptoms, notes, appointmentType,
+  doctor, hospital, date, block, subSlot, symptoms, notes, appointmentType, vitals,
+  hasAcceptedTerms, onToggleTerms
 }: {
   doctor: Doctor;
   hospital: Hospital;
   date: string;
   block: HourBlock;
+  subSlot: { startTime: string; endTime: string };
   symptoms: string[];
   notes: string;
-  appointmentType: 'OPD' | 'Video';
+  appointmentType: string;
+  vitals: any;
+  hasAcceptedTerms: boolean;
+  onToggleTerms: () => void;
 }) {
+  const navigation = useNavigation<any>();
   const rows = [
     { icon: Stethoscope, label: 'Doctor',   value: getDoctorDisplayName(doctor) },
     { icon: Activity,    label: 'Specialty', value: getDoctorSpecialty(doctor) },
     { icon: Building2,   label: 'Hospital',  value: hospital.name },
     { icon: Calendar,    label: 'Date',      value: formatDate(date) },
-    { icon: Clock,       label: 'Time Slot', value: block.timeSlot },
-    { icon: User,        label: 'Type',      value: appointmentType === 'OPD' ? 'In-Person (OPD)' : 'Video Consultation' },
+    { icon: Clock,       label: 'Time Slot', value: `${subSlot.startTime} (${block.timeSlot})` },
+    { icon: Heart,       label: 'Type',      value: appointmentType },
     { icon: FileText,    label: 'Reason',    value: symptoms.join(', ') || 'General Consultation' },
   ];
 
@@ -785,6 +908,18 @@ function StepReview({
           </View>
         ))}
       </View>
+
+      {/* Vitals Summary */}
+      {(vitals.weight || vitals.bp || vitals.temp) && (
+        <View style={S.notesCard}>
+          <SanctuaryText variant="label_sm" style={S.notesLabel}>CLIENT VITALS</SanctuaryText>
+          <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
+            {vitals.weight && <SanctuaryText variant="body_sm">Weight: <SanctuaryText variant="label_sm">{vitals.weight}kg</SanctuaryText></SanctuaryText>}
+            {vitals.bp && <SanctuaryText variant="body_sm">BP: <SanctuaryText variant="label_sm">{vitals.bp}</SanctuaryText></SanctuaryText>}
+            {vitals.temp && <SanctuaryText variant="body_sm">Temp: <SanctuaryText variant="label_sm">{vitals.temp}°F</SanctuaryText></SanctuaryText>}
+          </View>
+        </View>
+      )}
 
       {notes.trim().length > 0 && (
         <View style={S.notesCard}>
@@ -812,6 +947,33 @@ function StepReview({
           Your appointment will be confirmed immediately after payment. You will receive a booking confirmation.
         </SanctuaryText>
       </View>
+
+      {/* Terms & Conditions Box */}
+      <TouchableOpacity 
+        style={[S.tcBox, hasAcceptedTerms && S.tcBoxActive]} 
+        onPress={onToggleTerms}
+        activeOpacity={0.8}
+      >
+        <View style={[S.tcCheck, hasAcceptedTerms && S.tcCheckActive]}>
+          {hasAcceptedTerms && <CheckCircle2 size={12} color="#fff" />}
+        </View>
+        <View style={{ flex: 1 }}>
+          <SanctuaryText variant="body_sm" style={S.tcTxt}>
+            I agree to the{' '}
+            <SanctuaryText 
+              variant="label_sm" 
+              style={S.tcLink}
+              onPress={(e: GestureResponderEvent) => {
+                e.stopPropagation();
+                navigation.navigate('TermsAndConditions');
+              }}
+            >
+              Terms & Conditions
+            </SanctuaryText>
+            {' '}and sensitive data processing policies of MS CureChain.
+          </SanctuaryText>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -986,12 +1148,42 @@ const S = StyleSheet.create({
   },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipTxt: { color: '#475569', fontSize: 12, fontWeight: '700' },
+
+  // Sub-slots
+  subSlotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  subSlotCard: {
+    backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 10,
+    borderWidth: 1.5, borderColor: '#E2E8F0', width: (width - 56) / 3, alignItems: 'center',
+  },
+  subSlotCardActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  subSlotCardBooked: { backgroundColor: '#F1F5F9', borderColor: '#F1F5F9', opacity: 0.5 },
+  subSlotTxt: { color: '#475569', fontSize: 10, fontWeight: '800' },
+  subSlotEndTxt: { color: '#94A3B8', fontSize: 8, fontWeight: '600' },
+  subSlotSection: { marginTop: 20 },
+  subSlotInstruct: { color: '#64748B', fontSize: 12, marginBottom: 12 },
+
   inputLabel: { color: '#475569', fontWeight: '800', fontSize: 12, marginBottom: 8, marginTop: 4 },
   input: {
     backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13,
     color: '#1E293B', fontSize: 14, borderWidth: 1.5, borderColor: '#E2E8F0', marginBottom: 16,
   },
   textarea: { minHeight: 100 },
+
+  // Vitals
+  vitalsRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  vitalCol: { flex: 1 },
+  vitalLabel: { color: '#64748B', marginBottom: 4, fontSize: 11, fontWeight: '700' },
+  vitalInput: {
+    backgroundColor: '#fff', borderRadius: 12, padding: 12,
+    borderWidth: 1.5, borderColor: '#E2E8F0', color: '#1E293B', fontWeight: '900',
+  },
+  
+  // Category Chips
+  typeChip: {
+    backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
+    borderWidth: 1.5, borderColor: '#E2E8F0', marginRight: 8,
+  },
+  typeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
 
   // Review summary
   summaryCard: { backgroundColor: '#fff', borderRadius: 18, overflow: 'hidden', marginBottom: 12 },
@@ -1015,4 +1207,44 @@ const S = StyleSheet.create({
     backgroundColor: '#FEF3C7', borderRadius: 14, padding: 14,
   },
   disclaimerTxt: { color: '#92400E', fontSize: 12, fontWeight: '500', flex: 1, lineHeight: 18 },
+
+  tcBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  tcBoxActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#EAF1FF',
+  },
+  tcCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  tcCheckActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
+  },
+  tcTxt: {
+    color: '#475569',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  tcLink: {
+    color: COLORS.primary,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
+  },
 });

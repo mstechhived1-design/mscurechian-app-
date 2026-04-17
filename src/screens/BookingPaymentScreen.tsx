@@ -1,20 +1,19 @@
 /**
- * BookingPaymentScreen — Payment & Booking Confirmation
+ * BookingPaymentScreen — In-App Razorpay Payment (LIVE)
  *
- * Uses the LOCAL backend (Multitenant_MsCurechain_Backend) directly.
- * 
- * PAYMENT FLOW:
- *   1. Show booking summary + payment options
- *   2. Patient taps "Pay via UPI / Card / etc."
- *   3. App calls POST /bookings/book with type "online" + paymentStatus "Paid"
- *   4. Any successful backend response → navigate to BookingConfirmationScreen
- *
- * NOTE: Razorpay hosted checkout can be added once backend payment endpoints
- * are configured. This screen uses simulated/direct booking in the meantime,
- * which is what the current local backend supports.
+ * Flow:
+ *   1. Patient selects payment method & taps Pay
+ *   2. App calls POST /api/mobile/create-order  → gets orderId from Razorpay
+ *   3. App builds checkout URL → opens backend's HTML checkout page in a
+ *      WebView MODAL (fully inside the app, no external browser)
+ *   4. Patient completes payment on the WebView
+ *   5. WebView posts a message back to the app via window.ReactNativeWebView.postMessage
+ *   6. App verifies signature: POST /api/mobile/verify-payment
+ *   7. App creates appointment: POST /api/mobile/book
+ *   8. Navigate to BookingConfirmationScreen
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -23,18 +22,21 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
   ChevronLeft,
+  X,
   Smartphone,
   CreditCard,
   Building2,
   Wallet,
   Shield,
-  CheckCircle2,
   AlertCircle,
   Stethoscope,
   Calendar,
@@ -42,8 +44,6 @@ import {
   Lock,
   ArrowRight,
 } from 'lucide-react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '@/constants/designSystem';
@@ -52,7 +52,7 @@ import {
   bookAppointment,
   createRazorpayOrder,
   verifyRazorpayPayment,
-  RAZORPAY_KEY_ID,
+  buildCheckoutUrl,
   formatCurrency,
   formatDate,
   BookingSlot,
@@ -60,7 +60,7 @@ import {
 
 type PaymentRouteProp = RouteProp<RootStackParamList, 'BookingPayment'>;
 
-// ─── Payment Methods ──────────────────────────────────────────────────────────
+// ─── Payment Methods ───────────────────────────────────────────────────────────
 
 const PAYMENT_METHODS = [
   {
@@ -97,7 +97,7 @@ const PAYMENT_METHODS = [
   },
 ];
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function BookingPaymentScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -107,6 +107,14 @@ export default function BookingPaymentScreen() {
   const [selectedMethod, setSelectedMethod] = useState<string>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // WebView modal state
+  const [webViewVisible, setWebViewVisible] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [currentOrderId, setCurrentOrderId] = useState('');
+  const [isWebViewLoading, setIsWebViewLoading] = useState(true);
+  const webViewRef = useRef<any>(null);
+
+  // ─── Step 1: Create Razorpay order & open WebView ─────────────────────────
   const handlePayment = async () => {
     if (!selectedMethod) {
       Alert.alert('Select Payment Method', 'Please choose a payment method to continue.');
@@ -115,63 +123,104 @@ export default function BookingPaymentScreen() {
 
     setIsProcessing(true);
     try {
-      // 1. Create Razorpay Order on Backend
-      console.log('[BookingPayment] Creating order for amount:', booking.consultationFee);
+      console.log('[BookingPayment] Creating Razorpay order for ₹', booking.consultationFee);
       const order = await createRazorpayOrder(booking.consultationFee);
 
-      // 2. Open Hosted Checkout in WebBrowser
-      const result = await WebBrowser.openAuthSessionAsync(
-        order.checkoutUrl,
-        Linking.createURL('/')
-      );
+      // order = { orderId, amount (paise), currency, receipt }
+      const orderId = order.orderId || order.id;
+      const amountPaise = order.amount; // Already in paise from backend
 
-      if (result.type === 'success' && result.url) {
-        await handlePaymentRedirect(result.url);
-      } else {
-        setIsProcessing(false);
+      if (!orderId || !amountPaise) {
+        throw new Error('Invalid order response from server.');
       }
 
+      setCurrentOrderId(orderId);
+
+      // Build the URL pointing to our backend's checkout HTML page
+      const url = buildCheckoutUrl(orderId, amountPaise, {
+        description: `${booking.appointmentType} with ${booking.doctorName}`,
+      });
+
+      console.log('[BookingPayment] Checkout URL:', url);
+      setCheckoutUrl(url);
+      setIsWebViewLoading(true);
+      setWebViewVisible(true);
+      setIsProcessing(false);
     } catch (err: any) {
-      console.error('[BookingPayment] Order Error:', err);
-      Alert.alert('Booking Start Failed', err.message || 'Could not initiate payment.');
+      console.error('[BookingPayment] Failed to create order:', err);
+      Alert.alert(
+        'Payment Failed to Start',
+        err?.response?.data?.message || err.message || 'Could not initiate payment. Please try again.',
+      );
       setIsProcessing(false);
     }
   };
 
-  const handlePaymentRedirect = async (url: string) => {
-    console.log('[BookingPayment] Redirect URL:', url);
-    const { path, queryParams } = Linking.parse(url);
+  // ─── Step 2: Handle messages from the WebView (Razorpay result) ───────────
+  const handleWebViewMessage = async (event: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      console.log('[BookingPayment] WebView message:', data.type);
 
-    if (url.includes('payment-success')) {
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = queryParams as any;
-      
-      try {
-        // 3. Verify Payment on Backend
-        await verifyRazorpayPayment({
-          razorpay_order_id,
-          razorpay_payment_id,
-          razorpay_signature,
-        });
+      if (data.type === 'PAYMENT_SUCCESS') {
+        // Close WebView immediately, show processing
+        setWebViewVisible(false);
+        setIsProcessing(true);
 
-        // 4. Finalize Booking
-        const confirmation = await bookAppointment({
-          ...booking,
-          razorpayOrderId: razorpay_order_id,
-          razorpayPaymentId: razorpay_payment_id,
-        });
-
-        navigation.replace('BookingConfirmation', { confirmation });
-      } catch (err: any) {
-        Alert.alert('Payment Verification Failed', err.message || 'Verification error.');
+        await handlePaymentSuccess(
+          data.razorpay_order_id,
+          data.razorpay_payment_id,
+          data.razorpay_signature,
+        );
+      } else if (data.type === 'PAYMENT_CANCELLED') {
+        setWebViewVisible(false);
+        Alert.alert('Payment Cancelled', 'You cancelled the payment. Your slot is not booked yet.');
+      } else if (data.type === 'PAYMENT_FAILED') {
+        setWebViewVisible(false);
+        Alert.alert('Payment Failed', data.error || 'The payment could not be processed. Please try again.');
       }
-    } else if (url.includes('payment-cancel')) {
-      Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
-    } else if (url.includes('payment-error')) {
-      Alert.alert('Payment Error', 'An error occurred during payment.');
+    } catch (err) {
+      console.error('[BookingPayment] Failed to parse WebView message:', err);
     }
-    setIsProcessing(false);
   };
 
+  // ─── Step 3: Verify payment + create appointment ──────────────────────────
+  const handlePaymentSuccess = async (
+    razorpay_order_id: string,
+    razorpay_payment_id: string,
+    razorpay_signature: string,
+  ) => {
+    try {
+      console.log('[BookingPayment] Verifying payment signature...');
+      await verifyRazorpayPayment({
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+      });
+
+      console.log('[BookingPayment] Signature verified. Creating appointment...');
+      const confirmation = await bookAppointment({
+        ...booking,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+      });
+
+      navigation.replace('BookingConfirmation', { confirmation });
+    } catch (err: any) {
+      console.error('[BookingPayment] Post-payment error:', err);
+      Alert.alert(
+        'Booking Failed',
+        err?.response?.data?.message ||
+          err.message ||
+          'Payment was received but appointment could not be created. Please contact support.',
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ─── Detail Row Component ─────────────────────────────────────────────────
   const DetailRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
     <View style={styles.detailRow}>
       <View style={styles.detailIcon}>
@@ -182,6 +231,7 @@ export default function BookingPaymentScreen() {
     </View>
   );
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
 
@@ -290,19 +340,9 @@ export default function BookingPaymentScreen() {
         <View style={styles.securityBox}>
           <Shield size={16} color="#059669" />
           <SanctuaryText variant="body_sm" style={styles.securityTxt}>
-            Your payment is 256-bit SSL encrypted and processed securely. We never store your card details.
+            Your payment is processed securely by Razorpay with 256-bit SSL encryption. We never store your card details.
           </SanctuaryText>
         </View>
-
-        {/* ── DEV: Simulate button ── */}
-        {__DEV__ && (
-          <View style={styles.devBox}>
-            <SanctuaryText variant="label_sm" style={styles.devLabel}>🛠 DEV MODE</SanctuaryText>
-            <SanctuaryText variant="body_sm" style={styles.devSub}>
-              Payment confirmation will book directly via local backend.
-            </SanctuaryText>
-          </View>
-        )}
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -337,14 +377,99 @@ export default function BookingPaymentScreen() {
           </LinearGradient>
         </TouchableOpacity>
         <SanctuaryText variant="body_sm" style={styles.cancelHint}>
-          Tap Pay to confirm your appointment
+          Powered by Razorpay · Tap Pay to open payment gateway
         </SanctuaryText>
       </View>
+
+      {/* ── In-App Razorpay WebView Modal ── */}
+      <Modal
+        visible={webViewVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          Alert.alert(
+            'Cancel Payment?',
+            'Are you sure you want to cancel this payment?',
+            [
+              { text: 'Continue Paying', style: 'cancel' },
+              {
+                text: 'Cancel',
+                style: 'destructive',
+                onPress: () => setWebViewVisible(false),
+              },
+            ],
+          );
+        }}
+      >
+        <SafeAreaView style={styles.webViewContainer}>
+          {/* WebView Header */}
+          <View style={styles.webViewHeader}>
+            <View style={styles.webViewHeaderLeft}>
+              <Lock size={14} color="#059669" />
+              <SanctuaryText variant="label_sm" style={styles.webViewSecureTxt}>
+                Secure Payment
+              </SanctuaryText>
+            </View>
+            <SanctuaryText variant="label_lg" style={styles.webViewTitle}>
+              Razorpay Checkout
+            </SanctuaryText>
+            <TouchableOpacity
+              style={styles.webViewClose}
+              onPress={() => {
+                Alert.alert(
+                  'Cancel Payment?',
+                  'Going back will cancel the current payment.',
+                  [
+                    { text: 'Continue', style: 'cancel' },
+                    {
+                      text: 'Cancel Payment',
+                      style: 'destructive',
+                      onPress: () => setWebViewVisible(false),
+                    },
+                  ],
+                );
+              }}
+            >
+              <X size={20} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* WebView */}
+          <WebView
+            ref={webViewRef}
+            source={{ uri: checkoutUrl }}
+            style={styles.webView}
+            onMessage={handleWebViewMessage}
+            onLoadStart={() => setIsWebViewLoading(true)}
+            onLoadEnd={() => setIsWebViewLoading(false)}
+            javaScriptEnabled
+            domStorageEnabled
+            originWhitelist={['*']}
+            mixedContentMode="compatibility"
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('[WebView] Error:', nativeEvent);
+              setWebViewVisible(false);
+              Alert.alert('Connection Error', 'Could not load payment Gateway. Check your internet and try again.');
+            }}
+          />
+
+          {/* Loading overlay */}
+          {isWebViewLoading && (
+            <View style={styles.webViewLoader}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <SanctuaryText variant="body_sm" style={styles.webViewLoaderTxt}>
+                Loading secure payment gateway...
+              </SanctuaryText>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
@@ -362,7 +487,6 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 20 },
 
-  // Booking summary
   summaryCard: { borderRadius: 22, padding: 22, marginBottom: 16 },
   summaryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
   summaryLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
@@ -373,7 +497,6 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   summaryInfoTxt: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600', flex: 1 },
 
-  // Booking details
   detailCard: { backgroundColor: '#fff', borderRadius: 18, marginBottom: 22, overflow: 'hidden' },
   detailHeader: { padding: 16, paddingBottom: 12, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   detailTitle: { color: '#94A3B8', fontWeight: '900', fontSize: 10, letterSpacing: 0.8 },
@@ -382,10 +505,8 @@ const styles = StyleSheet.create({
   detailLabel: { color: '#94A3B8', fontSize: 12, fontWeight: '600', width: 70 },
   detailValue: { color: '#1E293B', fontWeight: '800', fontSize: 13, flex: 1, textAlign: 'right' },
 
-  // Section title
   sectionTitle: { color: '#1E293B', fontWeight: '900', fontSize: 15, marginBottom: 14 },
 
-  // Payment methods
   methodCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 2, borderColor: 'transparent',
@@ -402,16 +523,9 @@ const styles = StyleSheet.create({
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   radioInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
 
-  // Security
   securityBox: { flexDirection: 'row', gap: 12, backgroundColor: '#F0FDF4', borderRadius: 14, padding: 14, marginTop: 6, alignItems: 'flex-start' },
   securityTxt: { color: '#166534', fontSize: 11, fontWeight: '500', flex: 1, lineHeight: 17 },
 
-  // Dev box
-  devBox: { backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, marginTop: 12 },
-  devLabel: { color: '#D97706', fontWeight: '900', fontSize: 11, marginBottom: 4 },
-  devSub: { color: '#92400E', fontSize: 11, fontWeight: '500' },
-
-  // Footer
   footer: {
     backgroundColor: '#fff', paddingHorizontal: 20,
     paddingBottom: Platform.OS === 'ios' ? 36 : 20, paddingTop: 16,
@@ -421,4 +535,40 @@ const styles = StyleSheet.create({
   payGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 17, gap: 10 },
   payTxt: { color: '#fff', fontWeight: '900', fontSize: 16 },
   cancelHint: { textAlign: 'center', color: '#94A3B8', fontSize: 11, fontWeight: '500' },
+
+  // WebView Modal styles
+  webViewContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+  webViewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  webViewHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  webViewSecureTxt: { color: '#059669', fontSize: 12, fontWeight: '700' },
+  webViewTitle: { color: '#1E293B', fontWeight: '800', fontSize: 15, flex: 1, textAlign: 'center' },
+  webViewClose: {
+    flex: 1,
+    alignItems: 'flex-end',
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+  },
+  webView: { flex: 1 },
+  webViewLoader: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  webViewLoaderTxt: { color: '#64748B', fontSize: 13, fontWeight: '500' },
 });

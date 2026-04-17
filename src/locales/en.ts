@@ -145,5 +145,18 @@ export default {
     en: 'English',
     hi: 'हिन्दी',
     te: 'తెలుగు',
-  }
+  },
+  profile: {
+    title: 'Medical Vault',
+    identityBio: 'Identity & Bio',
+    emergencyContact: 'Emergency Contact',
+    signOutOfAccount: 'Sign out of Account',
+    updateProfile: 'Update Profile',
+    personalInfo: 'Personal Info',
+    contactAddress: 'Contact & Address',
+    emergencySOSContact: 'Emergency SOS Contact',
+    saveChanges: 'Save Changes',
+    digitalIdPass: 'Digital ID Pass',
+    mrn: 'MRN Number',
+  },
 };
