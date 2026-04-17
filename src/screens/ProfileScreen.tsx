@@ -45,7 +45,7 @@ import { apiClient, PATIENT_ENDPOINTS, clearAuthTokens } from '@/api';
 import { RootStackParamList } from '@/navigation/types';
 import LanguageSelector from '@/components/LanguageSelector';
 
-const { width, height } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -407,8 +407,8 @@ const styles = StyleSheet.create({
   divider: { backgroundColor: '#F8F9FA' },
   logoutBtn: { marginTop: 10, marginBottom: 20 },
   modalContainer: { 
-    height: height * 0.85,
-    width: width * 0.95,
+    height: SCREEN_HEIGHT * 0.85,
+    width: SCREEN_WIDTH * 0.95,
     alignSelf: 'center', 
     backgroundColor: 'transparent' 
   },

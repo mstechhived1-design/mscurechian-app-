@@ -54,16 +54,24 @@ export const TOKEN_KEYS = {
 //   Production : https://www.mscurechain.com/api
 //
 const getBaseUrl = (): string => {
-  // 1. Runtime env var (EXPO_PUBLIC_ prefix required for Expo to expose it to JS)
-  //    Note: Expo caches env vars at bundle time, so changes require --clear restart
-  const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl && envUrl !== 'undefined' && envUrl.startsWith('http')) {
-    console.log('[AxiosConfig] Using API URL from EXPO_PUBLIC_API_URL:', envUrl);
-    return envUrl;
+  // 1. Expo Public API URL (Primary)
+  const expoUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (expoUrl && expoUrl !== 'undefined' && expoUrl.startsWith('http')) {
+    console.log('[AxiosConfig] Using API URL from EXPO_PUBLIC_API_URL:', expoUrl);
+    return expoUrl;
   }
 
-  // 2. Production fallback
-  return 'https://www.mscurechain.com/api';
+  // 2. React App API URL (Secondary/Legacy)
+  const reactUrl = process.env.REACT_APP_API_URL;
+  if (reactUrl && reactUrl !== 'undefined' && reactUrl.startsWith('http')) {
+    console.log('[AxiosConfig] Using API URL from REACT_APP_API_URL:', reactUrl);
+    return reactUrl;
+  }
+
+  // 3. Absolute Production Fallback
+  const fallback = 'https://www.mscurechain.com/api';
+  console.log('[AxiosConfig] No env var found, using fallback:', fallback);
+  return fallback;
 };
 
 
