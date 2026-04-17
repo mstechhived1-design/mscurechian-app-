@@ -1,60 +1,14 @@
 {
   "expo": {
-    "name": "MSCureChain",
-    "slug": "mscurechain-patient-app-v1",
-    "version": "1.0.0",
-    "scheme": "mscurechain-patient",
-    "orientation": "portrait",
-    "icon": "./assets/image.png",
-    "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#006AF5"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.mscurechain.patient",
-      "buildNumber": "1.0.0"
-    },
-    "android": {
-      "package": "com.mscurechain.patient",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#006AF5"
-      },
-      "permissions": [
-        "WRITE_EXTERNAL_STORAGE"
-      ],
-      "versionCode": 1
-    },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-font",
-      "expo-notifications",
-      "expo-location",
-      "expo-system-ui",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "useAndroidX": true,
-            "enableProguardInReleaseBuilds": true
-          },
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ],
-      "expo-web-browser"
-    ],
     "extra": {
       "eas": {
-        "projectId": "970ddc5b-7480-4da1-b637-cd95ecb947ba"
+        "projectId": "94ebac94-bfdf-4a72-af27-cf7678af5ae2"
       }
+    },
+    "owner": "narasimhamstechhive",
+    "icon": "./assets/image.png",
+    "android": {
+      "package": "com.narasimhamstechhive.mscurechainpatientapp"
     }
   }
 }
