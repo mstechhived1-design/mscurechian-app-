@@ -64,7 +64,7 @@ const getBaseUrl = (): string => {
 
   // 2. In development, prioritize envUrl, then fallback to current network IP
   if (__DEV__) {
-    const fallback = 'http://10.55.39.191:5003/api';
+    const fallback = 'http://192.168.31.47:5003/api';
     const finalUrl = envUrl && envUrl !== 'undefined' && envUrl.startsWith('http') 
         ? envUrl 
         : fallback;

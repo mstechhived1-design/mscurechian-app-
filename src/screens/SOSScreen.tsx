@@ -22,8 +22,9 @@ const SOSScreen = () => {
   const [emergencyType, setEmergencyType] = useState('Medical');
   const [severity, setSeverity] = useState('HIGH');
   const [symptoms, setSymptoms] = useState('');
-  const [selectedHospital, setSelectedHospital] = useState<any>(null);
+  const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
   const [manualLocation, setManualLocation] = useState('');
+  const [nearestHospitals, setNearestHospitals] = useState<any[]>([]);
 
   const emergencyTypes = ['MEDICAL', 'ACCIDENT', 'HEART_ATTACK', 'BREATHING', 'OTHER'];
   const severityLevels = [
@@ -60,6 +61,37 @@ const SOSScreen = () => {
     }
   };
 
+  const updateNearestHospitals = (currentLoc: any, hospitalList: any[]) => {
+    if (!currentLoc || !hospitalList.length) return;
+    
+    const withDistance = hospitalList.map(h => {
+      if (!h.location?.lat || !h.location?.lng) return { ...h, distance: 9999 };
+      
+      const d = calculateDistance(
+        currentLoc.coords.latitude, 
+        currentLoc.coords.longitude,
+        h.location.lat, 
+        h.location.lng
+      );
+      return { ...h, distance: d };
+    });
+
+    const sorted = [...withDistance].sort((a, b) => a.distance - b.distance);
+    setNearestHospitals(sorted.slice(0, 3)); // Top 3 nearest
+  };
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
 
   const findInObject = (obj: any, keywords: string[], excludeValues: any[] = []): any => {
     if (!obj) return null;
@@ -94,18 +126,26 @@ const SOSScreen = () => {
       
       const hList = hospRes.data.data || hospRes.data || [];
       setHospitals(hList);
-      if (hList.length > 0) setSelectedHospital(hList[0]);
 
       const pData = profRes.data.data || profRes.data;
       const dData = dashRes.data.data || dashRes.data;
       const latestAppt = (dData.appointments || dData.appointments?.data || [])[0] || {};
       const combined = { ...pData, ...dData, ...latestAppt };
 
-      // Set default hospital from profile if available
-      if (combined.hospital && !selectedHospital) {
-         setSelectedHospital({ _id: combined.hospital });
-      } else if (hList.length > 0 && !selectedHospital) {
-         setSelectedHospital(hList[0]);
+      // Get all hospitals the patient is registered with across all profiles
+      const allLinkedHospitals = [
+        ...(dData.profiles || []),
+        pData 
+      ].map((p: any) => p?.hospital?._id || p?.hospital).filter(Boolean);
+      
+      const uniqueRegisteredIds = Array.from(new Set(allLinkedHospitals));
+      
+      // Set default hospitals ONLY from profile registrations
+      // For global patients with no registrations, we keep it empty so handleSignalPress opens the Modal/Form
+      if (selectedHospitalIds.length === 0) {
+        if (uniqueRegisteredIds.length > 0) {
+          setSelectedHospitalIds(uniqueRegisteredIds as string[]);
+        }
       }
 
       const excludes = [pData?.user?.mobile, pData?.mobile, pData?.user?.email, pData?.user?.name].filter(Boolean);
@@ -113,7 +153,10 @@ const SOSScreen = () => {
       const ePhone = findInObject(combined, ['emergencycontactphone', 'emergencyphone', 'kinphone', 'guardianphone', 'emergencymobile', 'contactnumber'], excludes);
 
       setProfile({ ...combined, emergencyName: eName, emergencyPhone: ePhone });
-      getPinpointLocation();
+      const currentLoc = await getPinpointLocation();
+      if (currentLoc) {
+        updateNearestHospitals(currentLoc, hList);
+      }
     } catch (err) {
       console.error('[SOS] Fetch Error:', err);
     } finally {
@@ -125,9 +168,48 @@ const SOSScreen = () => {
     fetchData();
   }, []);
 
-  const activateSignal = async () => {
-    if (!selectedHospital) {
-      Alert.alert('Selection Required', 'Please select a hospital to alert.');
+  const handleSignalPress = async () => {
+    // If patient is already linked to a hospital (Registered via Hospital Admins)
+    // We send an instant signal with automated details
+    if (profile?.hospital || selectedHospitalIds.length > 0) {
+      const confirmed = await new Promise((resolve) => {
+        const hospitalNames = hospitals
+          .filter(h => selectedHospitalIds.includes(h._id))
+          .map(h => h.name)
+          .join(', ');
+
+        Alert.alert(
+          'Instant SOS',
+          `Send emergency signal to ${hospitalNames || 'your registered hospitals'}?`,
+          [
+            { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+            { text: 'SEND SIGNAL', onPress: () => resolve(true), style: 'destructive' }
+          ]
+        );
+      });
+
+      if (confirmed) {
+        // IDs are already set in selectedHospitalIds during fetchData
+        // Set default emergency details
+        setEmergencyType('MEDICAL');
+        setSeverity('CRITICAL');
+        setSymptoms('INSTANT SOS TRIGGERED BY PATIENT (MULTI-HOSPITAL)');
+        
+        // Activate immediately
+        await activateSignal(true);
+      }
+    } else {
+      // Global patient: show form so they can pick hospital and provide details
+      setModalVisible(true);
+    }
+  };
+
+  const activateSignal = async (isFastTrack = false) => {
+    // Use either the current selected hospitals or the profile's linked hospital
+    const targetIds = isFastTrack ? [profile?.hospital?._id || profile?.hospital] : selectedHospitalIds;
+
+    if (!targetIds || targetIds.length === 0) {
+      Alert.alert('Selection Required', 'Please select at least one hospital to alert.');
       return;
     }
 
@@ -135,23 +217,14 @@ const SOSScreen = () => {
       setSubmitting(true);
       const loc = await getPinpointLocation();
       
-      // POST /emergency/requests/patient payload based on Postman Mockup
-      // FINAL FIX - Based on Server Validation Error:
-      // emergencyType, description, severity, currentLocation are the required keys.
       const payload = {
         emergencyType: emergencyType,
         description: symptoms || 'Urgent assistance requested via MSCureChain App',
         severity: severity.toLowerCase(),
         currentLocation: manualLocation || 'GPS Position Attached',
-        // 'targetHospitals' plural as indicated by error message
-        targetHospitals: [selectedHospital._id],
-        // 'hospitals' plural as a common fallback
-        hospitals: [selectedHospital._id],
-        // 'hospitalIds' plural as a common fallback
-        hospitalIds: [selectedHospital._id],
-        // 'targetHospitalId' singular just in case
-        targetHospitalId: selectedHospital._id,
-        // Including coordinates as extras just in case
+        targetHospitals: targetIds,
+        hospitals: targetIds,
+        hospitalIds: targetIds,
         lat: loc ? loc.coords.latitude : null,
         lng: loc ? loc.coords.longitude : null,
       };
@@ -162,32 +235,22 @@ const SOSScreen = () => {
 
       const response = await apiClient.post(EMERGENCY_ENDPOINTS.TRIGGER, payload);
       
-      // Some server versions return 201 or 200 without a 'success' boolean
       if (response.status === 200 || response.status === 201 || response.data?.success) {
         setSignalSent(true);
+        // If it was a fast track, we might need to show the modal just for the success state
+        if (isFastTrack) setModalVisible(true);
+        
         setTimeout(() => {
           setModalVisible(false);
           setSignalSent(false);
         }, 3000);
       }
     } catch (err: any) {
-      console.log('--- 🚨 SOS DEBUG START (VERSION 10.42) 🚨 ---');
-      console.log('Status:', err.status || err.response?.status);
-      console.log('Error Data (Direct):', JSON.stringify(err.response?.data));
-      console.log('Error Property (Interceptor):', JSON.stringify(err.error));
-      console.log('--- 🚨 SOS DEBUG END 🚨 ---');
-
-      const detailedError = err.error || err.response?.data;
-      Alert.alert(
-        'Signal Status (422)', 
-        detailedError ? JSON.stringify(detailedError) : 'Server rejected the request format. Please contact hospital support.'
-      );
+      console.error('[SOS] Trigger Error:', err);
+      Alert.alert('Failed to send signal', 'Please check your connection or call emergency services directly.');
     } finally {
       setSubmitting(false);
     }
-
-
-
   };
 
   const callAmbulance = () => {
@@ -248,7 +311,12 @@ const SOSScreen = () => {
       </Surface>
 
       <ScrollView contentContainerStyle={styles.content}>
-         <TouchableOpacity style={styles.sosCircle} onPress={() => setModalVisible(true)} activeOpacity={0.8}>
+         <TouchableOpacity 
+            style={styles.sosCircle} 
+            onPress={handleSignalPress} 
+            activeOpacity={0.8}
+            disabled={submitting}
+          >
             <View style={styles.ripple1} />
             <View style={styles.ripple2} />
             <Surface style={styles.innerCircle} elevation={5}>
@@ -273,9 +341,9 @@ const SOSScreen = () => {
                   <Text style={styles.assistSub}>{t('sos.activeSignal')}</Text>
                </View>
             </TouchableOpacity>
-         </View>
+          </View>
 
-         <View style={styles.infoSection}>
+          <View style={[styles.infoSection, { marginTop: 20 }]}>
             <Text style={styles.sectionLabel}>EMERGENCY CONTACT</Text>
             <Surface style={styles.infoCard} elevation={2}>
                <View style={styles.cardInfoRow}>
@@ -374,23 +442,98 @@ const SOSScreen = () => {
                         </View>
 
                         {/* Hospital Picker */}
-                        <Text style={styles.inputLabel}>ALERT HOSPITALS *</Text>
-                        <View style={styles.hospitalGrid}>
-                           {hospitals.map(h => (
-                              <TouchableOpacity 
-                                 key={h._id} 
-                                 style={[styles.hospSelect, selectedHospital?._id === h._id && styles.hospSelectActive]}
-                                 onPress={() => setSelectedHospital(h)}
+                        {nearestHospitals.length > 0 && (
+                          <>
+                            <View style={styles.sectionHeaderRow}>
+                              <Text style={styles.inputLabel}>NEAREST HOSPITALS (TOP PRIORITY)</Text>
+                              <Button 
+                                compact 
+                                onPress={() => {
+                                  const nearIds = nearestHospitals.map(h => h._id);
+                                  const allSelected = nearIds.every(id => selectedHospitalIds.includes(id));
+                                  if (allSelected) {
+                                    setSelectedHospitalIds(selectedHospitalIds.filter(id => !nearIds.includes(id)));
+                                  } else {
+                                    setSelectedHospitalIds(Array.from(new Set([...selectedHospitalIds, ...nearIds])));
+                                  }
+                                }}
                               >
-                                 <View style={styles.hospTitleRow}>
-                                    <IconButton icon="hospital-building" size={16} />
-                                    <Text style={[styles.hospNameText, selectedHospital?._id === h._id && { color: '#006AF5' }]} numberOfLines={1}>
-                                       {h.name}
-                                    </Text>
-                                 </View>
-                                 {selectedHospital?._id === h._id && <IconButton icon="check-circle" iconColor="#006AF5" size={16} />}
-                              </TouchableOpacity>
-                           ))}
+                                {nearestHospitals.map(h => h._id).every(id => selectedHospitalIds.includes(id)) ? 'Deselect all' : 'Select all'}
+                              </Button>
+                            </View>
+                            <View style={styles.hospitalGrid}>
+                              {nearestHospitals.map(h => {
+                                const isSelected = selectedHospitalIds.includes(h._id);
+                                return (
+                                  <TouchableOpacity 
+                                    key={`near-${h._id}`} 
+                                    style={[styles.hospSelect, isSelected && styles.hospSelectActive]}
+                                      onPress={() => {
+                                        if (isSelected) {
+                                          setSelectedHospitalIds(selectedHospitalIds.filter(id => id !== h._id));
+                                        } else {
+                                          setSelectedHospitalIds([...selectedHospitalIds, h._id]);
+                                        }
+                                      }}
+                                  >
+                                    <View style={styles.hospTitleRow}>
+                                        <IconButton icon="map-marker-radius" iconColor={isSelected ? '#006AF5' : '#E53E3E'} size={18} />
+                                        <Text style={[styles.hospNameText, isSelected && { color: '#006AF5' }]} numberOfLines={1}>
+                                          {h.name} ({h.distance.toFixed(1)}km)
+                                        </Text>
+                                    </View>
+                                    {isSelected && <IconButton icon="check-circle" iconColor="#006AF5" size={18} />}
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </>
+                        )}
+
+                        <View style={styles.sectionHeaderRow}>
+                          <Text style={styles.inputLabel}>OTHER REGISTERED HOSPITALS</Text>
+                          <Button 
+                            compact 
+                            onPress={() => {
+                              const otherIds = hospitals.filter(h => !nearestHospitals.some(nh => nh._id === h._id)).map(h => h._id);
+                              const allSelected = otherIds.every(id => selectedHospitalIds.includes(id));
+                              if (allSelected) {
+                                setSelectedHospitalIds(selectedHospitalIds.filter(id => !otherIds.includes(id)));
+                              } else {
+                                setSelectedHospitalIds(Array.from(new Set([...selectedHospitalIds, ...otherIds])));
+                              }
+                            }}
+                          >
+                            {hospitals.filter(h => !nearestHospitals.some(nh => nh._id === h._id)).map(h => h._id).every(id => selectedHospitalIds.includes(id)) ? 'Deselect all' : 'Select all'}
+                          </Button>
+                        </View>
+                        <View style={styles.hospitalGrid}>
+                           {hospitals
+                             .filter(h => !nearestHospitals.some(nh => nh._id === h._id))
+                             .map(h => {
+                               const isSelected = selectedHospitalIds.includes(h._id);
+                               return (
+                                <TouchableOpacity 
+                                   key={h._id} 
+                                   style={[styles.hospSelect, isSelected && styles.hospSelectActive]}
+                                   onPress={() => {
+                                      if (isSelected) {
+                                        setSelectedHospitalIds(selectedHospitalIds.filter(id => id !== h._id));
+                                      } else {
+                                        setSelectedHospitalIds([...selectedHospitalIds, h._id]);
+                                      }
+                                   }}
+                                >
+                                   <View style={styles.hospTitleRow}>
+                                      <IconButton icon="hospital-building" iconColor={isSelected ? '#006AF5' : '#666'} size={18} />
+                                      <Text style={[styles.hospNameText, isSelected && { color: '#006AF5' }]} numberOfLines={1}>
+                                         {h.name}
+                                      </Text>
+                                   </View>
+                                   {isSelected && <IconButton icon="check-circle" iconColor="#006AF5" size={18} />}
+                                </TouchableOpacity>
+                               );
+                             })}
                         </View>
 
                         {/* Symptoms */}
@@ -410,7 +553,7 @@ const SOSScreen = () => {
                            contentStyle={styles.activateBtnContent}
                            loading={submitting}
                            disabled={submitting}
-                           onPress={activateSignal}
+                           onPress={() => activateSignal(false)}
                         >
                            <Send size={20} color="#FFF" />  ACTIVATE SIGNAL
                         </Button>
@@ -503,18 +646,16 @@ const styles = StyleSheet.create({
   hospSelect: { width: '48%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8F9FA', borderRadius: 15, marginBottom: 10, paddingHorizontal: 5, borderWidth: 1, borderColor: '#EEE' },
   hospSelectActive: { borderColor: '#006AF5', backgroundColor: '#F0F7FF' },
   hospTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  hospNameText: { fontSize: 11, fontWeight: 'bold', color: '#555' },
-  areaInput: { backgroundColor: '#F8F9FA', borderRadius: 15, padding: 15, height: 100, textAlignVertical: 'top', borderWidth: 1, borderColor: '#EEE' },
-  activateBtn: { marginTop: 20, backgroundColor: '#E53E3E', borderRadius: 15 },
-  activateBtnContent: { height: 55 },
-  formRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  footerHint: { textAlign: 'center', fontSize: 10, color: '#888', marginTop: 15, fontWeight: 'bold' },
+  hospNameText: { fontSize: 13, fontWeight: '700', color: '#334155', flex: 1 },
+  areaInput: { backgroundColor: '#F8F9FA', borderRadius: 15, padding: 15, height: 100, textAlignVertical: 'top', borderWidth: 1.5, borderColor: '#E2E8F0', fontSize: 15, color: '#1E293B' },
+  activateBtn: { marginTop: 25, backgroundColor: '#E53E3E', borderRadius: 15, elevation: 5, shadowColor: '#E53E3E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  activateBtnContent: { height: 60 },
+  formRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  footerHint: { textAlign: 'center', fontSize: 11, color: '#64748B', marginTop: 20, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 },
   successContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 8 },
   successTitle: { fontSize: 24, fontWeight: '900', color: '#38A169', marginTop: 20 },
   successSub: { color: '#666', textAlign: 'center', marginTop: 10 },
 });
 
 export default SOSScreen;
-
-
-
