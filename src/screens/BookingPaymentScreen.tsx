@@ -160,13 +160,21 @@ export default function BookingPaymentScreen() {
   const handleWebViewMessage = async (event: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      console.log('[BookingPayment] WebView message:', data.type);
+      
+      if (data.type === 'DEBUG_LOG') {
+        console.log('[WebView LOG]', data.message);
+        return;
+      }
+      if (data.type === 'DEBUG_ERROR') {
+        console.error('[WebView ERROR]', data.message);
+        return;
+      }
 
+      console.log('[BookingPayment] WebView message arrived:', data.type);
+      
       if (data.type === 'PAYMENT_SUCCESS') {
-        // Close WebView immediately, show processing
         setWebViewVisible(false);
         setIsProcessing(true);
-
         await handlePaymentSuccess(
           data.razorpay_order_id,
           data.razorpay_payment_id,
@@ -445,12 +453,10 @@ export default function BookingPaymentScreen() {
             javaScriptEnabled
             domStorageEnabled
             originWhitelist={['*']}
-            mixedContentMode="compatibility"
+            mixedContentMode="always"
             onError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
-              console.error('[WebView] Error:', nativeEvent);
-              setWebViewVisible(false);
-              Alert.alert('Connection Error', 'Could not load payment Gateway. Check your internet and try again.');
+              console.warn('[WebView] Load error (non-fatal):', nativeEvent.description);
             }}
           />
 

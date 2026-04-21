@@ -3,6 +3,7 @@ import type { BookingSlot, BookingConfirmation } from '@/services/paymentService
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
+  ProfileSetup: undefined;
   Dashboard: undefined;
   Appointments: undefined;
   BookAppointment: undefined;

@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import LoginScreen from '@/screens/LoginScreen';
 import RegisterScreen from '@/screens/RegisterScreen';
+import ProfileSetupScreen from '@/screens/ProfileSetupScreen';
 import BookAppointmentScreen from '@/screens/BookAppointmentScreen';
 import BookingPaymentScreen from '@/screens/BookingPaymentScreen';
 import BookingConfirmationScreen from '@/screens/BookingConfirmationScreen';
@@ -102,6 +103,7 @@ export default function AppNavigator() {
       {/* ── Auth ───────────────────────────────────────────────────────── */}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
 
       {/* ── Main Tabs (authenticated entry point) ──────────────────────── */}
       <Stack.Screen name="Dashboard" component={BottomTabNavigator} />

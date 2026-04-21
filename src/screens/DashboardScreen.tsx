@@ -10,6 +10,7 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
 } from 'react-native';
 import { Avatar, Portal, Modal, Button } from 'react-native-paper';
 import {
@@ -157,6 +158,8 @@ export default function DashboardScreen() {
       const apts: any[] = Array.isArray(data.appointments)
         ? data.appointments
         : (data.appointments?.data || []);
+      
+      console.log(`[Dashboard] Received ${apts.length} appointments.`, apts.map(a => `${a._id} (${a.status})`));
       setAppointments(apts);
 
       // ── Build hospital ID cards from patient's appointments ────────────────
@@ -223,6 +226,11 @@ export default function DashboardScreen() {
   };
 
   useEffect(() => {
+    // DIAGNOSTIC ALERT: If you see this, the code has updated correctly!
+    // If you do NOT see this alert, please run 'npx expo start --clear' 
+    // and uninstall/reinstall the app on your phone.
+    Alert.alert('System Update', 'Navigation fix and data logs are now active.');
+    
     startRotation();
     return () => { if (autoScrollTimer.current) clearInterval(autoScrollTimer.current); };
   }, [hospitalCards.length]);
@@ -295,15 +303,31 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Registered Facility */}
+          {/* Registered Facility / Next Appointment */}
           <View style={styles.idDivider} />
-          <View style={styles.facilityRow}>
-            <MapPin size={11} color="rgba(255,255,255,0.5)" />
-            <SanctuaryText variant="body_sm" style={styles.facilityTxt} numberOfLines={1}>
-              {hospName}
-            </SanctuaryText>
-            <QrCode size={14} color="rgba(255,255,255,0.4)" />
-          </View>
+          {(() => {
+            const nextApt = appointments.find(a => 
+              a.hospital?._id === item.hospital?._id && 
+              ['confirmed', 'booked'].includes(a.status?.toLowerCase())
+            );
+            return nextApt ? (
+              <View style={styles.facilityRow}>
+                <Calendar size={11} color="#4ADE80" />
+                <SanctuaryText variant="body_sm" style={[styles.facilityTxt, { color: '#4ADE80' }]} numberOfLines={1}>
+                  Next: {safeFormat(nextApt.date, 'MMM dd')} @ {nextApt.appointmentTime || nextApt.time || nextApt.startTime}
+                </SanctuaryText>
+                <QrCode size={14} color="rgba(255,255,255,0.4)" />
+              </View>
+            ) : (
+              <View style={styles.facilityRow}>
+                <MapPin size={11} color="rgba(255,255,255,0.5)" />
+                <SanctuaryText variant="body_sm" style={styles.facilityTxt} numberOfLines={1}>
+                  {hospName}
+                </SanctuaryText>
+                <QrCode size={14} color="rgba(255,255,255,0.4)" />
+              </View>
+            );
+          })()}
         </LinearGradient>
       </TouchableOpacity>
     );
@@ -440,7 +464,10 @@ export default function DashboardScreen() {
           {(() => {
             const CONFIRMED_STATUSES = ['confirmed', 'booked'];
             const priorityApts = appointments
-              .filter(a => CONFIRMED_STATUSES.includes(a.status?.trim().toLowerCase()))
+              .filter(a => {
+                const status = (a.status || '').trim().toLowerCase();
+                return CONFIRMED_STATUSES.includes(status) || status === 'booked';
+              })
               .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
               .slice(0, 3);
             return priorityApts.length > 0 ? (
@@ -497,6 +524,30 @@ export default function DashboardScreen() {
               </>
             )}
             <SanctuaryText variant="headline_sm" style={styles.qrTitle}>{userName}</SanctuaryText>
+            
+            {/* Quick Next Appointment Info in Modal */}
+            {(() => {
+              const nextApt = appointments.find(a => 
+                a.hospital?._id === selectedHospital?.hospital?._id && 
+                ['confirmed', 'booked'].includes(a.status?.toLowerCase())
+              );
+              if (!nextApt) return null;
+              const raw = nextApt.doctor?.user?.name || nextApt.doctor?.name || 'Physician';
+              const doc = raw.startsWith('Dr.') ? raw : `Dr. ${raw}`;
+              return (
+                <View style={{ backgroundColor: '#F1F5F9', borderRadius: 12, padding: 12, width: '100%', marginBottom: 16 }}>
+                  <SanctuaryText variant="label_sm" style={{ color: '#64748B', marginBottom: 4 }}>UPCOMING APPOINTMENT</SanctuaryText>
+                  <SanctuaryText variant="label_lg" style={{ color: COLORS.primary }}>{doc}</SanctuaryText>
+                  <SanctuaryText variant="body_sm" style={{ color: '#1E293B' }}>
+                    {safeFormat(nextApt.date, 'PPPP')}
+                  </SanctuaryText>
+                  <SanctuaryText variant="label_lg" style={{ color: '#1E293B', marginTop: 2 }}>
+                    Time: {nextApt.appointmentTime || nextApt.time || nextApt.startTime}
+                  </SanctuaryText>
+                </View>
+              );
+            })()}
+
             <View style={styles.qrWrap}>
               <QRCode value={selectedHospital ? getMRN(selectedHospital, globalID) : globalID} size={200} />
             </View>

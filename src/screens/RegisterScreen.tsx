@@ -140,7 +140,7 @@ export default function RegisterScreen() {
       Alert.alert(
         '✅ Welcome to MS CureChain',
         `Hey ${user.name}, your patient account has been successfully created.`,
-        [{ text: 'Start Journey', onPress: () => navigation.replace('Dashboard') }]
+        [{ text: 'Start Journey', onPress: () => navigation.replace('ProfileSetup') }]
       );
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || 'Registration failed.';

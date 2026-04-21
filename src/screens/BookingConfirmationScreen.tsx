@@ -23,6 +23,7 @@ import {
   Share,
   Dimensions,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp, CommonActions } from '@react-navigation/native';
@@ -60,6 +61,9 @@ export default function BookingConfirmationScreen() {
   const slideUp = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    // DIAGNOSTIC ALERT: If you see this, the code has updated correctly!
+    Alert.alert('Booking Confirmed', 'The navigation fix is now active. Checking data updates...');
+    
     Animated.sequence([
       Animated.spring(checkScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
       Animated.parallel([
@@ -90,16 +94,26 @@ export default function BookingConfirmationScreen() {
 
   // ── Navigate home (reset stack) ──
   const goHome = () => {
+    console.log('[BookingConfirmation] Resetting stack to Dashboard (Home)');
     navigation.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Dashboard' }] })
+      CommonActions.reset({ 
+        index: 0, 
+        routes: [{ name: 'Dashboard' }] 
+      })
     );
   };
 
   const goToAppointments = () => {
+    console.log('[BookingConfirmation] Resetting stack to Dashboard -> Appointments');
     navigation.dispatch(
       CommonActions.reset({
-        index: 1,
-        routes: [{ name: 'Dashboard' }, { name: 'Appointments' }],
+        index: 0,
+        routes: [
+          { 
+            name: 'Dashboard', 
+            params: { screen: 'Appointments' } 
+          }
+        ],
       })
     );
   };
