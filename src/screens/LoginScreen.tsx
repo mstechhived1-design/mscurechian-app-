@@ -257,7 +257,16 @@ export default function LoginScreen() {
                       <SanctuaryText variant="label_lg" style={styles.registerLink}>Register here</SanctuaryText>
                     </TouchableOpacity>
                   </View>
-                  <SanctuaryText variant="body_sm" style={{color: '#BBB', marginTop: 16}}>
+                  <View style={styles.policyRow}>
+                    <TouchableOpacity onPress={() => navigation.navigate('TermsAndConditions', { initialTab: 'privacy' })}>
+                      <SanctuaryText variant="body_sm" style={styles.policyLink}>Privacy Policy</SanctuaryText>
+                    </TouchableOpacity>
+                    <SanctuaryText variant="body_sm" style={styles.policyDivider}> • </SanctuaryText>
+                    <TouchableOpacity onPress={() => navigation.navigate('TermsAndConditions', { initialTab: 'terms' })}>
+                      <SanctuaryText variant="body_sm" style={styles.policyLink}>Terms of Service</SanctuaryText>
+                    </TouchableOpacity>
+                  </View>
+                  <SanctuaryText variant="body_sm" style={{color: '#BBB', marginTop: 12}}>
                     MSC-APP v1.2.1 • Encryption Secured
                   </SanctuaryText>
                </View>
@@ -296,4 +305,7 @@ const styles = StyleSheet.create({
   registerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 24 },
   registerHint: { color: '#888', fontSize: 13 },
   registerLink: { color: '#005AB5', fontSize: 13, fontWeight: '800' },
+  policyRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
+  policyLink: { color: '#888', fontSize: 12, textDecorationLine: 'underline' },
+  policyDivider: { color: '#BBB', fontSize: 12, marginHorizontal: 4 },
 });

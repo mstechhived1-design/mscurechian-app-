@@ -291,18 +291,20 @@ const PRIVACY_SECTIONS: Section[] = [
   {
     id: 'p8',
     number: '8',
-    title: 'App Permissions',
+    title: 'App Permissions & Disclosure',
     content: [
-      'Camera/Gallery for document uploads.',
-      'Location for finding nearby hospitals.',
-      'Notifications for alerts.',
+      'Camera: Used for scanning QR codes to book appointments and uploading medical records. Data is processed locally for scanning.',
+      'Location: Used to discover nearby hospitals and clinics. Data is used only while the app is in use.',
+      'Storage: Used to save downloaded reports and prescriptions to your device.',
+      'Notifications: Used for appointment reminders and critical health alerts.',
     ],
+    highlight: true,
   },
   {
     id: 'p9',
     number: '9',
     title: 'Contact Information',
-    content: 'privacy@mscurechain.com\nlegal@mscurechain.com',
+    content: 'privacy@mscurechain.com\nsupport@mscurechain.com',
   },
 ];
 
@@ -450,7 +452,7 @@ export default function TermsAndConditionsScreen() {
       <View style={Sty.updateBanner}>
         <AlertCircle size={13} color="#D97706" />
         <SanctuaryText variant="label_sm" style={Sty.updateTxt}>
-          Last Updated: April 2025 · Effective immediately upon login or booking
+          Last Updated: April 23, 2026 · Effective immediately upon login or booking
         </SanctuaryText>
       </View>
 
