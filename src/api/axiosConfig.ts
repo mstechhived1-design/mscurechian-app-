@@ -40,7 +40,7 @@ export const TOKEN_KEYS = {
  * 2. __DEV__ flag (development vs production mode)
  * 3. Platform-specific handling:
  *    - Android emulator: http://10.0.2.2:5003/api (emulator's gateway to host)
- *    - Physical device: http://192.168.29.249:5003/api (machine's local network IP)
+ *    - Physical device: http://192.168.29.48:5003/api (machine's local network IP)
  *    - Web/iOS: http://127.0.0.1:5003/api (localhost)
  * 
  * Production URL: https://www.mscurechain.com/api
@@ -48,7 +48,7 @@ export const TOKEN_KEYS = {
 // ─── LOCAL BACKEND CONFIGURATION ─────────────────────────────────────────────
 //
 // Change this ONE value to switch backends:
-//   Local dev  : http://10.55.39.191:5003/api   ← current
+//   Local dev  : http://192.168.29.48:5003/api   ← current (Wifi: 23/04/26)
 //   iOS sim    : http://localhost:5003/api
 //   Android emu: http://10.0.2.2:5003/api
 //   Production : https://www.mscurechain.com/api

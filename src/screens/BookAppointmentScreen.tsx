@@ -213,6 +213,17 @@ export default function BookAppointmentScreen() {
     }
   }, [qrParams, allDoctors]);
 
+  // Handle Hospital Auto-Selection from Navigation Params
+  useEffect(() => {
+    if (qrParams?.hospitalId && hospitals.length > 0) {
+      console.log('[BookAppointment] Applying Hospital Params:', qrParams.hospitalId);
+      const h = hospitals.find(x => x._id === qrParams.hospitalId);
+      if (h) {
+        setSelectedHospital(h);
+      }
+    }
+  }, [qrParams, hospitals]);
+
   // ── LOAD AVAILABILITY when doctor + date selected ──
   useEffect(() => {
     if (!selectedDoctor || !selectedDate || !selectedHospital) return;

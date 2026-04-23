@@ -68,8 +68,9 @@ export default function QRScannerScreen() {
         hospitalId = json.hospitalId;
       } 
       // Support URL format: mscurechain://book?doctorId=...&hospitalId=...
-      else if (data.includes('doctorId=')) {
-        const urlParams = new URLSearchParams(data.split('?')[1]);
+      else if (data.includes('?')) {
+        const query = data.split('?')[1];
+        const urlParams = new URLSearchParams(query);
         doctorId = urlParams.get('doctorId') || '';
         hospitalId = urlParams.get('hospitalId') || '';
       }
@@ -83,6 +84,18 @@ export default function QRScannerScreen() {
             { 
               text: 'Book Now', 
               onPress: () => navigation.replace('BookAppointment', { doctorId, hospitalId }) 
+            }
+          ]
+        );
+      } else if (hospitalId) {
+        Alert.alert(
+          'Hospital Scanned',
+          'We found the hospital. View available doctors?',
+          [
+            { text: 'Cancel', onPress: () => setScanned(false), style: 'cancel' },
+            { 
+              text: 'View Doctors', 
+              onPress: () => navigation.replace('BookAppointment', { hospitalId }) 
             }
           ]
         );
