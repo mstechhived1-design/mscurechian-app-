@@ -8,7 +8,7 @@
     "owner": "narasimhamstechhive",
     "icon": "./assets/image.png",
     "android": {
-      "package": "com.narasimhamstechhive.mscurechainpatientapp"
+      "package": "com.mscurechain.patientapp"
     }
   }
 }

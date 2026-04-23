@@ -149,8 +149,8 @@ const SOSScreen = () => {
       }
 
       const excludes = [pData?.user?.mobile, pData?.mobile, pData?.user?.email, pData?.user?.name].filter(Boolean);
-      const eName = findInObject(combined, ['emergencycontactname', 'emergencyname', 'kinname', 'guardianname', 'contactperson'], excludes);
-      const ePhone = findInObject(combined, ['emergencycontactphone', 'emergencyphone', 'kinphone', 'guardianphone', 'emergencymobile', 'contactnumber'], excludes);
+      const eName = combined.user?.emergencyContactName || findInObject(combined, ['emergencycontactname', 'emergencyname', 'kinname', 'guardianname', 'contactperson'], excludes);
+      const ePhone = combined.user?.emergencyContactPhone || findInObject(combined, ['emergencycontactphone', 'emergencyphone', 'kinphone', 'guardianphone', 'emergencymobile', 'contactnumber'], excludes);
 
       setProfile({ ...combined, emergencyName: eName, emergencyPhone: ePhone });
       const currentLoc = await getPinpointLocation();
@@ -274,8 +274,8 @@ const SOSScreen = () => {
       '',
       `👤 Patient: ${profile?.user?.name || 'NOT SPECIFIED'}`,
       `🆔 MRN: #${profile?.mrn || 'N/A'}`,
-      `🩸 Blood Group: ${profile?.bloodGroup || 'N/A'}`,
-      `⚠️ Allergies: ${profile?.allergies || 'None Recorded'}`,
+      `🩸 Blood Group: ${profile?.user?.bloodGroup || profile?.bloodGroup || 'N/A'}`,
+      `⚠️ Allergies: ${profile?.user?.allergies || profile?.allergies || 'None Recorded'}`,
       '',
       '📍 CRITICAL: EXACT PINPOINT (Open for Map):',
       mapUrl,

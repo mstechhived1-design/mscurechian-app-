@@ -21,7 +21,6 @@ import {
   ClipboardList,
   ShieldAlert,
   ChevronRight,
-  Bell,
   QrCode,
   Building2,
   Clock,
@@ -249,7 +248,7 @@ export default function DashboardScreen() {
 
   const userName   = profile?.user?.name || 'Patient';
   const globalID   = profile?.mrn || 'N/A';
-  const bloodGroup  = profile?.bloodGroup || 'O+';
+  const bloodGroup  = profile?.user?.bloodGroup || profile?.bloodGroup || 'O+';
 
   // ── The carousel uses hospitalCards (built from appointments) ─────────────────
   const cardList = hospitalCards;
@@ -352,9 +351,8 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.headerRight}>
             <LanguageSelector />
-            <TouchableOpacity style={styles.bellBtn} onPress={() => markAllRead()}>
-              <Bell size={20} color="#1E293B" />
-              {unreadCount > 0 && <View style={styles.notifDot} />}
+            <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('QRScanner')}>
+              <QrCode size={20} color="#1E293B" />
             </TouchableOpacity>
           </View>
         </View>
@@ -743,8 +741,7 @@ const styles = StyleSheet.create({
   brandName: { color: '#1E293B', fontWeight: '900', fontSize: 17, lineHeight: 20 },
   brandSub: { color: '#94A3B8', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bellBtn: { padding: 10, backgroundColor: '#F1F5F9', borderRadius: 22 },
-  notifDot: { position: 'absolute', top: 10, right: 10, width: 9, height: 9, borderRadius: 5, backgroundColor: '#EF4444', borderWidth: 2, borderColor: '#FFF' },
+  headerBtn: { padding: 12, marginRight: -8 },
   locationPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, alignSelf: 'flex-start', maxWidth: '90%' },
   locationTxt: { marginLeft: 6, color: COLORS.primary, fontSize: 11, fontWeight: '700' },
 

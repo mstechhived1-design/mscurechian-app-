@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   Animated,
+  Linking,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Portal, Modal } from 'react-native-paper';
@@ -19,6 +20,7 @@ import {
   Plus,
   Activity,
   Stethoscope,
+  Navigation,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -321,6 +323,26 @@ function AppointmentDetail({ apt, onClose, onCancel }: { apt: any; onClose: () =
 
   const isPast = ['completed', 'cancelled'].includes(apt.status?.toLowerCase());
 
+  const handleGetDirections = () => {
+    const hospital = apt.hospital;
+    if (!hospital) return;
+    
+    const query = encodeURIComponent(`${hospital.name}, ${hospital.address || ''}`);
+    const url = Platform.select({
+      ios: `maps:0,0?q=${query}`,
+      android: `geo:0,0?q=${query}`,
+      default: `https://www.google.com/maps/search/?api=1&query=${query}`
+    });
+
+    Linking.canOpenURL(url).then(supported => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+      }
+    });
+  };
+
   return (
     <View style={detail.root}>
       <View style={detail.handle} />
@@ -397,6 +419,15 @@ function AppointmentDetail({ apt, onClose, onCancel }: { apt: any; onClose: () =
       </ScrollView>
 
       <View style={detail.actionArea}>
+        {apt.hospital && !isPast && (
+          <TouchableOpacity 
+            style={[detail.actionBtn, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD', borderWidth: 1, flexDirection: 'row', gap: 8 }]} 
+            onPress={handleGetDirections}
+          >
+            <Navigation size={18} color="#0369A1" />
+            <SanctuaryText variant="label_lg" style={{ color: '#0369A1', fontWeight: '900' }}>GET DIRECTIONS</SanctuaryText>
+          </TouchableOpacity>
+        )}
         {apt.type === 'online' && !isPast && (
           <TouchableOpacity style={[detail.actionBtn, detail.joinBtn]} onPress={() => Alert.alert('Join Virtual Clinic', 'The virtual consultation link will be active 10 minutes before your appointment.')}>
             <SanctuaryText variant="label_lg" style={detail.joinTxt}>JOIN CONSULTATION</SanctuaryText>

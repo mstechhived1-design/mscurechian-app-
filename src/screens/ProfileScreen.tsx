@@ -10,6 +10,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   Text,
   Card,
@@ -68,10 +69,26 @@ export default function ProfileScreen() {
     height: '',
     weight: '',
     age: '',
+    dob: '',
+    conditions: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     emergencyContactRelation: '',
   });
+
+  const BLOOD_GROUPS = ['Unknown', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  const [bloodModalVisible, setBloodModalVisible] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const d = selectedDate.getDate().toString().padStart(2, '0');
+      const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+      const y = selectedDate.getFullYear();
+      setEditData({ ...editData, dob: `${d}-${m}-${y}` });
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -83,16 +100,24 @@ export default function ProfileScreen() {
         name: data.user?.name || '',
         mobile: data.user?.mobile || '',
         email: data.user?.email || '',
-        address: data.address || '',
-        bloodGroup: data.bloodGroup || '',
-        allergies: data.allergies || '',
+        address: data.user?.address || data.address || '',
+        bloodGroup: data.user?.bloodGroup || data.bloodGroup || '',
+        allergies: data.user?.allergies || data.allergies || '',
         gender: data.user?.gender || data.gender || '',
-        height: String(data.height || ''),
-        weight: String(data.weight || ''),
+        height: String(data.user?.height || data.height || ''),
+        weight: String(data.user?.weight || data.weight || ''),
         age: String(data.user?.age || data.age || ''),
-        emergencyContactName: data.emergencyContactName || '',
-        emergencyContactPhone: data.emergencyContactPhone || '',
-        emergencyContactRelation: data.emergencyContactRelation || '',
+        dob: (() => {
+          const rawDob = data.user?.dateOfBirth || data.dob;
+          if (!rawDob) return '';
+          const d = new Date(rawDob);
+          const cell = (n: number) => String(n).padStart(2, '0');
+          return `${cell(d.getUTCDate())}-${cell(d.getUTCMonth() + 1)}-${d.getUTCFullYear()}`;
+        })(),
+        conditions: data.user?.conditions || data.conditions || '',
+        emergencyContactName: data.user?.emergencyContactName || data.emergencyContactName || '',
+        emergencyContactPhone: data.user?.emergencyContactPhone || data.emergencyContactPhone || '',
+        emergencyContactRelation: data.user?.emergencyContactRelation || data.emergencyContactRelation || '',
       });
     } catch (err) {
       console.error('Fetch Profile Error:', err);
@@ -113,11 +138,33 @@ export default function ProfileScreen() {
   };
 
   const handleUpdate = async () => {
+    // Validations: Supports DD-MM-YYYY or DD/MM/YYYY
+    const dobRegex = /^(\d{2})[-/](\d{2})[-/](\d{4})$/;
+    const phoneRegex = /^\d{10}$/;
+
+    if (editData.dob && !dobRegex.test(editData.dob)) {
+      Alert.alert('Invalid Date', 'Date should be DD-MM-YYYY or DD/MM/YYYY');
+      return;
+    }
+
+    if (editData.emergencyContactPhone && !phoneRegex.test(editData.emergencyContactPhone)) {
+      Alert.alert('Invalid Phone', 'Emergency phone should be 10 digits');
+      return;
+    }
+
     try {
       setLoading(true);
-      // Clean up numeric fields
+      // Clean up numeric fields and convert DOB
+      let formattedDob = editData.dob;
+      if (editData.dob && dobRegex.test(editData.dob)) {
+        const parts = editData.dob.split(/[-/]/);
+        const [d, m, y] = parts;
+        formattedDob = `${y}-${m}-${d}`;
+      }
+
       const updatePayload = {
         ...editData,
+        dob: formattedDob,
         height: editData.height ? Number(editData.height) : undefined,
         weight: editData.weight ? Number(editData.weight) : undefined,
         age: editData.age ? Number(editData.age) : undefined,
@@ -202,17 +249,17 @@ export default function ProfileScreen() {
         <View style={styles.vitalsGrid}>
           <View style={[styles.vitalItem, { backgroundColor: '#EBF4FF' }]}>
             <Heart size={20} color="#006AF5" />
-            <Text style={styles.vitalVal}>{profile?.bloodGroup || 'O+'}</Text>
+            <Text style={styles.vitalVal}>{profile?.user?.bloodGroup || profile?.bloodGroup || 'O+'}</Text>
             <Text style={styles.vitalLab}>Blood Group</Text>
           </View>
           <View style={[styles.vitalItem, { backgroundColor: '#F0FFF4' }]}>
             <Activity size={20} color="#38A169" />
-            <Text style={styles.vitalVal}>{profile?.weight || '--'} kg</Text>
+            <Text style={styles.vitalVal}>{profile?.user?.weight || profile?.weight || '--'} kg</Text>
             <Text style={styles.vitalLab}>Weight</Text>
           </View>
           <View style={[styles.vitalItem, { backgroundColor: '#FFF5F5' }]}>
             <Droplets size={20} color="#E53E3E" />
-            <Text style={styles.vitalVal}>{profile?.allergies ? 'Active' : 'None'}</Text>
+            <Text style={styles.vitalVal}>{(profile?.user?.allergies || profile?.allergies) ? 'Active' : 'None'}</Text>
             <Text style={styles.vitalLab}>Allergies</Text>
           </View>
         </View>
@@ -235,7 +282,7 @@ export default function ProfileScreen() {
               <User size={16} color="#666" style={styles.detailIcon} />
               <View>
                 <Text style={styles.detailLabel}>Height / Weight</Text>
-                <Text style={styles.detailVal}>{profile?.height || '--'} cm • {profile?.weight || '--'} kg</Text>
+                <Text style={styles.detailVal}>{profile?.user?.height || profile?.height || '--'} cm • {profile?.user?.weight || profile?.weight || '--'} kg</Text>
               </View>
             </View>
             <Divider style={styles.divider} />
@@ -251,7 +298,7 @@ export default function ProfileScreen() {
               <MapPin size={16} color="#666" style={styles.detailIcon} />
               <View>
                 <Text style={styles.detailLabel}>Residential Address</Text>
-                <Text style={styles.detailVal}>{profile?.address || 'Street address not available'}</Text>
+                <Text style={styles.detailVal}>{profile?.user?.address || profile?.address || 'Street address not available'}</Text>
               </View>
             </View>
           </Card>
@@ -268,8 +315,8 @@ export default function ProfileScreen() {
               <View>
                 <Text style={styles.detailLabel}>Primary Contact</Text>
                 <Text style={[styles.detailVal, { color: '#C53030' }]}>
-                  {profile?.emergencyContactName || 'No contact added'} 
-                  {profile?.emergencyContactRelation ? ` (${profile.emergencyContactRelation})` : ''}
+                  {profile?.user?.emergencyContactName || profile?.emergencyContactName || 'No contact added'} 
+                  {(profile?.user?.emergencyContactRelation || profile?.emergencyContactRelation) ? ` (${profile?.user?.emergencyContactRelation || profile.emergencyContactRelation})` : ''}
                 </Text>
               </View>
             </View>
@@ -278,7 +325,7 @@ export default function ProfileScreen() {
               <Phone size={16} color="#C53030" style={styles.detailIcon} />
               <View>
                 <Text style={styles.detailLabel}>Contact Phone</Text>
-                <Text style={styles.detailVal}>{profile?.emergencyContactPhone || 'N/A'}</Text>
+                <Text style={styles.detailVal}>{profile?.user?.emergencyContactPhone || profile?.emergencyContactPhone || 'N/A'}</Text>
               </View>
             </View>
           </Card>
@@ -299,6 +346,32 @@ export default function ProfileScreen() {
 
       {/* Edit Modal */}
       <Portal>
+        {/* Blood Group Modal */}
+        <Modal
+          visible={bloodModalVisible}
+          onDismiss={() => setBloodModalVisible(false)}
+          contentContainerStyle={{ backgroundColor: '#FFF', margin: 24, borderRadius: 32, padding: 24 }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E293B', textAlign: 'center', marginBottom: 24 }}>Select Blood Group</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 }}>
+            {BLOOD_GROUPS.map((bg) => (
+              <TouchableOpacity
+                key={bg}
+                style={{ 
+                  width: '30%', height: 60, backgroundColor: editData.bloodGroup === bg ? '#EF4444' : '#F8FAFC', 
+                  borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' 
+                }}
+                onPress={() => {
+                  setEditData({ ...editData, bloodGroup: bg });
+                  setBloodModalVisible(false);
+                }}
+              >
+                <Text style={{ color: editData.bloodGroup === bg ? '#FFF' : '#64748B', fontWeight: '800' }}>{bg}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Modal>
+
         <Modal
           visible={editModalVisible}
           onDismiss={() => setEditModalVisible(false)}
@@ -318,10 +391,47 @@ export default function ProfileScreen() {
                 <Text style={styles.formSubHeader}>{t('profile.personalInfo')}</Text>
                 <PaperInput label="Full Name" value={editData.name} onChangeText={(t) => setEditData({...editData, name: t})} mode="outlined" style={styles.input} />
                 <PaperInput label="Gender" value={editData.gender} onChangeText={(t) => setEditData({...editData, gender: t})} mode="outlined" style={styles.input} placeholder="Male/Female/Other" />
-                <View style={styles.row}>
-                  <PaperInput label="Age" value={editData.age} onChangeText={(t) => setEditData({...editData, age: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1, marginRight: 8 }]} />
-                  <PaperInput label="Blood Group" value={editData.bloodGroup} onChangeText={(t) => setEditData({...editData, bloodGroup: t})} mode="outlined" style={[styles.input, { flex: 1 }]} />
+                <PaperInput 
+                  label="Birth Date (DD-MM-YYYY)" 
+                  value={editData.dob} 
+                  onChangeText={(t) => setEditData({...editData, dob: t})} 
+                  mode="outlined" 
+                  style={styles.input}
+                  right={<PaperInput.Icon icon="calendar" onPress={() => setShowDatePicker(true)} />}
+                />
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={(() => {
+                      if (editData.dob) {
+                        const parts = editData.dob.split(/[-/]/);
+                        if (parts.length === 3) {
+                          const d = parseInt(parts[0]);
+                          const m = parseInt(parts[1]) - 1;
+                          const y = parseInt(parts[2]);
+                          const date = new Date(y, m, d);
+                          if (!isNaN(date.getTime())) return date;
+                        }
+                      }
+                      return new Date();
+                    })()}
+                    mode="date"
+                    display="default"
+                    onChange={onDateChange}
+                    maximumDate={new Date()}
+                  />
+                )}
+                
+                <View style={[styles.row, { marginBottom: 16 }]}>
+                  <PaperInput label="Age" value={editData.age} onChangeText={(t) => setEditData({...editData, age: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1, marginRight: 8, marginBottom: 0 }]} />
+                  <TouchableOpacity 
+                    style={{ flex: 1, height: 56, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, justifyContent: 'center', paddingHorizontal: 10, marginTop: 6 }} 
+                    onPress={() => setBloodModalVisible(true)}
+                  >
+                    <Text style={{ color: editData.bloodGroup ? '#000' : '#666' }}>{editData.bloodGroup || 'Blood Group'}</Text>
+                  </TouchableOpacity>
                 </View>
+
                 <View style={styles.row}>
                   <PaperInput label="Height (cm)" value={editData.height} onChangeText={(t) => setEditData({...editData, height: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1, marginRight: 8 }]} />
                   <PaperInput label="Weight (kg)" value={editData.weight} onChangeText={(t) => setEditData({...editData, weight: t})} mode="outlined" keyboardType="numeric" style={[styles.input, { flex: 1 }]} />
@@ -340,6 +450,14 @@ export default function ProfileScreen() {
                   label="Medical Allergies" 
                   value={editData.allergies} 
                   onChangeText={(t) => setEditData({...editData, allergies: t})} 
+                  mode="outlined" 
+                  style={styles.input} 
+                />
+
+                <PaperInput 
+                  label="Chronic Conditions" 
+                  value={editData.conditions} 
+                  onChangeText={(t) => setEditData({...editData, conditions: t})} 
                   mode="outlined" 
                   style={styles.input} 
                 />

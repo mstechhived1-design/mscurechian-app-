@@ -28,7 +28,7 @@ import {
   GestureResponderEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
   ChevronLeft,
@@ -103,6 +103,8 @@ const COMMON_SYMPTOMS = [
 
 export default function BookAppointmentScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'BookAppointment'>>();
+  const qrParams = route.params;
 
   // ── Wizard step ──
   const [step, setStep] = useState(1);
@@ -164,9 +166,9 @@ export default function BookAppointmentScreen() {
     return list;
   }, [allDoctors, selectedSpecialty, doctorSearch]);
 
-  // ── NEXT 14 days ──
+  // ── NEXT 7 days (starts from tomorrow) ──
   const availableDates = useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => {
+    Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() + i + 1);
       return d.toISOString().split('T')[0];
@@ -198,6 +200,18 @@ export default function BookAppointmentScreen() {
       }
     }
   }, [selectedDoctor, hospitals, selectedHospital]);
+
+  // Handle QR Auto-Selection
+  useEffect(() => {
+    if (qrParams?.doctorId && allDoctors.length > 0 && step === 1) {
+      console.log('[BookAppointment] Applying QR Params:', qrParams);
+      const doc = allDoctors.find(d => d._id === qrParams.doctorId);
+      if (doc) {
+        setSelectedDoctor(doc);
+        setStep(2); // Jump to Step 2 (Date & Time)
+      }
+    }
+  }, [qrParams, allDoctors]);
 
   // ── LOAD AVAILABILITY when doctor + date selected ──
   useEffect(() => {
@@ -920,7 +934,7 @@ function StepReview({
           </View>
         </View>
       )}
-
+    
       {notes.trim().length > 0 && (
         <View style={S.notesCard}>
           <SanctuaryText variant="label_sm" style={S.notesLabel}>DOCTOR'S NOTES</SanctuaryText>
