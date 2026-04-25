@@ -291,12 +291,12 @@ const PRIVACY_SECTIONS: Section[] = [
   {
     id: 'p8',
     number: '8',
-    title: 'App Permissions & Disclosure',
+    title: 'Prominent Disclosure: App Permissions',
     content: [
-      'Camera: Used for scanning QR codes to book appointments and uploading medical records. Data is processed locally for scanning.',
-      'Location: Used to discover nearby hospitals and clinics. Data is used only while the app is in use.',
-      'Storage: Used to save downloaded reports and prescriptions to your device.',
-      'Notifications: Used for appointment reminders and critical health alerts.',
+      'Camera Permission: This app requires access to your device camera specifically to scan QR codes for quick doctor discovery and appointment booking. The camera is also used to capture medical documents for your personal health records. We do not store or share video/images from your camera without your explicit action.',
+      'Location Permission: Used to identify nearby healthcare providers to facilitate your booking journey. Location data is processed only while the app is active.',
+      'Storage Permission: Necessary for downloading and securely storing your prescriptions and medical reports locally on your device.',
+      'Notifications: Used to deliver critical appointment reminders and health updates.',
     ],
     highlight: true,
   },

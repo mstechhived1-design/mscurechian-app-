@@ -1,55 +1,38 @@
 # Privacy Policy for MS CureChain Patient App
 
-**Last Updated: April 23, 2026**
+**Effective Date: April 23, 2026**
 
-MS CureChain ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application (the "App").
+MS CureChain ("we," "our," or "us") provides this Privacy Policy to inform you of our policies and procedures regarding the collection, use, and disclosure of personal information we receive from users of our mobile application (the "App").
 
-## 1. Information We Collect
+## 1. Important Disclosure: Camera Permission
+The MS CureChain App requires access to your device's **Camera** (`android.permission.CAMERA`) for the following specific purposes:
+*   **QR Code Scanning**: To enable you to quickly find and book appointments by scanning QR codes provided at healthcare facilities or on doctor profiles.
+*   **Document Capture**: To allow you to take photos of physical medical prescriptions or reports to upload them to your secure personal health record.
 
-### A. Personal Information
-When you register for an account, we collect:
-- Full Name
-- Mobile Number
-- Email Address
-- Password (encrypted)
-- Profile Information (Date of Birth, Gender, Blood Group)
+**Data Handling**: Camera data is processed in real-time on your device. We do not record or transmit video or images from your camera to our servers unless you explicitly choose to "Upload" a captured document.
 
-### B. Sensitive Permissions
-To provide essential healthcare features, the App requires the following permissions:
+## 2. Location Data
+The App uses **Location Services** (`android.permission.ACCESS_FINE_LOCATION`) to:
+*   Help you discover hospitals and clinics in your immediate vicinity.
+*   Provide accurate distance information for appointment planning.
 
-*   **Camera Permission (`android.permission.CAMERA`)**: 
-    *   **Usage**: Used to scan QR codes for quick doctor/hospital discovery and appointment booking. 
-    *   **Data Handling**: Images are processed locally for scanning and are not stored on our servers unless you explicitly upload a medical document.
-*   **Location Permission (`android.permission.ACCESS_FINE_LOCATION`)**:
-    *   **Usage**: Used to help you find nearby hospitals and clinics.
-    *   **Data Handling**: Your location data is used only while the App is in use and is not shared with third parties.
-*   **Storage Permission (`android.permission.READ/WRITE_EXTERNAL_STORAGE`)**:
-    *   **Usage**: Used to allow you to upload and download medical reports and prescriptions.
+## 3. Information We Collect
+*   **Account Data**: Name, Mobile Number, Email, and Password.
+*   **Health Profile**: Date of Birth, Gender, Blood Group, and Medical Records (only if uploaded by you).
+*   **Booking History**: Records of appointments scheduled through the platform.
 
-## 2. How We Use Your Information
-- To manage your appointments and healthcare records.
-- To facilitate communication between you and your healthcare providers.
-- To provide emergency "SOS" services based on your profile information.
-- To improve our services and user experience.
+## 4. How We Use Information
+*   To facilitate medical appointment bookings.
+*   To provide access to your digitized medical history.
+*   To send notifications for appointment reminders and health alerts.
 
-## 3. Data Security
-We implement industry-standard encryption (AES/SSL) to protect your data during transmission and at rest. Your medical records are accessible only to you and the doctors you explicitly share them with.
+## 5. Data Security
+We use industry-standard AES-256 encryption and SSL/TLS protocols to ensure your data is secure. Your health records are private and are only shared with healthcare providers you explicitly interact with.
 
-## 4. Data Sharing
-We do **not** sell your personal data. We share information only with:
-- Healthcare providers (hospitals/doctors) with whom you book appointments.
-- Service providers necessary for the App's operation (e.g., cloud hosting).
-- Legal authorities, if required by law.
+## 6. Your Choices
+You can revoke Camera or Location permissions at any time through your device's System Settings. However, doing so may limit your ability to use certain features (like QR scanning).
 
-## 5. Your Rights
-You have the right to:
-- Access and update your personal information.
-- Delete your account and associated data.
-- Withdraw consent for specific permissions (Camera/Location) via your device settings.
-
-## 6. Contact Us
-If you have any questions regarding this Privacy Policy or our data practices, please contact us at:
-
-**MS CureChain Support**  
-Email: support@mscurechain.com  
-Website: [https://mscurechain.com](https://mscurechain.com)
+## 7. Contact Us
+For any privacy-related concerns, please reach out to us:
+**Email**: privacy@mscurechain.com  
+**Website**: [https://mscurechain.com](https://mscurechain.com)
