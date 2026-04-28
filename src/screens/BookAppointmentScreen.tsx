@@ -257,7 +257,7 @@ export default function BookAppointmentScreen() {
     switch (step) {
       case 1: return !!selectedDoctor;
       case 2: return !!selectedDate && !!selectedBlock && !!selectedSubSlot;
-      case 3: return selectedSymptoms.length > 0 || notes.trim().length > 0 || customSymptom.trim().length > 0;
+      case 3: return customSymptom.trim().length > 0;
       case 4: return hasAcceptedTerms;
       default: return true;
     }
@@ -281,7 +281,7 @@ export default function BookAppointmentScreen() {
       endTime,
       consultationFee: selectedDoctor!.consultationFee || 500,
       appointmentType,
-      symptoms: [...selectedSymptoms, customSymptom].filter(Boolean).join(', '),
+      symptoms: customSymptom.trim(),
       notes: notes.trim(),
       vitals,
     };
@@ -372,7 +372,7 @@ export default function BookAppointmentScreen() {
             date={selectedDate}
             block={selectedBlock}
             subSlot={selectedSubSlot}
-            symptoms={[...selectedSymptoms, customSymptom].filter(Boolean)}
+            reason={customSymptom.trim()}
             notes={notes}
             appointmentType={appointmentType}
             vitals={vitals}
@@ -818,22 +818,17 @@ function StepSymptoms({
 
       <SanctuaryText variant="headline_sm" style={S.sectionTitle}>Reason for Visit</SanctuaryText>
       <SanctuaryText variant="body_sm" style={S.sectionSub}>
-        Select symptoms or describe your concern
+        Briefly describe why you are booking this appointment
       </SanctuaryText>
 
-      <View style={S.chipWrap}>
-        {COMMON_SYMPTOMS.map((sym) => (
-          <TouchableOpacity
-            key={sym}
-            style={[S.chip, selected.includes(sym) && S.chipActive]}
-            onPress={() => onToggle(sym)}
-            activeOpacity={0.8}
-          >
-            <SanctuaryText variant="label_sm" style={[S.chipTxt, selected.includes(sym) && { color: '#fff' }]}>
-              {sym}
-            </SanctuaryText>
-          </TouchableOpacity>
-        ))}
+      <View style={{ marginBottom: 12 }}>
+        <TextInput
+          style={S.input}
+          placeholder="e.g. Regular checkup, Chronic pain, Follow-up..."
+          placeholderTextColor="#94A3B8"
+          value={custom}
+          onChangeText={onCustomChange}
+        />
       </View>
 
       {/* Vitals Section */}
@@ -892,7 +887,7 @@ function StepSymptoms({
 // ── Step 5: Review ────────────────────────────────────────────────────────────
 
 function StepReview({
-  doctor, hospital, date, block, subSlot, symptoms, notes, appointmentType, vitals,
+  doctor, hospital, date, block, subSlot, reason, notes, appointmentType, vitals,
   hasAcceptedTerms, onToggleTerms
 }: {
   doctor: Doctor;
@@ -900,7 +895,7 @@ function StepReview({
   date: string;
   block: HourBlock;
   subSlot: { startTime: string; endTime: string };
-  symptoms: string[];
+  reason: string;
   notes: string;
   appointmentType: string;
   vitals: any;
@@ -915,7 +910,7 @@ function StepReview({
     { icon: Calendar,    label: 'Date',      value: formatDate(date) },
     { icon: Clock,       label: 'Time Slot', value: `${subSlot.startTime} (${block.timeSlot})` },
     { icon: Heart,       label: 'Type',      value: appointmentType },
-    { icon: FileText,    label: 'Reason',    value: symptoms.join(', ') || 'General Consultation' },
+    { icon: FileText,    label: 'Reason',    value: reason || 'General Consultation' },
   ];
 
   return (

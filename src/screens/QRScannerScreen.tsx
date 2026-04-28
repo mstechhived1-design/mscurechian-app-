@@ -7,12 +7,15 @@ import {
   Alert,
   StatusBar,
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { X, Zap, ZapOff } from 'lucide-react-native';
+import { X, Zap, ZapOff, Image as ImageIcon } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import apiClient from '@/api/axiosConfig';
 
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '@/constants/designSystem';
@@ -55,8 +58,12 @@ export default function QRScannerScreen() {
     if (scanned) return;
     setScanned(true);
 
+    processQRData(data);
+  };
+
+  const processQRData = (data: string) => {
     try {
-      console.log('[QRScanner] Scanned Data:', data);
+      console.log('[QRScanner] Processing Data:', data);
       
       let doctorId = '';
       let hospitalId = '';
@@ -109,6 +116,56 @@ export default function QRScannerScreen() {
     }
   };
 
+  const pickImageAndScan = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'We need access to your photos to scan a QR code.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const { uri } = result.assets[0];
+      try {
+        setScanned(true); // Prevent simultaneous scans
+        
+        // Prepare file for upload
+        const formData = new FormData();
+        const filename = uri.split('/').pop() || 'scan.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+
+        formData.append('image', {
+          uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
+          name: filename,
+          type,
+        } as any);
+
+        const response = await apiClient.post('/patients/scan-qr', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (response.data?.success && response.data?.data) {
+          processQRData(response.data.data);
+        } else {
+          Alert.alert('No QR Code Found', 'The server could not detect a QR code in the selected image.');
+          setScanned(false);
+        }
+      } catch (error: any) {
+        console.error('[QRScanner] Server scan error:', error.response?.data || error.message);
+        Alert.alert('Scan Failed', 'The server could not process the image. Please try again.');
+        setScanned(false);
+      }
+    }
+  };
+
   if (!permission) {
     return <View style={styles.base} />;
   }
@@ -143,9 +200,15 @@ export default function QRScannerScreen() {
             <TouchableOpacity style={styles.closeBtn} onPress={() => navigation.goBack()}>
               <X size={28} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.torchBtn} onPress={() => setTorch(!torch)}>
-              {torch ? <Zap size={24} color="#FFD700" /> : <ZapOff size={24} color="#FFF" />}
-            </TouchableOpacity>
+            
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity style={styles.torchBtn} onPress={pickImageAndScan}>
+                <ImageIcon size={24} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.torchBtn} onPress={() => setTorch(!torch)}>
+                {torch ? <Zap size={24} color="#FFD700" /> : <ZapOff size={24} color="#FFF" />}
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Scanner Viewport */}
@@ -171,7 +234,7 @@ export default function QRScannerScreen() {
           <View style={styles.footer}>
             <SanctuaryText variant="headline_sm" style={styles.guideTitle}>Scan Doctor QR</SanctuaryText>
             <SanctuaryText variant="body_md" style={styles.guideSub}>
-              Align the doctor's booking QR code inside the frame to jump to appointment booking.
+              Align the doctor's booking QR code inside the frame, or tap the image icon above to scan from your gallery.
             </SanctuaryText>
           </View>
         </View>
