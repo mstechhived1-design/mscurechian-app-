@@ -19,6 +19,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   Platform,
   ActivityIndicator,
   Alert,
@@ -43,6 +44,7 @@ import {
   Clock,
   Lock,
   ArrowRight,
+  CheckCircle2,
 } from 'lucide-react-native';
 
 import { RootStackParamList } from '@/navigation/types';
@@ -107,6 +109,34 @@ export default function BookingPaymentScreen() {
   const [selectedMethod, setSelectedMethod] = useState<string>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // ─── Coupon State ───
+  const [couponCode, setCouponCode] = useState('');
+  const [isCouponApplied, setIsCouponApplied] = useState(false);
+  const [appliedCode, setAppliedCode] = useState('');
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [finalFee, setFinalFee] = useState(booking.consultationFee);
+
+  const applyCoupon = () => {
+    if (couponCode.trim().toUpperCase() === 'SAVE15') {
+      const discount = Math.round(booking.consultationFee * 0.15);
+      setDiscountAmount(discount);
+      setFinalFee(booking.consultationFee - discount);
+      setIsCouponApplied(true);
+      setAppliedCode(couponCode.toUpperCase());
+      Alert.alert('Coupon Applied', 'You saved 15% on your booking fee!');
+    } else {
+      Alert.alert('Invalid Coupon', 'This coupon code does not exist or is expired.');
+    }
+  };
+
+  const removeCoupon = () => {
+    setIsCouponApplied(false);
+    setAppliedCode('');
+    setDiscountAmount(0);
+    setFinalFee(booking.consultationFee);
+    setCouponCode('');
+  };
+
   // WebView modal state
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState('');
@@ -123,8 +153,8 @@ export default function BookingPaymentScreen() {
 
     setIsProcessing(true);
     try {
-      console.log('[BookingPayment] Creating Razorpay order for ₹', booking.consultationFee);
-      const order = await createRazorpayOrder(booking.consultationFee);
+      console.log('[BookingPayment] Creating Razorpay order for ₹', finalFee);
+      const order = await createRazorpayOrder(finalFee);
 
       // order = { orderId, amount (paise), currency, receipt }
       const orderId = order.orderId || order.id;
@@ -209,6 +239,7 @@ export default function BookingPaymentScreen() {
       console.log('[BookingPayment] Signature verified. Creating appointment...');
       const confirmation = await bookAppointment({
         ...booking,
+        consultationFee: finalFee,
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
@@ -261,10 +292,17 @@ export default function BookingPaymentScreen() {
         <LinearGradient colors={['#1E40AF', '#2563EB']} style={styles.summaryCard}>
           <View style={styles.summaryTop}>
             <View>
-              <SanctuaryText variant="label_sm" style={styles.summaryLabel}>CONSULTATION FEE</SanctuaryText>
-              <SanctuaryText variant="headline_sm" style={styles.summaryAmt}>
-                {formatCurrency(booking.consultationFee)}
-              </SanctuaryText>
+              <SanctuaryText variant="label_sm" style={styles.summaryLabel}>PAYABLE AMOUNT</SanctuaryText>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
+                <SanctuaryText variant="headline_sm" style={styles.summaryAmt}>
+                  {formatCurrency(finalFee)}
+                </SanctuaryText>
+                {isCouponApplied && (
+                  <SanctuaryText variant="body_sm" style={styles.originalFeeStrikethrough}>
+                    {formatCurrency(booking.consultationFee)}
+                  </SanctuaryText>
+                )}
+              </View>
             </View>
             <View style={styles.summaryBadge}>
               <SanctuaryText variant="label_sm" style={styles.summaryBadgeTxt}>
@@ -306,6 +344,57 @@ export default function BookingPaymentScreen() {
           <DetailRow icon={Clock} label="Slot" value={booking.timeSlot || `${booking.startTime} - ${booking.endTime}`} />
           {!!booking.symptoms && (
             <DetailRow icon={AlertCircle} label="Reason" value={booking.symptoms} />
+          )}
+        </View>
+
+        {/* ── Coupon Code ── */}
+        <View style={styles.couponCard}>
+          <View style={styles.couponHeader}>
+            <SanctuaryText variant="label_lg" style={styles.couponTitle}>PROMO CODE</SanctuaryText>
+            {isCouponApplied && (
+              <View style={styles.appliedBadge}>
+                <CheckCircle2 size={10} color="#059669" />
+                <SanctuaryText variant="label_sm" style={styles.appliedBadgeTxt}>APPLIED</SanctuaryText>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.couponInputRow}>
+            <View style={styles.couponInputBox}>
+              <Smartphone size={16} color="#94A3B8" />
+              <TextInput
+                style={styles.couponInput}
+                placeholder="Enter Coupon Code"
+                placeholderTextColor="#94A3B8"
+                value={couponCode}
+                onChangeText={(t) => setCouponCode(t.toUpperCase())}
+                autoCapitalize="characters"
+                editable={!isCouponApplied}
+              />
+            </View>
+            <TouchableOpacity 
+              style={[styles.applyBtn, isCouponApplied && styles.removeBtn]} 
+              onPress={isCouponApplied ? removeCoupon : applyCoupon}
+            >
+              <SanctuaryText variant="label_sm" style={styles.applyBtnTxt}>
+                {isCouponApplied ? 'REMOVE' : 'APPLY'}
+              </SanctuaryText>
+            </TouchableOpacity>
+          </View>
+          
+          {!isCouponApplied && (
+            <SanctuaryText variant="body_sm" style={styles.couponHint}>
+              Try <SanctuaryText variant="label_sm" style={{color: COLORS.primary}}>SAVE15</SanctuaryText> for 15% off
+            </SanctuaryText>
+          )}
+
+          {isCouponApplied && (
+            <View style={styles.discountRow}>
+              <View style={styles.discountInfo}>
+                <SanctuaryText variant="body_sm" style={styles.discountLabel}>Coupon "{appliedCode}" discount (15%)</SanctuaryText>
+                <SanctuaryText variant="label_lg" style={styles.discountAmt}>- {formatCurrency(discountAmount)}</SanctuaryText>
+              </View>
+            </View>
           )}
         </View>
 
@@ -377,7 +466,7 @@ export default function BookingPaymentScreen() {
               <>
                 <Lock size={18} color="#fff" />
                 <SanctuaryText variant="label_lg" style={styles.payTxt}>
-                  Pay {formatCurrency(booking.consultationFee)} Securely
+                  Pay {formatCurrency(finalFee)} Securely
                 </SanctuaryText>
                 <ArrowRight size={18} color="#fff" />
               </>
@@ -541,6 +630,25 @@ const styles = StyleSheet.create({
   payGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 17, gap: 10 },
   payTxt: { color: '#fff', fontWeight: '900', fontSize: 16 },
   cancelHint: { textAlign: 'center', color: '#94A3B8', fontSize: 11, fontWeight: '500' },
+
+  // Coupon styles
+  couponCard: { backgroundColor: '#fff', borderRadius: 18, padding: 16, marginBottom: 22 },
+  couponHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  couponTitle: { color: '#94A3B8', fontWeight: '900', fontSize: 10, letterSpacing: 0.8 },
+  appliedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  appliedBadgeTxt: { color: '#059669', fontSize: 9, fontWeight: '800' },
+  couponInputRow: { flexDirection: 'row', gap: 10 },
+  couponInputBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+  couponInput: { flex: 1, paddingVertical: 10, paddingHorizontal: 8, color: '#1E293B', fontWeight: '700', fontSize: 14 },
+  applyBtn: { backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 16, justifyContent: 'center' },
+  removeBtn: { backgroundColor: '#EF4444' },
+  applyBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  couponHint: { color: '#94A3B8', fontSize: 11, marginTop: 8, fontWeight: '500' },
+  discountRow: { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+  discountInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  discountLabel: { color: '#059669', fontSize: 12, fontWeight: '600' },
+  discountAmt: { color: '#059669', fontWeight: '800', fontSize: 14 },
+  originalFeeStrikethrough: { color: 'rgba(255,255,255,0.5)', textDecorationLine: 'line-through', fontSize: 16, fontWeight: '600' },
 
   // WebView Modal styles
   webViewContainer: { flex: 1, backgroundColor: '#F8FAFC' },

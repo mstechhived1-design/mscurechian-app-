@@ -77,7 +77,7 @@ const getBaseUrl = (): string => {
 
 const BASE_URL = getBaseUrl();
 
-const TIMEOUT_MS = 10_000; // Matches API_CONFIG.TIMEOUT in frontend config
+const TIMEOUT_MS = 30_000; // Increased to 30s to accommodate slow remote DB responses
 
 // ─── State (mirrors module-level vars in apiClient.ts) ────────────────────────
 

@@ -9,6 +9,10 @@
     "icon": "./assets/image.png",
     "android": {
       "package": "com.mscurechain.patientapp"
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
+    ]
   }
 }

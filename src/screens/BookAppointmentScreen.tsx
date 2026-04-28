@@ -12,6 +12,7 @@
  *   4 → Review Summary → Confirm Booking
  *
  * Backend: Multitenant_MsCurechain_Backend (local, port 5003)
+ * API Base: http://192.168.31.47:5003/api
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';

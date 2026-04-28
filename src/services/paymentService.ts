@@ -6,7 +6,6 @@
  *     → Patient goes straight to queue (no timeslot required)
  *   - APP BOOKING (this file): Patient selects a specific timeslot
  *     → Appointment is created with that exact time slot in the backend
- *
  * LOCAL BACKEND: Multitenant_MsCurechain_Backend (port 5003)
  * API Base: http://192.168.31.47:5003/api
  *
@@ -349,6 +348,7 @@ export const bookAppointment = async (booking: BookingSlot): Promise<BookingConf
     symptoms: booking.symptoms ? [booking.symptoms] : [],
     reason: booking.notes || booking.symptoms || 'General Consultation',
     appointmentType: booking.appointmentType,
+    consultationFee: booking.consultationFee,
     vitals: booking.vitals,
     urgency: 'non-urgent',
     paymentMethod: 'razorpay',
