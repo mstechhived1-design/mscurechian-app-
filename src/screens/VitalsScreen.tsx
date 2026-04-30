@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl } from 'react-native';
 import { Text, Surface, IconButton, ActivityIndicator, Card } from 'react-native-paper';
-import { Activity, Heart, Thermometer, Wind, Ruler, Weight, Droplets } from 'lucide-react-native';
+import { Activity, Heart, Thermometer, Wind, Ruler, Weight, Droplets, Brain, ChevronLeft, Info, Sparkles } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SanctuaryText } from '../components/SanctuaryComponents';
+import { COLORS } from '../constants/designSystem';
+import { analyzeVitals } from '../services/nutritionService';
 
 const { width } = Dimensions.get('window');
 
@@ -15,6 +19,8 @@ const VitalsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [vitalsDataMap, setVitalsDataMap] = useState<any>(null);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const getVitalValue = (vitalsObj: any, keys: string[]) => {
     if (!vitalsObj) return null;
@@ -89,7 +95,18 @@ const VitalsScreen = () => {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchVitalsData();
+    setAiInsight(null);
   }, []);
+
+  const runAiAnalysis = async () => {
+    if (!vitalsDataMap) return;
+    setAnalyzing(true);
+    try {
+      const insight = await analyzeVitals(vitalsDataMap);
+      setAiInsight(insight);
+    } catch (e) { console.error(e); }
+    finally { setAnalyzing(false); }
+  };
 
 
   const vitalsDisplay = [
@@ -123,45 +140,63 @@ const VitalsScreen = () => {
       <ScrollView 
         contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#006AF5']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
       >
+         {/* AI Insight Section */}
+         <View style={styles.aiSection}>
+           <LinearGradient colors={['#F0F7FF', '#E0F2FE']} style={styles.aiCard}>
+             <View style={styles.aiHeader}>
+               <Sparkles size={18} color={COLORS.primary} />
+               <SanctuaryText variant="label_lg" style={styles.aiTitle}>AI Health Insight</SanctuaryText>
+             </View>
+             {aiInsight ? (
+               <SanctuaryText variant="body_sm" style={styles.aiBody}>{aiInsight}</SanctuaryText>
+             ) : (
+               <View>
+                 <SanctuaryText variant="body_sm" style={styles.aiPlaceholder}>
+                   Let Gemini analyze your latest clinical measurements for personalized insights.
+                 </SanctuaryText>
+                 <TouchableOpacity 
+                   style={styles.aiBtn} 
+                   onPress={runAiAnalysis}
+                   disabled={analyzing}
+                 >
+                   {analyzing ? (
+                     <ActivityIndicator size="small" color="#FFF" />
+                   ) : (
+                     <>
+                       <Brain size={16} color="#FFF" />
+                       <SanctuaryText variant="label_lg" style={styles.aiBtnTxt}>Analyze Vitals</SanctuaryText>
+                     </>
+                   )}
+                 </TouchableOpacity>
+               </View>
+             )}
+           </LinearGradient>
+         </View>
+
          {error && (
-           <Surface style={styles.errorBanner} elevation={1}>
-             <Text style={styles.errorText}>{error}</Text>
-           </Surface>
+           <View style={styles.errorBanner}>
+             <Info size={14} color="#E53E3E" />
+             <SanctuaryText variant="body_sm" style={styles.errorText}>{error}</SanctuaryText>
+           </View>
          )}
 
          <View style={styles.grid}>
             {vitalsDisplay.map((v: any, i: number) => (
-               <Surface key={i} style={styles.vitalBox} elevation={1}>
+               <Surface key={i} style={styles.vitalBox} elevation={0}>
                   <View style={[styles.iconBox, { backgroundColor: v.bg }]}>
                      {v.icon}
                   </View>
-                  <Text style={styles.vitalValue}>{v.value}</Text>
-                  <Text style={styles.vitalUnit}>{v.unit}</Text>
-                  <Text style={styles.vitalLabel}>{v.label}</Text>
+                  <View style={styles.vitalInfo}>
+                    <SanctuaryText variant="headline_sm" style={styles.vitalValue}>{v.value}</SanctuaryText>
+                    <SanctuaryText variant="label_sm" style={styles.vitalUnit}>{v.unit}</SanctuaryText>
+                    <SanctuaryText variant="label_sm" style={styles.vitalLabel}>{v.label}</SanctuaryText>
+                  </View>
                </Surface>
             ))}
          </View>
-
-         <Card style={styles.historyCard} mode="outlined">
-            <Card.Content>
-               <Text variant="titleMedium" style={styles.historyTitle}>Recent Trends</Text>
-               <View style={styles.trendRow}>
-                  <IconButton icon={vitalsDataMap?.weight ? "trending-up" : "minus"} iconColor={vitalsDataMap?.weight ? "#38A169" : "#888"} />
-                  <Text style={styles.trendText}>
-                    {vitalsDataMap?.weight ? `Weight is recorded as ${vitalsDataMap.weight}kg.` : "No recent weight changes recorded."}
-                  </Text>
-               </View>
-               <View style={styles.trendRow}>
-                  <IconButton icon={vitalsDataMap?.bloodPressure ? "heart" : "minus"} iconColor={vitalsDataMap?.bloodPressure ? "#E53E3E" : "#888"} />
-                  <Text style={styles.trendText}>
-                    {vitalsDataMap?.bloodPressure ? `Latest Blood Pressure: ${vitalsDataMap.bloodPressure} mmHg.` : "Blood pressure monitoring recommended."}
-                  </Text>
-               </View>
-            </Card.Content>
-         </Card>
 
       </ScrollView>
     </View>
@@ -181,29 +216,38 @@ const styles = StyleSheet.create({
      paddingHorizontal: 15,
      backgroundColor: '#FFF',
   },
-  headerTitle: { fontWeight: 'bold' },
+  headerTitle: { fontWeight: '900', color: '#1E293B' },
   scroll: { padding: 20, paddingBottom: 100 },
+
+  aiSection: { marginBottom: 24 },
+  aiCard: { padding: 20, borderRadius: 24, elevation: 0 },
+  aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  aiTitle: { color: COLORS.primary, fontWeight: '900' },
+  aiBody: { color: '#1E3A8A', fontWeight: '600', lineHeight: 20 },
+  aiPlaceholder: { color: '#64748B', fontWeight: '500', marginBottom: 16, lineHeight: 18 },
+  aiBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, alignSelf: 'flex-start' },
+  aiBtnTxt: { color: '#FFF', fontWeight: '800' },
+
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   vitalBox: { 
-     width: (width - 60) / 2, 
+     width: (width - 56) / 2, 
      backgroundColor: '#FFF', 
      borderRadius: 24, 
-     padding: 20, 
+     padding: 16, 
+     flexDirection: 'row',
      alignItems: 'center', 
-     marginBottom: 20,
+     marginBottom: 16,
      borderWidth: 1,
      borderColor: '#F1F5F9',
+     gap: 12,
   },
-  iconBox: { width: 50, height: 50, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-  vitalValue: { fontSize: 24, fontWeight: 'bold', color: '#1A1A1A' },
-  vitalUnit: { fontSize: 11, color: '#888', fontWeight: 'bold', marginBottom: 4 },
-  vitalLabel: { fontSize: 13, color: '#555', fontWeight: '500' },
-  historyCard: { borderRadius: 20, marginTop: 10, backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' },
-  historyTitle: { fontWeight: 'bold', marginBottom: 15 },
-  trendRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  trendText: { marginLeft: 5, color: '#555' },
-  errorBanner: { padding: 15, backgroundColor: '#FFF5F5', borderRadius: 12, marginBottom: 20, alignItems: 'center' },
-  errorText: { color: '#E53E3E', fontSize: 12 },
+  iconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  vitalInfo: { flex: 1 },
+  vitalValue: { fontSize: 18, fontWeight: '900', color: '#1E293B' },
+  vitalUnit: { fontSize: 10, color: '#94A3B8', fontWeight: '700', marginBottom: 2 },
+  vitalLabel: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+  errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: '#FEF2F2', borderRadius: 12, marginBottom: 20 },
+  errorText: { color: '#DC2626', fontWeight: '600' },
 });
 
 export default VitalsScreen;

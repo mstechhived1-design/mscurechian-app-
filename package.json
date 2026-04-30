@@ -20,7 +20,6 @@
     "axios": "^1.13.6",
     "dayjs": "^1.11.20",
     "expo": "~54.0.34",
-    "expo-barcode-scanner": "^13.0.1",
     "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",

@@ -28,4 +28,7 @@ export type RootStackParamList = {
   Feedback: { hospitalId?: string; hospitalName?: string } | undefined;
   TermsAndConditions: { initialTab?: "terms" | "privacy" } | undefined;
   QRScanner: undefined;
+  FoodScanner: undefined;
+  WaterReminder: undefined;
+  MedicineReminder: undefined;
 };

@@ -27,6 +27,10 @@ import {
   Stethoscope,
   Scale,
   Brain,
+  Flame,
+  Scan,
+  Droplet,
+  Pill,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
@@ -34,6 +38,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'react-native-qrcode-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
 import { useSocket } from '@/context/SocketContext';
@@ -106,6 +111,9 @@ export default function DashboardScreen() {
     { id: 'rec', label: t('dashboard.quickActions.rec'), sub: t('dashboard.quickActions.recSub'), icon: ClipboardList,  route: 'HealthRecords',   bgColor: '#F3F0FF', iconColor: '#7C3AED' },
     { id: 'bmi', label: t('dashboard.quickActions.bmi'), sub: t('dashboard.quickActions.bmiSub'), icon: Scale,          route: 'BMICalculator',   bgColor: '#FFF0F3', iconColor: '#E11D48' },
     { id: 'ai',  label: t('dashboard.quickActions.ai'),  sub: t('dashboard.quickActions.aiSub'),  icon: Brain,          route: 'AISymptomChecker',bgColor: '#F0FFF4', iconColor: '#059669' },
+    { id: 'food',label: 'Food Scanner', sub: 'Scan & track nutrients', icon: Scan,           route: 'FoodScanner',     bgColor: '#FFFBEB', iconColor: '#F59E0B' },
+    { id: 'water',label: 'Water Tracker',sub: 'Track daily hydration', icon: Droplet,        route: 'WaterReminder',   bgColor: '#E0F2FE', iconColor: '#3B82F6' },
+    { id: 'med', label: 'Medicines',    sub: 'Track medications',     icon: Pill,           route: 'MedicineReminder',bgColor: '#F3F0FF', iconColor: '#7C3AED' },
   ];
 
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -120,6 +128,7 @@ export default function DashboardScreen() {
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<HospitalReg | null>(null);
   const [selectedApt, setSelectedApt]       = useState<any | null>(null);
+  const [streak, setStreak]               = useState(0);
 
   const { unreadCount, markAllRead } = useSocket();
   const carouselRef = useRef<FlatList>(null);
@@ -208,7 +217,14 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => { getPosition(); fetchData(); }, []);
+  const loadStreak = async () => {
+    try {
+      const s = await AsyncStorage.getItem('fitness_streak');
+      if (s) setStreak(parseInt(s));
+    } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => { getPosition(); fetchData(); loadStreak(); }, []);
 
   // ── Auto-rotate every 6 s (only when more than one card) ────────────────────
   const startRotation = () => {
@@ -424,6 +440,28 @@ export default function DashboardScreen() {
               ))}
             </View>
           )}
+        </View>
+
+        {/* ── Fitness Streak Summary ── */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.streakSummaryCard} 
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('BMICalculator')}
+          >
+            <LinearGradient colors={['#FF5F6D', '#FFC371']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.streakSummaryGrad}>
+              <View style={styles.streakSummaryLeft}>
+                <View style={styles.streakSummaryIcon}>
+                  <Flame size={24} color="#FFF" fill="#FFF" />
+                </View>
+                <View>
+                  <SanctuaryText variant="label_lg" style={styles.streakSummaryTitle}>{streak} Day Fitness Streak!</SanctuaryText>
+                  <SanctuaryText variant="body_sm" style={styles.streakSummarySub}>Keep pushing your limits!</SanctuaryText>
+                </View>
+              </View>
+              <ChevronRight size={20} color="#FFF" />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         {/* ── Digital Services ── */}
@@ -831,4 +869,10 @@ const styles = StyleSheet.create({
   qrId: { color: '#1E293B', fontWeight: '800', marginBottom: 6, letterSpacing: 1 },
   qrBlood: { color: '#64748B', marginBottom: 24, fontWeight: '600' },
   qrClose: { width: '100%', borderRadius: 16, backgroundColor: COLORS.primary },
+  streakSummaryCard: { borderRadius: 20, overflow: 'hidden', elevation: 4, shadowColor: '#FF5F6D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  streakSummaryGrad: { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  streakSummaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  streakSummaryIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  streakSummaryTitle: { color: '#FFF', fontWeight: '900', fontSize: 15 },
+  streakSummarySub: { color: 'rgba(255,255,255,0.8)', fontWeight: '600', fontSize: 11, marginTop: 2 },
 });

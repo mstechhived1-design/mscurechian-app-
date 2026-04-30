@@ -9,17 +9,24 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, Scale, Info } from 'lucide-react-native';
+import { ChevronLeft, Scale, Info, Flame, Utensils, Dumbbell, Zap, TrendingUp } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@/navigation/types';
 import { SanctuaryText } from '../components/SanctuaryComponents';
 import { COLORS } from '../constants/designSystem';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 type Unit = 'metric' | 'imperial';
+
+interface Suggestion {
+  title: string;
+  items: string[];
+  icon: any;
+}
 
 interface BmiResult {
   bmi: number;
@@ -27,6 +34,9 @@ interface BmiResult {
   color: string;
   gradient: [string, string];
   advice: string;
+  diet: Suggestion;
+  fitness: Suggestion;
+  targets: { label: string; value: string; icon: any }[];
 }
 
 const CATEGORIES = [
@@ -37,10 +47,96 @@ const CATEGORIES = [
 ];
 
 function classify(bmi: number): BmiResult {
-  if (bmi < 18.5) return { bmi, category: 'Underweight', color: '#3B82F6', gradient: ['#1D4ED8', '#3B82F6'], advice: 'You may need to gain some weight. Consult a nutritionist for a balanced diet plan.' };
-  if (bmi < 25)   return { bmi, category: 'Normal Weight', color: '#059669', gradient: ['#065F46', '#059669'], advice: 'Great! Maintain your healthy weight with regular exercise and a balanced diet.' };
-  if (bmi < 30)   return { bmi, category: 'Overweight', color: '#D97706', gradient: ['#92400E', '#D97706'], advice: 'Consider increasing physical activity and adjusting your diet to reach a healthier weight.' };
-  return { bmi, category: 'Obese', color: '#DC2626', gradient: ['#7F1D1D', '#DC2626'], advice: 'Please consult your doctor. A clinical weight-management plan is recommended.' };
+  if (bmi < 18.5) {
+    return {
+      bmi,
+      category: 'Underweight',
+      color: '#3B82F6',
+      gradient: ['#1D4ED8', '#3B82F6'],
+      advice: 'You may need to gain some weight safely. Focus on muscle-building and nutrient-dense meals.',
+      diet: {
+        title: 'Mass Gaining Diet',
+        icon: Utensils,
+        items: ['Nuts & Nut Butters', 'Protein Shakes', 'Avocados', 'Whole Grains', 'Dried Fruits']
+      },
+      fitness: {
+        title: 'Strength Training',
+        icon: Dumbbell,
+        items: ['Compound Lifting', 'Hypertrophy Work', 'Low Intensity Cardio', 'Proper Recovery']
+      },
+      targets: [
+        { label: 'CALORIES', value: '+500 Surplus', icon: Zap },
+        { label: 'PROTEIN', value: '1.6g - 2g/kg', icon: TrendingUp }
+      ]
+    };
+  }
+  if (bmi < 25) {
+    return {
+      bmi,
+      category: 'Normal Weight',
+      color: '#059669',
+      gradient: ['#065F46', '#059669'],
+      advice: 'Excellent! Your BMI is in the healthy range. Keep up the great lifestyle!',
+      diet: {
+        title: 'Balanced Nutrition',
+        icon: Utensils,
+        items: ['Lean Proteins', 'Leafy Greens', 'Healthy Fats', 'Hydration', 'Portion Control']
+      },
+      fitness: {
+        title: 'Maintenance Flow',
+        icon: Dumbbell,
+        items: ['3x Strength Training', '150m Cardio/week', 'Flexibility Work', 'Active Commute']
+      },
+      targets: [
+        { label: 'CALORIES', value: 'Maintenance', icon: Zap },
+        { label: 'PROTEIN', value: '1.2g - 1.5g/kg', icon: TrendingUp }
+      ]
+    };
+  }
+  if (bmi < 30) {
+    return {
+      bmi,
+      category: 'Overweight',
+      color: '#D97706',
+      gradient: ['#92400E', '#D97706'],
+      advice: 'Aiming for a slight calorie deficit and more consistent movement can help reach a normal BMI.',
+      diet: {
+        title: 'Lean & Green Diet',
+        icon: Utensils,
+        items: ['Fiber-rich Veggies', 'High Protein', 'Intermittent Fasting', 'Zero Sugary Drinks']
+      },
+      fitness: {
+        title: 'Fat Loss Focus',
+        icon: Dumbbell,
+        items: ['HIIT Sessions', 'Fasted Walking', 'Circuit Training', 'Daily Step Goal (10k)']
+      },
+      targets: [
+        { label: 'CALORIES', value: '-300 Deficit', icon: Zap },
+        { label: 'PROTEIN', value: '1.8g - 2.2g/kg', icon: TrendingUp }
+      ]
+    };
+  }
+  return {
+    bmi,
+    category: 'Obese',
+    color: '#DC2626',
+    gradient: ['#7F1D1D', '#DC2626'],
+    advice: 'Prioritize consistent movement and clinical nutrition. Focus on long-term sustainability.',
+    diet: {
+      title: 'Keto/Low Carb Option',
+      icon: Utensils,
+      items: ['Low Glycemic Index', 'Healthy Fats', 'Cruciferous Veggies', 'Controlled Portions']
+    },
+    fitness: {
+      title: 'Mobility & Cardio',
+      icon: Dumbbell,
+      items: ['Swimming/Cycling', 'Daily Long Walks', 'Bodyweight Exercises', 'Consistent Movement']
+    },
+    targets: [
+      { label: 'CALORIES', value: '-500 Deficit', icon: Zap },
+      { label: 'PROTEIN', value: '2.0g/kg LBM', icon: TrendingUp }
+    ]
+  };
 }
 
 // Needle position on the arc: maps BMI 10–40 to 0–100%
@@ -57,6 +153,23 @@ export default function BMICalculatorScreen() {
   const [heightFt, setHFt]    = useState('');
   const [heightIn, setHIn]    = useState('');
   const [result, setResult]   = useState<BmiResult | null>(null);
+  const [streak, setStreak]   = useState(0);
+
+  React.useEffect(() => {
+    loadStreak();
+  }, []);
+
+  const loadStreak = async () => {
+    try {
+      const savedStreak = await AsyncStorage.getItem('fitness_streak');
+      if (savedStreak) setStreak(parseInt(savedStreak));
+      else {
+        // Initialize with some dummy data if first time
+        setStreak(5);
+        await AsyncStorage.setItem('fitness_streak', '5');
+      }
+    } catch (e) { console.error(e); }
+  };
 
   const calculate = () => {
     let bmi = 0;
@@ -91,6 +204,22 @@ export default function BMICalculatorScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+        {/* Fitness Streak */}
+        <View style={styles.streakCard}>
+          <LinearGradient colors={['#FF5F6D', '#FFC371']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.streakGrad}>
+            <View style={styles.streakInfo}>
+              <Flame size={32} color="#FFF" fill="#FFF" />
+              <View style={styles.streakTextCol}>
+                <SanctuaryText variant="headline_sm" style={styles.streakNum}>{streak} Day Streak!</SanctuaryText>
+                <SanctuaryText variant="label_sm" style={styles.streakSub}>You're on fire! Keep it up.</SanctuaryText>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.streakBadge}>
+              <SanctuaryText variant="label_sm" style={styles.streakBadgeTxt}>SHARE</SanctuaryText>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
 
         {/* Unit toggle */}
         <View style={styles.unitToggle}>
@@ -174,6 +303,54 @@ export default function BMICalculatorScreen() {
                 <SanctuaryText variant="label_sm" style={styles.gaugeLabel}>25</SanctuaryText>
                 <SanctuaryText variant="label_sm" style={styles.gaugeLabel}>30</SanctuaryText>
                 <SanctuaryText variant="label_sm" style={styles.gaugeLabel}>40</SanctuaryText>
+              </View>
+            </View>
+
+            {/* Daily Targets */}
+            <View style={styles.targetsRow}>
+              {result.targets.map((t, i) => (
+                <View key={i} style={styles.targetItem}>
+                  <View style={styles.targetIconCircle}>
+                    <t.icon size={16} color={result.color} />
+                  </View>
+                  <View>
+                    <SanctuaryText variant="label_sm" style={styles.targetLabel}>{t.label}</SanctuaryText>
+                    <SanctuaryText variant="label_lg" style={[styles.targetValue, { color: result.color }]}>{t.value}</SanctuaryText>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Suggestions */}
+            <View style={styles.suggestionsContainer}>
+              <View style={styles.suggestionBlock}>
+                <View style={styles.suggestionHeader}>
+                  <result.diet.icon size={18} color="#1E293B" />
+                  <SanctuaryText variant="label_lg" style={styles.suggestionTitle}>{result.diet.title}</SanctuaryText>
+                </View>
+                <View style={styles.suggestionList}>
+                  {result.diet.items.map((item, idx) => (
+                    <View key={idx} style={styles.suggestionItem}>
+                      <View style={[styles.bullet, { backgroundColor: result.color }]} />
+                      <SanctuaryText variant="body_sm" style={styles.suggestionText}>{item}</SanctuaryText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.suggestionBlock}>
+                <View style={styles.suggestionHeader}>
+                  <result.fitness.icon size={18} color="#1E293B" />
+                  <SanctuaryText variant="label_lg" style={styles.suggestionTitle}>{result.fitness.title}</SanctuaryText>
+                </View>
+                <View style={styles.suggestionList}>
+                  {result.fitness.items.map((item, idx) => (
+                    <View key={idx} style={styles.suggestionItem}>
+                      <View style={[styles.bullet, { backgroundColor: result.color }]} />
+                      <SanctuaryText variant="body_sm" style={styles.suggestionText}>{item}</SanctuaryText>
+                    </View>
+                  ))}
+                </View>
               </View>
             </View>
 
@@ -274,4 +451,28 @@ const styles = StyleSheet.create({
   refDot: { width: 10, height: 10, borderRadius: 5 },
   refLabel: { color: '#1E293B', fontWeight: '700', fontSize: 13, flex: 1 },
   refRange: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
+  // New Styles
+  streakCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 24, elevation: 4, shadowColor: '#FF5F6D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  streakGrad: { padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  streakInfo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  streakTextCol: {},
+  streakNum: { color: '#FFF', fontWeight: '900', fontSize: 20 },
+  streakSub: { color: 'rgba(255,255,255,0.8)', fontWeight: '600', marginTop: 2 },
+  streakBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  streakBadgeTxt: { color: '#FFF', fontWeight: '900', fontSize: 10 },
+
+  targetsRow: { flexDirection: 'row', padding: 20, gap: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  targetItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  targetIconCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
+  targetLabel: { color: '#94A3B8', fontWeight: '800', fontSize: 9 },
+  targetValue: { fontWeight: '900', fontSize: 13 },
+
+  suggestionsContainer: { padding: 20, gap: 20 },
+  suggestionBlock: {},
+  suggestionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  suggestionTitle: { color: '#1E293B', fontWeight: '900', fontSize: 14 },
+  suggestionList: { gap: 8 },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bullet: { width: 6, height: 6, borderRadius: 3 },
+  suggestionText: { color: '#475569', fontWeight: '600', fontSize: 13 },
 });

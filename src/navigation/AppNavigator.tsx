@@ -23,6 +23,9 @@ import DischargeDetailScreen from '@/screens/DischargeDetailScreen';
 import FeedbackScreen from '@/screens/FeedbackScreen';
 import TermsAndConditionsScreen from '@/screens/TermsAndConditionsScreen';
 import QRScannerScreen from '@/screens/QRScannerScreen';
+import FoodScannerScreen from '@/screens/FoodScannerScreen';
+import WaterReminderScreen from '@/screens/WaterReminderScreen';
+import MedicineReminderScreen from '@/screens/MedicineReminderScreen';
 
 // BottomTabNavigator hosts: Home (Dashboard), Appointments, Vitals, Payments, Profile
 import BottomTabNavigator from './BottomTabNavigator';
@@ -126,6 +129,9 @@ export default function AppNavigator() {
       <Stack.Screen name="Feedback" component={FeedbackScreen} />
       <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
       <Stack.Screen name="QRScanner" component={QRScannerScreen} />
+      <Stack.Screen name="FoodScanner" component={FoodScannerScreen} />
+      <Stack.Screen name="WaterReminder" component={WaterReminderScreen} />
+      <Stack.Screen name="MedicineReminder" component={MedicineReminderScreen} />
 
       {/*
        * NOTE: Appointments, Vitals, Payments, Profile are NOT listed here.
