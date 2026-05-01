@@ -28,7 +28,7 @@ import {
   Scale,
   Brain,
   Flame,
-  Scan,
+  Utensils,
   Droplet,
   Pill,
 } from 'lucide-react-native';
@@ -47,6 +47,7 @@ import { COLORS } from '../constants/designSystem';
 import { SanctuaryText, DigitalAtriumLoader } from '../components/SanctuaryComponents';
 import { safeFormat } from '@/utils/dateUtils';
 import LanguageSelector from '@/components/LanguageSelector';
+import { streakService } from '@/services/streakService';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP      = 14;
@@ -111,7 +112,7 @@ export default function DashboardScreen() {
     { id: 'rec', label: t('dashboard.quickActions.rec'), sub: t('dashboard.quickActions.recSub'), icon: ClipboardList,  route: 'HealthRecords',   bgColor: '#F3F0FF', iconColor: '#7C3AED' },
     { id: 'bmi', label: t('dashboard.quickActions.bmi'), sub: t('dashboard.quickActions.bmiSub'), icon: Scale,          route: 'BMICalculator',   bgColor: '#FFF0F3', iconColor: '#E11D48' },
     { id: 'ai',  label: t('dashboard.quickActions.ai'),  sub: t('dashboard.quickActions.aiSub'),  icon: Brain,          route: 'AISymptomChecker',bgColor: '#F0FFF4', iconColor: '#059669' },
-    { id: 'food',label: 'Food Scanner', sub: 'Scan & track nutrients', icon: Scan,           route: 'FoodScanner',     bgColor: '#FFFBEB', iconColor: '#F59E0B' },
+    { id: 'diet', label: 'Diet Plan', sub: 'Personalized food advice', icon: Utensils, route: 'FoodRecommendation', bgColor: '#FFFBEB', iconColor: '#F59E0B' },
     { id: 'water',label: 'Water Tracker',sub: 'Track daily hydration', icon: Droplet,        route: 'WaterReminder',   bgColor: '#E0F2FE', iconColor: '#3B82F6' },
     { id: 'med', label: 'Medicines',    sub: 'Track medications',     icon: Pill,           route: 'MedicineReminder',bgColor: '#F3F0FF', iconColor: '#7C3AED' },
   ];
@@ -219,12 +220,17 @@ export default function DashboardScreen() {
 
   const loadStreak = async () => {
     try {
-      const s = await AsyncStorage.getItem('fitness_streak');
-      if (s) setStreak(parseInt(s));
+      const data = await streakService.getStreakData();
+      setStreak(data.currentStreak);
     } catch (e) { console.error(e); }
   };
 
-  useEffect(() => { getPosition(); fetchData(); loadStreak(); }, []);
+  useEffect(() => { 
+    getPosition(); 
+    fetchData(); 
+    // Record activity once on dashboard mount to maintain streak
+    streakService.recordActivity().then(data => setStreak(data.currentStreak));
+  }, []);
 
   // ── Auto-rotate every 6 s (only when more than one card) ────────────────────
   const startRotation = () => {
@@ -447,7 +453,7 @@ export default function DashboardScreen() {
           <TouchableOpacity 
             style={styles.streakSummaryCard} 
             activeOpacity={0.9}
-            onPress={() => navigation.navigate('BMICalculator')}
+            onPress={() => navigation.navigate('Achievements')}
           >
             <LinearGradient colors={['#FF5F6D', '#FFC371']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.streakSummaryGrad}>
               <View style={styles.streakSummaryLeft}>

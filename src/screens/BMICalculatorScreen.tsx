@@ -9,18 +9,19 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, Scale, Info, Flame, Utensils, Dumbbell, Zap, TrendingUp } from 'lucide-react-native';
+import { ChevronLeft, Scale, Info, Flame, Utensils, Dumbbell, Zap, TrendingUp, Heart, Target, Calendar } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@/navigation/types';
 import { SanctuaryText } from '../components/SanctuaryComponents';
 import { COLORS } from '../constants/designSystem';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { streakService } from '@/services/streakService';
 
 const { width } = Dimensions.get('window');
 
 type Unit = 'metric' | 'imperial';
+type FitnessGoal = 'bulk' | 'lean' | 'maintain';
 
 interface Suggestion {
   title: string;
@@ -37,6 +38,8 @@ interface BmiResult {
   diet: Suggestion;
   fitness: Suggestion;
   targets: { label: string; value: string; icon: any }[];
+  fitnessScore: number;
+  exerciseFrequency: string;
 }
 
 const CATEGORIES = [
@@ -46,27 +49,43 @@ const CATEGORIES = [
   { label: 'Obese',       range: '≥ 30',     color: '#DC2626', gradient: ['#7F1D1D', '#DC2626'] as [string,string] },
 ];
 
-function classify(bmi: number): BmiResult {
+function calculateFitnessScore(bmi: number, streak: number): number {
+  const proximity = Math.max(0, 50 - Math.abs(bmi - 22) * 2.5);
+  const consistency = Math.min(50, streak * 2.5);
+  return Math.round(proximity + consistency);
+}
+
+function classify(bmi: number, goal: FitnessGoal, streak: number): BmiResult {
+  const score = calculateFitnessScore(bmi, streak);
+  
   if (bmi < 18.5) {
     return {
       bmi,
       category: 'Underweight',
       color: '#3B82F6',
       gradient: ['#1D4ED8', '#3B82F6'],
-      advice: 'You may need to gain some weight safely. Focus on muscle-building and nutrient-dense meals.',
+      fitnessScore: score,
+      exerciseFrequency: '4-5 Days / Week',
+      advice: goal === 'bulk' 
+        ? 'Bulking mode: Focus on heavy lifting and a 500 kcal surplus.'
+        : 'Weight gain: Focus on nutrition and light bodyweight strength.',
       diet: {
         title: 'Mass Gaining Diet',
         icon: Utensils,
-        items: ['Nuts & Nut Butters', 'Protein Shakes', 'Avocados', 'Whole Grains', 'Dried Fruits']
+        items: goal === 'bulk' 
+          ? ['High Protein (Egg/Paneer)', 'Complex Carbs (Oats/Rice)', 'Peanut Butter', 'Banana Shakes']
+          : ['Full Fat Dairy', 'Mixed Nuts', 'Dates & Figs', 'Ghee in meals']
       },
       fitness: {
-        title: 'Strength Training',
+        title: goal === 'bulk' ? 'Hypertrophy Training' : 'Light Strength Build',
         icon: Dumbbell,
-        items: ['Compound Lifting', 'Hypertrophy Work', 'Low Intensity Cardio', 'Proper Recovery']
+        items: goal === 'bulk'
+          ? ['Deadlifts (3x8)', 'Squats (3x10)', 'Bench Press (3x10)', 'Pull-ups']
+          : ['Yoga for strength', 'Bodyweight squats', 'Plank holds', 'Short brisk walks']
       },
       targets: [
-        { label: 'CALORIES', value: '+500 Surplus', icon: Zap },
-        { label: 'PROTEIN', value: '1.6g - 2g/kg', icon: TrendingUp }
+        { label: 'CALORIES', value: goal === 'bulk' ? '+600 Surplus' : '+300 Surplus', icon: Zap },
+        { label: 'PROTEIN', value: '1.8g - 2.2g/kg', icon: TrendingUp }
       ]
     };
   }
@@ -76,20 +95,26 @@ function classify(bmi: number): BmiResult {
       category: 'Normal Weight',
       color: '#059669',
       gradient: ['#065F46', '#059669'],
-      advice: 'Excellent! Your BMI is in the healthy range. Keep up the great lifestyle!',
+      fitnessScore: score,
+      exerciseFrequency: '5-6 Days / Week',
+      advice: goal === 'lean' 
+        ? 'Lean shred: Focus on HIIT and a minor deficit for definition.'
+        : 'Maintenance: Keep your metabolic rate high with functional movement.',
       diet: {
-        title: 'Balanced Nutrition',
+        title: goal === 'bulk' ? 'Lean Bulking' : 'Maintenance Diet',
         icon: Utensils,
-        items: ['Lean Proteins', 'Leafy Greens', 'Healthy Fats', 'Hydration', 'Portion Control']
+        items: ['Grilled Chicken/Tofu', 'Broccoli & Asparagus', 'Quinoa', 'Greek Yogurt']
       },
       fitness: {
-        title: 'Maintenance Flow',
+        title: goal === 'lean' ? 'High Intensity Shred' : 'Functional Fitness',
         icon: Dumbbell,
-        items: ['3x Strength Training', '150m Cardio/week', 'Flexibility Work', 'Active Commute']
+        items: goal === 'lean'
+          ? ['Burpees (4x20)', 'Mountain Climbers', 'Sprinting', 'Jump Rope']
+          : ['Swimming', 'Moderate Lifting', 'Cycling', 'Pilates']
       },
       targets: [
-        { label: 'CALORIES', value: 'Maintenance', icon: Zap },
-        { label: 'PROTEIN', value: '1.2g - 1.5g/kg', icon: TrendingUp }
+        { label: 'CALORIES', value: goal === 'lean' ? '-200 Deficit' : 'Maintenance', icon: Zap },
+        { label: 'PROTEIN', value: '1.5g - 1.8g/kg', icon: TrendingUp }
       ]
     };
   }
@@ -99,20 +124,22 @@ function classify(bmi: number): BmiResult {
       category: 'Overweight',
       color: '#D97706',
       gradient: ['#92400E', '#D97706'],
-      advice: 'Aiming for a slight calorie deficit and more consistent movement can help reach a normal BMI.',
+      fitnessScore: score,
+      exerciseFrequency: '6 Days / Week',
+      advice: 'The "Lean" goal is highly recommended to improve heart health.',
       diet: {
-        title: 'Lean & Green Diet',
+        title: 'Calorie Deficit Diet',
         icon: Utensils,
-        items: ['Fiber-rich Veggies', 'High Protein', 'Intermittent Fasting', 'Zero Sugary Drinks']
+        items: ['Salads with Sprouts', 'Clear Soups', 'Black Coffee/Green Tea', 'Boiled Eggs']
       },
       fitness: {
-        title: 'Fat Loss Focus',
+        title: 'Fat Burn Protocol',
         icon: Dumbbell,
-        items: ['HIIT Sessions', 'Fasted Walking', 'Circuit Training', 'Daily Step Goal (10k)']
+        items: ['LISS Cardio (45 min)', 'Bodyweight Circuits', 'Hill Sprints', 'High Rep Lifting']
       },
       targets: [
-        { label: 'CALORIES', value: '-300 Deficit', icon: Zap },
-        { label: 'PROTEIN', value: '1.8g - 2.2g/kg', icon: TrendingUp }
+        { label: 'CALORIES', value: '-500 Deficit', icon: Zap },
+        { label: 'PROTEIN', value: '2.0g/kg LBM', icon: TrendingUp }
       ]
     };
   }
@@ -121,25 +148,26 @@ function classify(bmi: number): BmiResult {
     category: 'Obese',
     color: '#DC2626',
     gradient: ['#7F1D1D', '#DC2626'],
-    advice: 'Prioritize consistent movement and clinical nutrition. Focus on long-term sustainability.',
+    fitnessScore: score,
+    exerciseFrequency: 'Daily Activity',
+    advice: 'Focus on small daily steps to lead to long-term weight loss.',
     diet: {
-      title: 'Keto/Low Carb Option',
+      title: 'Sugar-Free Keto',
       icon: Utensils,
-      items: ['Low Glycemic Index', 'Healthy Fats', 'Cruciferous Veggies', 'Controlled Portions']
+      items: ['Leafy Greens', 'Healthy Fats (Avocado)', 'Paneer/Tofu', 'Hydration with Lemon']
     },
     fitness: {
-      title: 'Mobility & Cardio',
+      title: 'Low Impact Cardio',
       icon: Dumbbell,
-      items: ['Swimming/Cycling', 'Daily Long Walks', 'Bodyweight Exercises', 'Consistent Movement']
+      items: ['Brisk Walking (60m)', 'Water Aerobics', 'Stationary Bike', 'Stretching']
     },
     targets: [
-      { label: 'CALORIES', value: '-500 Deficit', icon: Zap },
-      { label: 'PROTEIN', value: '2.0g/kg LBM', icon: TrendingUp }
+      { label: 'CALORIES', value: '-750 Deficit', icon: Zap },
+      { label: 'PROTEIN', value: '1.8g/kg LBM', icon: TrendingUp }
     ]
   };
 }
 
-// Needle position on the arc: maps BMI 10–40 to 0–100%
 function bmiToPercent(bmi: number): number {
   return Math.min(100, Math.max(0, ((bmi - 10) / 30) * 100));
 }
@@ -152,6 +180,7 @@ export default function BMICalculatorScreen() {
   const [weight, setWeight]   = useState('');
   const [heightFt, setHFt]    = useState('');
   const [heightIn, setHIn]    = useState('');
+  const [goal, setGoal]       = useState<FitnessGoal>('maintain');
   const [result, setResult]   = useState<BmiResult | null>(null);
   const [streak, setStreak]   = useState(0);
 
@@ -161,13 +190,8 @@ export default function BMICalculatorScreen() {
 
   const loadStreak = async () => {
     try {
-      const savedStreak = await AsyncStorage.getItem('fitness_streak');
-      if (savedStreak) setStreak(parseInt(savedStreak));
-      else {
-        // Initialize with some dummy data if first time
-        setStreak(5);
-        await AsyncStorage.setItem('fitness_streak', '5');
-      }
+      const data = await streakService.getStreakData();
+      setStreak(data.currentStreak);
     } catch (e) { console.error(e); }
   };
 
@@ -183,7 +207,7 @@ export default function BMICalculatorScreen() {
       if (!totalIn || !w || totalIn <= 0 || w <= 0) return;
       bmi = (w / (totalIn * totalIn)) * 703;
     }
-    setResult(classify(Math.round(bmi * 10) / 10));
+    setResult(classify(Math.round(bmi * 10) / 10, goal, streak));
   };
 
   const reset = () => {
@@ -194,7 +218,6 @@ export default function BMICalculatorScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={22} color="#1E293B" />
@@ -204,21 +227,37 @@ export default function BMICalculatorScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-        {/* Fitness Streak */}
-        <View style={styles.streakCard}>
+        
+        {/* Streak View */}
+        <TouchableOpacity style={styles.streakCard} activeOpacity={0.9} onPress={() => navigation.navigate('Achievements')}>
           <LinearGradient colors={['#FF5F6D', '#FFC371']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.streakGrad}>
             <View style={styles.streakInfo}>
               <Flame size={32} color="#FFF" fill="#FFF" />
               <View style={styles.streakTextCol}>
                 <SanctuaryText variant="headline_sm" style={styles.streakNum}>{streak} Day Streak!</SanctuaryText>
-                <SanctuaryText variant="label_sm" style={styles.streakSub}>You're on fire! Keep it up.</SanctuaryText>
+                <SanctuaryText variant="label_sm" style={styles.streakSub}>Fitness consistency pays off.</SanctuaryText>
               </View>
             </View>
-            <TouchableOpacity style={styles.streakBadge}>
-              <SanctuaryText variant="label_sm" style={styles.streakBadgeTxt}>SHARE</SanctuaryText>
-            </TouchableOpacity>
           </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Goal Selector */}
+        <View style={styles.goalSection}>
+          <SanctuaryText variant="label_lg" style={styles.inputLabel}>CHOOSE YOUR FITNESS GOAL</SanctuaryText>
+          <View style={styles.goalGrid}>
+            {(['bulk', 'lean', 'maintain'] as FitnessGoal[]).map(g => (
+              <TouchableOpacity 
+                key={g} 
+                style={[styles.goalCard, goal === g && styles.goalCardActive]}
+                onPress={() => setGoal(g)}
+              >
+                <Target size={20} color={goal === g ? '#FFF' : COLORS.primary} />
+                <SanctuaryText variant="label_sm" style={[styles.goalLabel, goal === g && styles.goalLabelActive]}>
+                  {g.toUpperCase()}
+                </SanctuaryText>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Unit toggle */}
@@ -237,55 +276,49 @@ export default function BMICalculatorScreen() {
           {unit === 'metric' ? (
             <View style={styles.inputGroup}>
               <SanctuaryText variant="label_lg" style={styles.inputLabel}>HEIGHT (cm)</SanctuaryText>
-              <TextInput
-                style={styles.input}
-                value={height}
-                onChangeText={setHeight}
-                placeholder="e.g. 170"
-                placeholderTextColor="#CBD5E1"
-                keyboardType="decimal-pad"
-              />
+              <TextInput style={styles.input} value={height} onChangeText={setHeight} placeholder="e.g. 170" keyboardType="decimal-pad" />
             </View>
           ) : (
             <View style={styles.rowGroup}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
                 <SanctuaryText variant="label_lg" style={styles.inputLabel}>HEIGHT (ft)</SanctuaryText>
-                <TextInput style={styles.input} value={heightFt} onChangeText={setHFt} placeholder="5" placeholderTextColor="#CBD5E1" keyboardType="decimal-pad" />
+                <TextInput style={styles.input} value={heightFt} onChangeText={setHFt} placeholder="5" keyboardType="decimal-pad" />
               </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <SanctuaryText variant="label_lg" style={styles.inputLabel}>INCHES</SanctuaryText>
-                <TextInput style={styles.input} value={heightIn} onChangeText={setHIn} placeholder="8" placeholderTextColor="#CBD5E1" keyboardType="decimal-pad" />
+                <TextInput style={styles.input} value={heightIn} onChangeText={setHIn} placeholder="8" keyboardType="decimal-pad" />
               </View>
             </View>
           )}
 
           <View style={styles.inputGroup}>
             <SanctuaryText variant="label_lg" style={styles.inputLabel}>WEIGHT ({unit === 'metric' ? 'kg' : 'lbs'})</SanctuaryText>
-            <TextInput
-              style={styles.input}
-              value={weight}
-              onChangeText={setWeight}
-              placeholder={unit === 'metric' ? 'e.g. 70' : 'e.g. 154'}
-              placeholderTextColor="#CBD5E1"
-              keyboardType="decimal-pad"
-            />
+            <TextInput style={styles.input} value={weight} onChangeText={setWeight} placeholder={unit === 'metric' ? 'e.g. 70' : 'e.g. 154'} keyboardType="decimal-pad" />
           </View>
         </View>
 
-        {/* Calculate button */}
         <TouchableOpacity style={styles.calcBtn} onPress={calculate} activeOpacity={0.85}>
           <Scale size={18} color="#FFF" />
           <SanctuaryText variant="label_lg" style={styles.calcBtnTxt}>{t('bmi.calculate')}</SanctuaryText>
         </TouchableOpacity>
 
-        {/* Result */}
+        {/* Result Area */}
         {result && (
           <View style={styles.resultCard}>
             <LinearGradient colors={result.gradient} style={styles.resultGrad}>
-              <SanctuaryText variant="label_sm" style={styles.resultLabel}>YOUR BMI</SanctuaryText>
-              <SanctuaryText variant="headline_sm" style={styles.resultBmi}>{result.bmi.toFixed(1)}</SanctuaryText>
-              <View style={styles.resultCatBadge}>
-                <SanctuaryText variant="label_lg" style={styles.resultCatTxt}>{result.category}</SanctuaryText>
+              <View style={styles.resultMain}>
+                <View style={styles.scoreCircle}>
+                  <SanctuaryText variant="headline_sm" style={styles.scoreVal}>{result.fitnessScore}</SanctuaryText>
+                  <SanctuaryText variant="label_sm" style={styles.scoreLbl}>SCORE</SanctuaryText>
+                </View>
+                <View style={styles.bmiData}>
+                  <SanctuaryText variant="label_sm" style={styles.resultLabel}>BMI: {result.bmi.toFixed(1)}</SanctuaryText>
+                  <SanctuaryText variant="headline_sm" style={styles.resultCatTxt}>{result.category}</SanctuaryText>
+                  <View style={styles.freqBadge}>
+                    <Calendar size={12} color="#FFF" />
+                    <SanctuaryText variant="label_sm" style={styles.freqTxt}>{result.exerciseFrequency}</SanctuaryText>
+                  </View>
+                </View>
               </View>
             </LinearGradient>
 
@@ -293,9 +326,7 @@ export default function BMICalculatorScreen() {
             <View style={styles.gaugeWrap}>
               <View style={styles.gaugeTrack}>
                 <LinearGradient colors={['#3B82F6','#059669','#D97706','#DC2626']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gaugeBar} />
-                {pct !== null && (
-                  <View style={[styles.gaugeNeedle, { left: `${pct}%` as any }]} />
-                )}
+                {pct !== null && <View style={[styles.gaugeNeedle, { left: `${pct}%` as any }]} />}
               </View>
               <View style={styles.gaugeLabels}>
                 <SanctuaryText variant="label_sm" style={styles.gaugeLabel}>10</SanctuaryText>
@@ -310,9 +341,7 @@ export default function BMICalculatorScreen() {
             <View style={styles.targetsRow}>
               {result.targets.map((t, i) => (
                 <View key={i} style={styles.targetItem}>
-                  <View style={styles.targetIconCircle}>
-                    <t.icon size={16} color={result.color} />
-                  </View>
+                  <View style={styles.targetIconCircle}><t.icon size={16} color={result.color} /></View>
                   <View>
                     <SanctuaryText variant="label_sm" style={styles.targetLabel}>{t.label}</SanctuaryText>
                     <SanctuaryText variant="label_lg" style={[styles.targetValue, { color: result.color }]}>{t.value}</SanctuaryText>
@@ -321,7 +350,7 @@ export default function BMICalculatorScreen() {
               ))}
             </View>
 
-            {/* Suggestions */}
+            {/* Detailed Recommendations */}
             <View style={styles.suggestionsContainer}>
               <View style={styles.suggestionBlock}>
                 <View style={styles.suggestionHeader}>
@@ -360,14 +389,13 @@ export default function BMICalculatorScreen() {
               <SanctuaryText variant="body_sm" style={[styles.adviceTxt, { color: result.color }]}>{result.advice}</SanctuaryText>
             </View>
 
-            {/* Reset */}
             <TouchableOpacity style={styles.resetBtn} onPress={reset}>
               <SanctuaryText variant="label_lg" style={styles.resetTxt}>Recalculate</SanctuaryText>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Reference table */}
+        {/* Reference */}
         <View style={styles.refTable}>
           <SanctuaryText variant="label_lg" style={styles.refTitle}>BMI Reference</SanctuaryText>
           {CATEGORIES.map(c => (
@@ -398,6 +426,20 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 20 },
 
+  streakCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 24 },
+  streakGrad: { padding: 20, flexDirection: 'row', alignItems: 'center' },
+  streakInfo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  streakTextCol: {},
+  streakNum: { color: '#FFF', fontWeight: '900', fontSize: 20 },
+  streakSub: { color: 'rgba(255,255,255,0.8)', fontWeight: '600', marginTop: 2 },
+
+  goalSection: { marginBottom: 24 },
+  goalGrid: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  goalCard: { flex: 1, height: 80, backgroundColor: '#FFF', borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 8, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
+  goalCardActive: { backgroundColor: COLORS.primary },
+  goalLabel: { fontSize: 9, fontWeight: '800', color: '#64748B' },
+  goalLabelActive: { color: '#FFF' },
+
   unitToggle: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 16, padding: 4, marginBottom: 24 },
   unitBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
   unitBtnActive: { backgroundColor: '#FFF' },
@@ -408,29 +450,22 @@ const styles = StyleSheet.create({
   rowGroup: { flexDirection: 'row' },
   inputGroup: {},
   inputLabel: { color: '#94A3B8', fontSize: 10, fontWeight: '800', letterSpacing: 0.6, marginBottom: 8 },
-  input: {
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
+  input: { backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, fontSize: 16, fontWeight: '700', color: '#1E293B' },
 
-  calcBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: COLORS.primary,
-    borderRadius: 16, paddingVertical: 18, marginBottom: 24,
-  },
+  calcBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: COLORS.primary, borderRadius: 16, paddingVertical: 18, marginBottom: 24 },
   calcBtnTxt: { color: '#FFF', fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
 
   resultCard: { backgroundColor: '#FFF', borderRadius: 24, overflow: 'hidden', marginBottom: 24 },
-  resultGrad: { padding: 28, alignItems: 'center' },
-  resultLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 8 },
-  resultBmi: { color: '#FFF', fontSize: 64, fontWeight: '900', lineHeight: 72, marginBottom: 12 },
-  resultCatBadge: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 },
-  resultCatTxt: { color: '#FFF', fontWeight: '900', fontSize: 14 },
+  resultGrad: { padding: 28 },
+  resultMain: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+  scoreCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,0.4)' },
+  scoreVal: { color: '#FFF', fontSize: 24, fontWeight: '900' },
+  scoreLbl: { color: '#FFF', fontSize: 9, fontWeight: '800' },
+  bmiData: { flex: 1 },
+  resultLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800' },
+  resultCatTxt: { color: '#FFF', fontSize: 22, fontWeight: '900', marginVertical: 4 },
+  freqBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
+  freqTxt: { color: '#FFF', fontSize: 10, fontWeight: '700' },
 
   gaugeWrap: { padding: 20 },
   gaugeTrack: { height: 14, borderRadius: 7, overflow: 'hidden', position: 'relative', marginBottom: 8 },
@@ -438,28 +473,6 @@ const styles = StyleSheet.create({
   gaugeNeedle: { position: 'absolute', top: -3, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF', borderWidth: 3, borderColor: '#1E293B', marginLeft: -10 },
   gaugeLabels: { flexDirection: 'row', justifyContent: 'space-between' },
   gaugeLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '700' },
-
-  adviceBox: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingHorizontal: 20, paddingBottom: 16 },
-  adviceTxt: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '600' },
-
-  resetBtn: { marginHorizontal: 20, marginBottom: 20, backgroundColor: '#F1F5F9', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  resetTxt: { color: '#64748B', fontWeight: '900', fontSize: 13 },
-
-  refTable: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, gap: 14 },
-  refTitle: { color: '#1E293B', fontWeight: '900', fontSize: 15, marginBottom: 4 },
-  refRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  refDot: { width: 10, height: 10, borderRadius: 5 },
-  refLabel: { color: '#1E293B', fontWeight: '700', fontSize: 13, flex: 1 },
-  refRange: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
-  // New Styles
-  streakCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 24, elevation: 4, shadowColor: '#FF5F6D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
-  streakGrad: { padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  streakInfo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  streakTextCol: {},
-  streakNum: { color: '#FFF', fontWeight: '900', fontSize: 20 },
-  streakSub: { color: 'rgba(255,255,255,0.8)', fontWeight: '600', marginTop: 2 },
-  streakBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  streakBadgeTxt: { color: '#FFF', fontWeight: '900', fontSize: 10 },
 
   targetsRow: { flexDirection: 'row', padding: 20, gap: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   targetItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -475,4 +488,16 @@ const styles = StyleSheet.create({
   suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   bullet: { width: 6, height: 6, borderRadius: 3 },
   suggestionText: { color: '#475569', fontWeight: '600', fontSize: 13 },
+
+  adviceBox: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingHorizontal: 20, paddingBottom: 16 },
+  adviceTxt: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '600' },
+  resetBtn: { marginHorizontal: 20, marginBottom: 20, backgroundColor: '#F1F5F9', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  resetTxt: { color: '#64748B', fontWeight: '900', fontSize: 13 },
+
+  refTable: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, gap: 14 },
+  refTitle: { color: '#1E293B', fontWeight: '900', fontSize: 15, marginBottom: 4 },
+  refRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  refDot: { width: 10, height: 10, borderRadius: 5 },
+  refLabel: { color: '#1E293B', fontWeight: '700', fontSize: 13, flex: 1 },
+  refRange: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
 });

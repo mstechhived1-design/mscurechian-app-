@@ -60,25 +60,44 @@ export const analyzeFood = async (data: string, base64Image?: string): Promise<N
     console.log('[NutritionService] Full Result:', JSON.stringify(result, null, 2));
 
     // Get nutrition from the result
-    // Spoonacular returns nutrition in result.nutrition
+    // Spoonacular returns nutrition in result.nutrition with direct keys like calories, fat, protein, carbs
     const nutrition = result.nutrition;
-    const foodName = result.category || result.recipes?.[0]?.title || "Identified Food";
+    
+    // category can be an object { name: "...", probability: ... } or a string
+    let foodName = "Identified Food";
+    const categoryName = typeof result.category === 'object' ? result.category.name : result.category;
+    
+    // 🔍 ENHANCEMENT: Context-Aware Identification
+    // Since Dosa/Idli often get misidentified as 'crepes' or 'omelette' by general AI,
+    // we scan the associated recipes for regional keywords to improve accuracy.
+    const regionalKeywords = ['dosa', 'idli', 'vada', 'paratha', 'roti', 'paneer', 'biryani', 'poha', 'upma', 'samosa', 'dal', 'curry'];
+    const suggestedRecipes = result.recipes || [];
+    const regionalMatch = suggestedRecipes.find((r: any) => 
+      regionalKeywords.some(key => r.title.toLowerCase().includes(key))
+    );
 
-    const getNutrient = (name: string) => {
-      const n = nutrition?.nutrients?.find((nut: any) => nut.name.toLowerCase() === name.toLowerCase());
-      return n ? Math.round(n.amount) : 0;
+    if (regionalMatch) {
+      // If a recipe title contains a regional keyword, it's likely more accurate than a generic category
+      foodName = regionalMatch.title;
+    } else if (categoryName) {
+      foodName = categoryName;
+    } else if (suggestedRecipes[0]?.title) {
+      foodName = suggestedRecipes[0].title;
+    }
+
+    const getNutrient = (key: string) => {
+      // Structure: nutrition.calories.value
+      const n = nutrition?.[key.toLowerCase()];
+      return n?.value ? Math.round(n.value) : 0;
     };
 
     return {
       name: foodName.charAt(0).toUpperCase() + foodName.slice(1),
       calories: getNutrient('Calories'),
       protein: getNutrient('Protein'),
-      carbs: getNutrient('Carbohydrates'),
+      carbs: getNutrient('Carbs'),
       fats: getNutrient('Fat'),
-      vitamins: nutrition?.nutrients
-        ?.filter((n: any) => n.name.includes('Vitamin') || n.name === 'Iron' || n.name === 'Calcium')
-        .slice(0, 4)
-        .map((n: any) => n.name) || [],
+      vitamins: [], // These aren't in the summary analyze result usually
     };
 
   } catch (error: any) {

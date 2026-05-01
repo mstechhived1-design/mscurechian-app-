@@ -36,6 +36,7 @@ import {
   MapPin,
   Heart,
   QrCode,
+  Shield,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -328,6 +329,38 @@ export default function ProfileScreen() {
                 <Text style={styles.detailVal}>{profile?.user?.emergencyContactPhone || profile?.emergencyContactPhone || 'N/A'}</Text>
               </View>
             </View>
+          </Card>
+        </View>
+
+        {/* Legal & Policies */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>Legal & Policies</Text>
+          </View>
+          <Card style={styles.detailsCard} mode="outlined">
+            <TouchableOpacity 
+              style={styles.detailRow}
+              onPress={() => navigation.navigate('TermsAndConditions', { initialTab: 'privacy' })}
+            >
+              <Shield size={16} color="#006AF5" style={styles.detailIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Privacy & Data Security</Text>
+                <Text style={styles.detailVal}>Read our Privacy Policy</Text>
+              </View>
+              <FileText size={14} color="#CCC" />
+            </TouchableOpacity>
+            <Divider style={styles.divider} />
+            <TouchableOpacity 
+              style={styles.detailRow}
+              onPress={() => navigation.navigate('TermsAndConditions', { initialTab: 'terms' })}
+            >
+              <FileText size={16} color="#006AF5" style={styles.detailIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Terms of Use</Text>
+                <Text style={styles.detailVal}>Service Agreement & T&C</Text>
+              </View>
+              <FileText size={14} color="#CCC" />
+            </TouchableOpacity>
           </Card>
         </View>
 

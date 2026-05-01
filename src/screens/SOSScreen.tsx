@@ -37,7 +37,26 @@ const SOSScreen = () => {
 
   const getPinpointLocation = async () => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      let { status } = await Location.getForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        const confirmed = await new Promise((resolve) => {
+          Alert.alert(
+            'Location Access',
+            'MS CureChain requires your location to help you find the nearest hospitals and to send your precise coordinates to helpdesk during an SOS emergency. We only use this data to facilitate your care.',
+            [
+              { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+              { text: 'Allow', onPress: () => resolve(true) }
+            ]
+          );
+        });
+
+        if (!confirmed) return null;
+        
+        const req = await Location.requestForegroundPermissionsAsync();
+        status = req.status;
+      }
+      
       if (status !== 'granted') return null;
       
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });

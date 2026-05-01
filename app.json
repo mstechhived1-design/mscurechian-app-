@@ -1,5 +1,8 @@
 {
   "expo": {
+    "name": "MS CureChain",
+    "slug": "mscurechain-patient-app",
+    "version": "1.2.1",
     "extra": {
       "eas": {
         "projectId": "94ebac94-bfdf-4a72-af27-cf7678af5ae2"
@@ -8,12 +11,24 @@
     "owner": "narasimhamstechhive",
     "icon": "./assets/image.png",
     "android": {
-      "package": "com.mscurechain.patientapp"
+      "package": "com.mscurechain.patientapp",
+      "versionCode": 5,
+      "permissions": [
+        "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "VIBRATE",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
+    "privacyPolicyUrl": "https://mscurechain.com/privacy-policy",
     "plugins": [
       "@react-native-community/datetimepicker",
       "expo-web-browser",
-      "expo-barcode-scanner"
+      "expo-camera",
+      "expo-location",
+      "expo-notifications"
     ]
   }
 }

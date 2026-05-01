@@ -48,7 +48,7 @@ export const TOKEN_KEYS = {
 // ─── LOCAL BACKEND CONFIGURATION ─────────────────────────────────────────────
 //
 // Change this ONE value to switch backends:
-//   Local dev  : http://192.168.31.47:5003/api   ← current (Wifi: 23/04/26)
+//   Local dev  : http://192.168.29.48:5003/api   ← current (Wifi: 30/04/26)
 //   iOS sim    : http://localhost:5003/api
 //   Android emu: http://10.0.2.2:5003/api
 //   Production : https://www.mscurechain.com/api

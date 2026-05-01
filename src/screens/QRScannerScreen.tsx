@@ -34,9 +34,20 @@ export default function QRScannerScreen() {
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!permission?.granted && permission?.canAskAgain) {
-        requestPermission();
-    }
+    const checkPermission = async () => {
+      if (!permission?.granted && permission?.canAskAgain) {
+        Alert.alert(
+          'Camera Permission',
+          'MS CureChain needs access to your camera to scan QR codes for appointment booking. We do not store or share your camera data.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Allow', onPress: () => requestPermission() }
+          ]
+        );
+      }
+    };
+    
+    checkPermission();
     
     Animated.loop(
       Animated.sequence([
