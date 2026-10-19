@@ -46,3 +46,7 @@ node-v*/
 *.cmd
 *.msi
 *.7z
+
+# IDE
+.idea/
+

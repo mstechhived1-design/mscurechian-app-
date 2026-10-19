@@ -232,6 +232,7 @@ const PRIVACY_SECTIONS: Section[] = [
     title: 'Information We Collect',
     content: [
       'Personal Details: Full Name, Mobile Number, Email Address, and encrypted Password.',
+      'Sensitive Health Data: We collect medical metrics including weight, height, BMI, blood group, vitals (BP, Heart Rate, SpO2), symptoms, and clinical history to provide diagnostic insights and tracking.',
       'Profile Information: Date of Birth, Gender, and Blood Group to provide tailored healthcare services.',
       'Medical Records: Appointment history, Lab reports, Prescriptions, and Vitals (AES-256 bit encrypted).',
       'Device Data: IP address, push notification tokens, and hardware identifiers for security.',
@@ -267,8 +268,15 @@ const PRIVACY_SECTIONS: Section[] = [
     ],
   },
   {
-    id: 'p6',
+    id: 'p-deletion',
     number: '6',
+    title: 'Permanent Account Deletion',
+    content: 'You have the right to delete your account permanently. This can be initiated via Profile → Settings → Delete Account. Once requested, your identity, medical profile, and all associated clinical data will be purged from our active database within 7 days. This action is irreversible.',
+    highlight: true,
+  },
+  {
+    id: 'p6',
+    number: '7',
     title: 'Contact Information',
     content: 'For any privacy concerns or data access requests, please contact our Data Protection Officer at privacy@mscurechain.com.',
   },

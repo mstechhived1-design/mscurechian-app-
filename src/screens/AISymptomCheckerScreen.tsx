@@ -29,6 +29,7 @@ import {
   Activity,
   Brain,
   Bone,
+  ShieldAlert,
 } from 'lucide-react-native';
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
@@ -254,6 +255,15 @@ export default function AISymptomCheckerScreen() {
 
       <View style={styles.flex1}>
         <View style={styles.chatBg} />
+        
+        {/* MEDICAL DISCLAIMER BANNER */}
+        <View style={styles.disclaimerBanner}>
+          <ShieldAlert size={14} color="#B91C1C" />
+          <RNText style={styles.disclaimerText}>
+            Medical Disclaimer: This AI tool is for informational purposes only and does NOT provide medical diagnosis. Always consult a professional doctor for medical concerns.
+          </RNText>
+        </View>
+
         <ScrollView
           ref={scrollRef}
           style={styles.flex1}
@@ -406,6 +416,23 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     marginVertical: 4,
     width: '95%'
+  },
+  disclaimerBanner: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FEE2E2',
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#991B1B',
+    fontWeight: '700',
+    lineHeight: 14,
   },
 });
 

@@ -107,6 +107,12 @@ export const PATIENT_ENDPOINTS = {
    * GET — Detailed view of a single discharge record
    */
   DISCHARGE_VIEW: (id: string) => `/discharge/records/patient-view/${id}`,
+
+  /**
+   * DELETE — Permanently delete patient account and all profile data.
+   * Auth: Bearer patient token
+   */
+  DELETE_ACCOUNT: '/patients/profile',
 } as const;
 
 // ─── Booking / Appointment Endpoints ─────────────────────────────────────────

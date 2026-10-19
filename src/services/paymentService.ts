@@ -7,7 +7,7 @@
  *   - APP BOOKING (this file): Patient selects a specific timeslot
  *     → Appointment is created with that exact time slot in the backend
  * LOCAL BACKEND: Multitenant_MsCurechain_Backend (port 5003)
- * API Base: http://192.168.31.47:5003/api
+ * API Base: https://www.mscurechain.com/api
  *
  * Key Endpoints (from backend analysis):
  *   GET  /api/hospitals                              → list all hospitals (public)

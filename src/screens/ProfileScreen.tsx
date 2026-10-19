@@ -10,6 +10,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   Text,
@@ -199,6 +200,48 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      t('profile.deleteAccountTitle') || 'Delete Account Permanently',
+      t('profile.deleteAccountWarning') || 'Are you absolutely sure? This action is permanent and will delete your identity, clinical profile, and all associated data from our database. You will not be able to recover this information.',
+      [
+        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
+        { 
+          text: t('profile.deletePermanently') || 'Delete Permanently', 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const response = await apiClient.delete(PATIENT_ENDPOINTS.DELETE_ACCOUNT);
+              if (response.data.success) {
+                Alert.alert(
+                  'Account Deleted',
+                  'Your account has been permanently removed. Thank you for using our services.',
+                  [{ 
+                    text: 'OK', 
+                    onPress: async () => {
+                      await AsyncStorage.clear();
+                      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                    }
+                  }]
+                );
+              }
+            } catch (err: any) {
+              console.error('Delete Account Error:', err);
+              Alert.alert(
+                'Deletion Failed',
+                err.response?.data?.message || 'Could not delete account. Please contact support if the issue persists.'
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+          style: 'destructive' 
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+
   if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
@@ -372,6 +415,16 @@ export default function ProfileScreen() {
           icon="logout"
         >
           {t('profile.signOutOfAccount')}
+        </Button>
+
+        <Button 
+          mode="contained" 
+          onPress={handleDeleteAccount} 
+          buttonColor="#FF3B30"
+          style={[styles.logoutBtn, { marginTop: 0 }]}
+          icon="delete-forever"
+        >
+          {t('profile.deleteAccountPermanently') || 'Delete Account Permanently'}
         </Button>
         {/* Bottom clearance for the tab bar */}
         <View style={{ height: 80 }} />

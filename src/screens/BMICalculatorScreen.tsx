@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, Scale, Info, Flame, Utensils, Dumbbell, Zap, TrendingUp, Heart, Target, Calendar } from 'lucide-react-native';
+import { ChevronLeft, Scale, Info, Flame, Utensils, Dumbbell, Zap, TrendingUp, Heart, Target, Calendar, ShieldAlert } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -227,6 +227,13 @@ export default function BMICalculatorScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* MEDICAL DISCLAIMER */}
+        <View style={styles.disclaimerBanner}>
+          <ShieldAlert size={14} color="#B91C1C" />
+          <SanctuaryText style={styles.disclaimerText}>
+            Medical Disclaimer: BMI calculations and fitness advice are for informational purposes only. Consult a health professional before starting any new diet or exercise program.
+          </SanctuaryText>
+        </View>
         
         {/* Streak View */}
         <TouchableOpacity style={styles.streakCard} activeOpacity={0.9} onPress={() => navigation.navigate('Achievements')}>
@@ -500,4 +507,23 @@ const styles = StyleSheet.create({
   refDot: { width: 10, height: 10, borderRadius: 5 },
   refLabel: { color: '#1E293B', fontWeight: '700', fontSize: 13, flex: 1 },
   refRange: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
+  disclaimerBanner: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#991B1B',
+    fontWeight: '700',
+    lineHeight: 14,
+  },
 });

@@ -28,35 +28,36 @@ export default function PrivacyPolicyScreen() {
 
           <SanctuaryText variant="title_sm" style={styles.subTitle}>1. Information We Collect</SanctuaryText>
           <SanctuaryText variant="body_md" style={styles.paragraph}>
-            • <SanctuaryText variant="label_lg">Camera Access (android.permission.CAMERA):</SanctuaryText> This app requires access to your camera to enable the QR Scanner for doctor discovery and appointment booking, and for scanning food items. We do not store camera data without your explicit action.
-            {"\n"}• <SanctuaryText variant="label_lg">Location (android.permission.ACCESS_FINE_LOCATION):</SanctuaryText> Used to find nearby healthcare providers.
-            {"\n"}• <SanctuaryText variant="label_lg">Storage (android.permission.WRITE_EXTERNAL_STORAGE):</SanctuaryText> Used to download and save medical reports and prescriptions.
-            {"\n"}• <SanctuaryText variant="label_lg">Health Data:</SanctuaryText> We collect vitals and dietary logs to provide health insights.
+            • <SanctuaryText variant="label_lg">Personal Data:</SanctuaryText> Name, phone number, and email for account management.
+            {"\n"}• <SanctuaryText variant="label_lg">Sensitive Health Data:</SanctuaryText> We collect health metrics including weight, height, BMI, blood group, vitals (Blood Pressure, Heart Rate), and clinical symptoms to provide health tracking features.
+            {"\n"}• <SanctuaryText variant="label_lg">Location (ACCESS_FINE_LOCATION):</SanctuaryText> Used to find nearby healthcare providers and emergency services.
+            {"\n"}• <SanctuaryText variant="label_lg">Camera Access (CAMERA):</SanctuaryText> Used for QR scanning and food item recognition.
+            {"\n"}• <SanctuaryText variant="label_lg">Storage (WRITE_EXTERNAL_STORAGE):</SanctuaryText> Used to save your medical records and prescriptions.
           </SanctuaryText>
 
-          <SanctuaryText variant="title_sm" style={styles.subTitle}>2. Data Security</SanctuaryText>
+          <SanctuaryText variant="title_sm" style={styles.subTitle}>2. Medical Disclaimer</SanctuaryText>
           <SanctuaryText variant="body_md" style={styles.paragraph}>
-            We use AES-256 bit encryption to protect your data. All patient and hospital data belongs exclusively to you and the respective hospital.
+            MSCureChain is an information management platform. Our AI tools and trackers provide health insights for informational purposes ONLY. This app is NOT a medical device and does NOT provide professional medical diagnosis or treatment.
+          </SanctuaryText>
+
+          <SanctuaryText variant="title_sm" style={styles.subTitle}>3. Data Deletion & Retention</SanctuaryText>
+          <SanctuaryText variant="body_md" style={styles.paragraph}>
+            You can delete your account permanently through the Profile → Settings menu. Upon deletion, your identity and clinical records are purged from our database within 7 days.
+          </SanctuaryText>
+
+          <SanctuaryText variant="title_sm" style={styles.subTitle}>4. Data Security</SanctuaryText>
+          <SanctuaryText variant="body_md" style={styles.paragraph}>
+            We use industry-standard encryption to protect your data. Your health records are shared only with the hospitals you specifically register with.
           </SanctuaryText>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.section}>
-          <SanctuaryText variant="title_lg" style={styles.sectionTitle}>Terms & Conditions</SanctuaryText>
+          <SanctuaryText variant="title_lg" style={styles.sectionTitle}>Terms of Service</SanctuaryText>
           
           <SanctuaryText variant="body_md" style={styles.paragraph}>
-            By using MSCureChain, you agree to the following terms:
-          </SanctuaryText>
-
-          <SanctuaryText variant="title_sm" style={styles.subTitle}>1. Medical Advice</SanctuaryText>
-          <SanctuaryText variant="body_md" style={styles.paragraph}>
-            MSCureChain provides health tracking and coordination tools. It is NOT a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician.
-          </SanctuaryText>
-
-          <SanctuaryText variant="title_sm" style={styles.subTitle}>2. User Responsibility</SanctuaryText>
-          <SanctuaryText variant="body_md" style={styles.paragraph}>
-            You are responsible for maintaining the confidentiality of your account and for all activities that occur under your account.
+            By using MSCureChain, you agree that you are responsible for the information you provide and that the app is a tool for tracking and coordination, not a medical authority.
           </SanctuaryText>
         </View>
 

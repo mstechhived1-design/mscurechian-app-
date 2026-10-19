@@ -138,16 +138,41 @@ export default function DashboardScreen() {
   // ── Location ────────────────────────────────────────────────────────────────
   const getPosition = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') { setCurrentLocation('Sanctuary Medical Center'); return; }
-      const loc = await Location.getCurrentPositionAsync({});
-      const geocode = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-      if (geocode.length > 0) {
-        const p = geocode[0];
-        const txt = [p.district || p.city || p.subregion, p.region, p.country].filter(Boolean).join(', ');
-        setCurrentLocation(txt || 'Medical District');
-      }
-    } catch { setCurrentLocation('Medical District'); }
+      // Prominent Disclosure for Google Play Policy
+      Alert.alert(
+        'Location Access',
+        'MS CureChain collects location data to find nearby healthcare providers and emergency hospitals, even when the app is in use.',
+        [
+          {
+            text: 'OK',
+            onPress: async () => {
+              const { status } = await Location.requestForegroundPermissionsAsync();
+              if (status !== 'granted') {
+                setCurrentLocation('Sanctuary Medical Center');
+                return;
+              }
+              const loc = await Location.getCurrentPositionAsync({});
+              const geocode = await Location.reverseGeocodeAsync({
+                latitude: loc.coords.latitude,
+                longitude: loc.coords.longitude,
+              });
+              if (geocode.length > 0) {
+                const p = geocode[0];
+                const txt = [p.district || p.city || p.subregion, p.region, p.country].filter(Boolean).join(', ');
+                setCurrentLocation(txt || 'Medical District');
+              }
+            },
+          },
+          {
+            text: 'Cancel',
+            onPress: () => setCurrentLocation('Medical District'),
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch {
+      setCurrentLocation('Medical District');
+    }
   };
 
   // ── Data ────────────────────────────────────────────────────────────────────
@@ -389,6 +414,13 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); getPosition(); }} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
       >
+        {/* MEDICAL DISCLAIMER BANNER */}
+        <View style={styles.disclaimerBanner}>
+          <ShieldAlert size={14} color="#B91C1C" />
+          <SanctuaryText style={styles.disclaimerText}>
+            Notice: MS CureChain is for information management and is NOT a medical device. Always consult a doctor for diagnosis.
+          </SanctuaryText>
+        </View>
 
         {/* ── SOS Banner ── */}
         <TouchableOpacity style={styles.sosBanner} onPress={() => navigation.navigate('SOS')} activeOpacity={0.85}>
@@ -798,10 +830,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 18,
     marginHorizontal: 20,
     marginBottom: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  disclaimerBanner: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#991B1B',
+    fontWeight: '700',
+    lineHeight: 14,
   },
   sosLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   sosIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginRight: 14 },

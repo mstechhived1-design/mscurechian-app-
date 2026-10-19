@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl } from 'react-native';
 import { Text, Surface, IconButton, ActivityIndicator, Card } from 'react-native-paper';
-import { Activity, Heart, Thermometer, Wind, Ruler, Weight, Droplets, Brain, ChevronLeft, Info, Sparkles } from 'lucide-react-native';
+import { Activity, Heart, Thermometer, Wind, Ruler, Weight, Droplets, Brain, ChevronLeft, Info, Sparkles, ShieldAlert } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
@@ -138,11 +138,16 @@ const VitalsScreen = () => {
       </Surface>
 
       <ScrollView 
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
       >
+        {/* MEDICAL DISCLAIMER */}
+        <View style={styles.disclaimerBanner}>
+          <ShieldAlert size={14} color="#B91C1C" />
+          <Text style={styles.disclaimerText}>
+            Medical Disclaimer: These metrics and AI insights are for informational purposes only. Consult a doctor for medical advice.
+          </Text>
+        </View>
+
          {/* AI Insight Section */}
          <View style={styles.aiSection}>
            <LinearGradient colors={['#F0F7FF', '#E0F2FE']} style={styles.aiCard}>
@@ -248,6 +253,25 @@ const styles = StyleSheet.create({
   vitalLabel: { fontSize: 11, color: '#64748B', fontWeight: '600' },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: '#FEF2F2', borderRadius: 12, marginBottom: 20 },
   errorText: { color: '#DC2626', fontWeight: '600' },
+  disclaimerBanner: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#991B1B',
+    fontWeight: '700',
+    lineHeight: 14,
+  },
 });
 
 export default VitalsScreen;
