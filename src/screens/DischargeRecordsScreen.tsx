@@ -5,6 +5,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -24,11 +25,13 @@ import {
   Activity,
   User,
 } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '@/navigation/types';
 import dayjs from 'dayjs';
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
+import { familyService } from '@/services/familyService';
 import { Portal, Modal, Surface as PaperSurface, IconButton as PaperIconButton, Chip, Divider } from 'react-native-paper';
 import { safeFormat } from '@/utils/dateUtils';
 
@@ -47,6 +50,7 @@ interface DischargeRecord {
 
 export default function DischargeRecordsScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [records, setRecords] = useState<DischargeRecord[]>([]);
@@ -119,8 +123,19 @@ export default function DischargeRecordsScreen() {
     fetchDischargeRecords();
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchDischargeRecords();
+    }, [])
+  );
+
   useEffect(() => {
     fetchDischargeRecords();
+
+    const unsub = familyService.onProfileChange(() => {
+      fetchDischargeRecords();
+    });
+    return () => unsub();
   }, []);
 
   if (loading && !refreshing) {
@@ -135,28 +150,41 @@ export default function DischargeRecordsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <Surface style={styles.header} elevation={1}>
+      {/* Compact Header */}
+      <Surface style={[styles.header, { paddingTop: Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 44) : 8 }]} elevation={0}>
         <View style={styles.headerContent}>
-          <IconButton icon="arrow-left" iconColor="#1A1A1A" size={24} onPress={() => navigation.goBack()} />
-          <Text variant="headlineSmall" style={styles.headerTitle}>Discharge Records</Text>
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()} 
+            style={styles.backBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <ArrowLeft size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>Discharge Records</Text>
+            <Text style={styles.headerSubtitle}>Hospital stay summaries</Text>
+          </View>
         </View>
       </Surface>
 
       <ScrollView 
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#006AF5']} />
+          Platform.OS !== 'web' ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#006AF5']} />
+          ) : undefined
         }
       >
         {error ? (
           <View style={styles.emptyContainer}>
-            <FileText size={48} color="#CCC" />
+            <FileText size={36} color="#CBD5E1" />
             <Text style={styles.emptySub}>{error || 'No discharge summaries to display.'}</Text>
           </View>
         ) : (Array.isArray(records) && records.length === 0) ? (
           <View style={styles.emptyContainer}>
-             <FileText size={64} color="#DDD" />
+             <FileText size={48} color="#CBD5E1" />
              <Text style={styles.emptyTitle}>No Records Found</Text>
              <Text style={styles.emptySub}>Your hospital discharge summaries will appear here.</Text>
           </View>
@@ -165,22 +193,31 @@ export default function DischargeRecordsScreen() {
             <Card 
               key={record._id} 
               style={styles.recordCard} 
-              mode="outlined"
+              mode="elevated"
+              elevation={1}
               onPress={() => navigation.navigate('DischargeDetail', { dischargeId: record._id })}
             >
-              <Card.Content style={{ padding: 16 }}>
+              <Card.Content style={styles.cardContent}>
                  <View style={styles.cardHeader}>
                     <View style={styles.leftInfo}>
                        <View style={styles.typeBadge}>
                          <Text style={styles.typeText}>Discharge Summary</Text>
                        </View>
-                       <Text variant="titleMedium" style={styles.hospName}>
+                       <Text style={styles.hospName} numberOfLines={1}>
                          {record.hospital?.name || 'Medical Center'}
                        </Text>
                        <View style={styles.row}>
-                         <User size={12} color="#006AF5" />
-                         <Text style={styles.subText}>
-                            Dr. {typeof record.doctor === 'string' ? record.doctor : (record.doctor as any)?.user?.name || 'N/A'}
+                         <User size={11} color="#006AF5" />
+                         <Text style={styles.subText} numberOfLines={1}>
+                           {(() => {
+                             const rawDoc =
+                               (record as any).primaryDoctor ||
+                               (Array.isArray((record as any).consultants) && (record as any).consultants[0]) ||
+                               (record as any).doctorName ||
+                               (typeof record.doctor === 'string' ? record.doctor : ((record.doctor as any)?.user?.name || (record.doctor as any)?.name)) ||
+                               '';
+                             return rawDoc.startsWith('Dr.') ? rawDoc : `Dr. ${rawDoc}`;
+                           })()}
                          </Text>
                        </View>
                     </View>
@@ -196,8 +233,8 @@ export default function DischargeRecordsScreen() {
                  </View>
 
                  <View style={styles.stayRow}>
-                    <Calendar size={14} color="#666" />
-                    <Text style={styles.stayText}>
+                    <Calendar size={12} color="#64748B" />
+                    <Text style={styles.stayText} numberOfLines={1}>
                       Stay: {safeFormat(record.admissionDate, 'dd MMM')} - {safeFormat(record.dischargeDate, 'dd MMM yyyy')}
                     </Text>
                  </View>
@@ -210,6 +247,8 @@ export default function DischargeRecordsScreen() {
                       compact 
                       icon="eye" 
                       onPress={() => navigation.navigate('DischargeDetail', { dischargeId: record._id })}
+                      labelStyle={styles.btnLabel}
+                      style={styles.summaryBtn}
                     >
                       View Full Summary
                     </Button>
@@ -234,121 +273,148 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    paddingTop: 50,
     backgroundColor: '#FFF',
-    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    paddingBottom: 8,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+  },
+  backBtn: {
+    padding: 6,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
-    fontWeight: 'bold',
-    marginLeft: 8,
-    color: '#1A1A1A',
+    fontWeight: '800',
+    fontSize: 16,
+    color: '#0F172A',
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 100,
+    padding: 10,
+    paddingBottom: 24,
   },
   recordCard: {
-    marginBottom: 16,
-    borderRadius: 20,
+    marginBottom: 8,
+    borderRadius: 14,
     backgroundColor: '#FFF',
-    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  cardContent: {
+    padding: 10,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   leftInfo: {
     flex: 1,
   },
   typeBadge: {
-    backgroundColor: '#F0F7FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
     alignSelf: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   typeText: {
     color: '#006AF5',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 8.5,
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   hospName: {
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    fontSize: 16,
-    marginBottom: 4,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontSize: 13,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    marginTop: 2,
   },
   subText: {
-    color: '#666',
-    fontSize: 12,
+    color: '#64748B',
+    fontSize: 11,
   },
   dateBadge: {
-    backgroundColor: '#F8F9FA',
-    padding: 10,
-    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    padding: 6,
+    borderRadius: 8,
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 42,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   dateMonth: {
-    fontSize: 10,
+    fontSize: 8.5,
     color: '#006AF5',
-    fontWeight: 'bold',
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   dateDay: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
   },
   diagBox: {
     backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 8,
+    padding: 6,
+    borderRadius: 6,
+    marginTop: 5,
   },
   diagLabel: {
-    fontSize: 9,
-    color: '#64748B',
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    fontSize: 7.5,
+    color: '#94A3B8',
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 1,
   },
   diagText: {
-    fontSize: 14,
-    color: '#1E293B',
+    fontSize: 11,
+    color: '#334155',
     fontWeight: '600',
   },
   stayRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    gap: 8,
+    marginTop: 6,
+    gap: 5,
   },
   stayText: {
-    fontSize: 12,
+    fontSize: 10.5,
     color: '#64748B',
   },
   divider: {
-    marginVertical: 12,
+    marginVertical: 6,
     backgroundColor: '#F1F5F9',
   },
   cardActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+  },
+  summaryBtn: {
+    height: 28,
+  },
+  btnLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginVertical: 0,
+    marginHorizontal: 4,
   },
   emptyContainer: {
     alignItems: 'center',

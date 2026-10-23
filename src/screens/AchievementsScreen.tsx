@@ -4,9 +4,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { 
   ArrowLeft, 
@@ -95,7 +95,7 @@ export default function AchievementsScreen() {
             {BADGES.map((badge) => (
               <View key={badge.id} style={[styles.badgeCard, !badge.unlocked && styles.lockedBadge]}>
                 <View style={[styles.badgeIcon, { backgroundColor: badge.unlocked ? '#F8FAFC' : '#F1F5F9' }]}>
-                  {React.cloneElement(badge.icon as React.ReactElement, { 
+                  {React.cloneElement(badge.icon as React.ReactElement<any>, { 
                     color: badge.unlocked ? (badge.icon as any).props.color : '#94A3B8' 
                   })}
                 </View>

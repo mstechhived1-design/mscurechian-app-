@@ -40,12 +40,14 @@ import {
   ArrowRight,
   FileText,
   Shield,
+  Download,
 } from 'lucide-react-native';
 
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '@/constants/designSystem';
 import { SanctuaryText } from '@/components/SanctuaryComponents';
 import { BookingConfirmation, formatCurrency, formatDate } from '@/services/paymentService';
+import { exportAppointmentReceiptPdf } from '@/utils/pdfExportUtil';
 
 const { width } = Dimensions.get('window');
 type ConfirmRouteProp = RouteProp<RootStackParamList, 'BookingConfirmation'>;
@@ -61,9 +63,6 @@ export default function BookingConfirmationScreen() {
   const slideUp = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // DIAGNOSTIC ALERT: If you see this, the code has updated correctly!
-    Alert.alert('Booking Confirmed', 'The navigation fix is now active. Checking data updates...');
-    
     Animated.sequence([
       Animated.spring(checkScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
       Animated.parallel([
@@ -89,6 +88,25 @@ export default function BookingConfirmationScreen() {
       });
     } catch (err) {
       console.error('[BookingConfirmation] Share error:', err);
+    }
+  };
+
+  // ── Export official PDF receipt ──
+  const handleDownloadPdf = async () => {
+    try {
+      await exportAppointmentReceiptPdf({
+        bookingReference: confirmation.bookingReference || confirmation.appointmentId,
+        patientMrn: confirmation.mrn,
+        doctorName: confirmation.doctorName,
+        hospitalName: confirmation.hospitalName,
+        date: formatDate(confirmation.date),
+        time: confirmation.time,
+        amount: formatCurrency(confirmation.amount),
+        paymentMethod: confirmation.paymentMethod,
+        paymentStatus: 'PAID',
+      });
+    } catch (err: any) {
+      console.warn('[BookingConfirmation] PDF error:', err?.message);
     }
   };
 
@@ -212,6 +230,12 @@ export default function BookingConfirmationScreen() {
       {/* ── Bottom Actions ── */}
       <View style={styles.footer}>
         <View style={styles.actionRow}>
+          {/* Download PDF Receipt */}
+          <TouchableOpacity style={[styles.shareBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={handleDownloadPdf} activeOpacity={0.8}>
+            <Download size={18} color="#006AF5" />
+            <SanctuaryText variant="label_lg" style={[styles.shareTxt, { color: '#006AF5' }]}>PDF Slip</SanctuaryText>
+          </TouchableOpacity>
+
           {/* Share Receipt */}
           <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
             <Share2 size={18} color={COLORS.primary} />
@@ -225,9 +249,8 @@ export default function BookingConfirmationScreen() {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={styles.apptGrad}
             >
-              <Calendar size={16} color="#fff" />
-              <SanctuaryText variant="label_lg" style={styles.apptTxt}>My Appointments</SanctuaryText>
-              <ArrowRight size={16} color="#fff" />
+              <Calendar size={15} color="#fff" />
+              <SanctuaryText variant="label_lg" style={styles.apptTxt}>Appointments</SanctuaryText>
             </LinearGradient>
           </TouchableOpacity>
         </View>

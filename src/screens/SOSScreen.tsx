@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Linking, Dimensions, ScrollView, Share, Alert, TextInput } from 'react-native';
-import { Text, Surface, IconButton, Avatar, Portal, Modal, Button, ActivityIndicator, Divider, SegmentedButtons } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, Linking, Dimensions, ScrollView, Share, Alert, TextInput, Modal } from 'react-native';
+import { Text, Surface, IconButton, Avatar, Button, Divider, SegmentedButtons } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
 import { Phone, ShieldAlert, MapPin, Zap, User, ChevronRight, X, AlertTriangle, Send, CheckCircle2 } from 'lucide-react-native';
 import { apiClient, PATIENT_ENDPOINTS, EMERGENCY_ENDPOINTS } from '@/api';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '@/navigation/types';
+import { familyService } from '@/services/familyService';
 
 const { width, height } = Dimensions.get('window');
 
 const SOSScreen = () => {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { t } = useTranslation();
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
@@ -17,6 +23,13 @@ const SOSScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [signalSent, setSignalSent] = useState(false);
+  const [lastBroadcast, setLastBroadcast] = useState<{
+    timestamp: string;
+    coords: { lat: number; lng: number } | null;
+    address: string;
+    targetCount: number;
+    severity: string;
+  } | null>(null);
 
   // Form State
   const [emergencyType, setEmergencyType] = useState('Medical');
@@ -183,8 +196,19 @@ const SOSScreen = () => {
     }
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+    }, [])
+  );
+
   useEffect(() => {
     fetchData();
+
+    const unsub = familyService.onProfileChange(() => {
+      fetchData();
+    });
+    return () => unsub();
   }, []);
 
   const handleSignalPress = async () => {
@@ -256,6 +280,13 @@ const SOSScreen = () => {
       
       if (response.status === 200 || response.status === 201 || response.data?.success) {
         setSignalSent(true);
+        setLastBroadcast({
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          coords: loc ? { lat: loc.coords.latitude, lng: loc.coords.longitude } : null,
+          address: manualLocation || 'Pinpointed GPS Coordinates',
+          targetCount: targetIds.length,
+          severity: severity,
+        });
         // If it was a fast track, we might need to show the modal just for the success state
         if (isFastTrack) setModalVisible(true);
         
@@ -276,6 +307,13 @@ const SOSScreen = () => {
      Alert.alert('Emergency Call', 'Dial National Ambulance (108)?', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Call 108', onPress: () => Linking.openURL('tel:108'), style: 'destructive' }
+     ]);
+  };
+
+  const callPolice = () => {
+     Alert.alert('Emergency Call', 'Dial National Emergency / Police (112)?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Call 112', onPress: () => Linking.openURL('tel:112'), style: 'destructive' }
      ]);
   };
 
@@ -344,23 +382,124 @@ const SOSScreen = () => {
             </Surface>
          </TouchableOpacity>
 
-         <View style={styles.btnRow}>
-            <TouchableOpacity style={styles.assistBtn} onPress={callAmbulance}>
-               <IconButton icon="ambulance" iconColor="#E53E3E" style={{ backgroundColor: '#FFF5F5' }} />
+          {/* ── Post-Broadcast Status Card ── */}
+          {lastBroadcast && (
+            <Surface style={styles.broadcastCard} elevation={3}>
+              <View style={styles.broadcastHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <CheckCircle2 size={20} color="#059669" />
+                  <Text style={styles.broadcastTitle}>SOS Transmitted</Text>
+                </View>
+                <View style={styles.livePulseDot} />
+              </View>
+              <Text style={styles.broadcastSub}>
+                Dispatched to {lastBroadcast.targetCount} hospital desk(s) at {lastBroadcast.timestamp} with severity: {lastBroadcast.severity}
+              </Text>
+              {lastBroadcast.coords && (
+                <View style={styles.coordsRow}>
+                  <MapPin size={13} color="#059669" />
+                  <Text style={styles.coordsText}>
+                    {lastBroadcast.coords.lat.toFixed(4)}, {lastBroadcast.coords.lng.toFixed(4)} ({lastBroadcast.address})
+                  </Text>
+                </View>
+              )}
+            </Surface>
+          )}
+
+          {/* Quick Emergency Speed Dials */}
+          <View style={styles.btnRow}>
+            <TouchableOpacity style={[styles.assistBtn, { width: '31%' }]} onPress={callAmbulance}>
+               <IconButton icon="ambulance" iconColor="#E53E3E" style={{ backgroundColor: '#FFF5F5', margin: 0 }} />
                <View style={styles.assistTexts}>
                   <Text style={styles.assistTitle}>Call 108</Text>
-                  <Text style={styles.assistSub}>{t('sos.emergencyCall')}</Text>
+                  <Text style={styles.assistSub}>Ambulance</Text>
                </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.assistBtn} onPress={shareSOS}>
-               <IconButton icon="share-variant" iconColor="#006AF5" style={{ backgroundColor: '#EBF4FF' }} />
+            <TouchableOpacity style={[styles.assistBtn, { width: '31%' }]} onPress={callPolice}>
+               <IconButton icon="shield-alert" iconColor="#D97706" style={{ backgroundColor: '#FFFBEB', margin: 0 }} />
                <View style={styles.assistTexts}>
-                  <Text style={styles.assistTitle}>{t('common.emergency')}</Text>
-                  <Text style={styles.assistSub}>{t('sos.activeSignal')}</Text>
+                  <Text style={styles.assistTitle}>Call 112</Text>
+                  <Text style={styles.assistSub}>Emergency</Text>
+               </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.assistBtn, { width: '31%' }]} onPress={shareSOS}>
+               <IconButton icon="share-variant" iconColor="#006AF5" style={{ backgroundColor: '#EBF4FF', margin: 0 }} />
+               <View style={styles.assistTexts}>
+                  <Text style={styles.assistTitle}>Share SOS</Text>
+                  <Text style={styles.assistSub}>WhatsApp/SMS</Text>
                </View>
             </TouchableOpacity>
           </View>
+
+          {/* ── DIGITAL EMERGENCY MEDICAL ID CARD BANNER ── */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#1E293B',
+              borderRadius: 16,
+              padding: 16,
+              marginTop: 18,
+              borderWidth: 1.5,
+              borderColor: '#DC2626',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+            onPress={() => navigation.navigate('EmergencyMedicalId')}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#DC2626', justifyContent: 'center', alignItems: 'center' }}>
+                <ShieldAlert size={24} color="#FFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>
+                  Emergency Medical ID Card
+                </Text>
+                <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '600', marginTop: 2 }}>
+                  Offline first-responder card · Blood Group · ICE & QR
+                </Text>
+              </View>
+            </View>
+            <View style={{ backgroundColor: '#EF4444', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+              <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>OPEN</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* ── OFFLINE EMERGENCY RECORDS VAULT BANNER ── */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#FEF2F2',
+              borderRadius: 16,
+              padding: 16,
+              marginTop: 10,
+              borderWidth: 1.5,
+              borderColor: '#FECACA',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+            onPress={() => navigation.navigate('OfflineVault')}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#991B1B', justifyContent: 'center', alignItems: 'center' }}>
+                <ShieldAlert size={24} color="#FFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#991B1B', fontSize: 15, fontWeight: '900' }}>
+                  Offline Emergency Vault
+                </Text>
+                <Text style={{ color: '#B91C1C', fontSize: 11, fontWeight: '600', marginTop: 2 }}>
+                  Zero-network mode · Prescriptions, lab tests & clinical history
+                </Text>
+              </View>
+            </View>
+            <View style={{ backgroundColor: '#DC2626', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+              <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>VAULT</Text>
+            </View>
+          </TouchableOpacity>
 
           <View style={[styles.infoSection, { marginTop: 20 }]}>
             <Text style={styles.sectionLabel}>EMERGENCY CONTACT</Text>
@@ -384,13 +523,22 @@ const SOSScreen = () => {
       </ScrollView>
 
       {/* EMERGENCY FORM MODAL (Matches Mockup) */}
-      <Portal>
-         <Modal 
-            visible={modalVisible} 
-            onDismiss={() => !submitting && setModalVisible(false)} 
-            contentContainerStyle={styles.modalContainer}
-         >
-            <Surface style={styles.modalContent}>
+      <Modal 
+         visible={modalVisible} 
+         transparent={true}
+         animationType="slide"
+         statusBarTranslucent={true}
+         onRequestClose={() => !submitting && setModalVisible(false)} 
+      >
+         <View style={styles.modalBackdrop}>
+            <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
+            <TouchableOpacity 
+               style={StyleSheet.absoluteFill} 
+               activeOpacity={1} 
+               onPress={() => !submitting && setModalVisible(false)} 
+            />
+            <View style={styles.modalContainer}>
+               <Surface style={styles.modalContent}>
                {signalSent ? (
                   <View style={styles.successContainer}>
                      <CheckCircle2 size={80} color="#38A169" />
@@ -581,8 +729,9 @@ const SOSScreen = () => {
                   </ScrollView>
                )}
             </Surface>
-         </Modal>
-      </Portal>
+            </View>
+         </View>
+      </Modal>
     </View>
   );
 };
@@ -643,8 +792,21 @@ const styles = StyleSheet.create({
   contactPhone: { fontSize: 12, color: '#666' },
 
   // Form Styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'flex-end',
+  },
   modalContainer: { height: height * 0.9, backgroundColor: 'transparent' },
-  modalContent: { flex: 1, backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, overflow: 'hidden' },
+  modalContent: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
   formHeader: { backgroundColor: '#E53E3E', padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   formTitleRow: { flexDirection: 'row', alignItems: 'center' },
   formHeaderText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
@@ -675,6 +837,55 @@ const styles = StyleSheet.create({
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 8 },
   successTitle: { fontSize: 24, fontWeight: '900', color: '#38A169', marginTop: 20 },
   successSub: { color: '#666', textAlign: 'center', marginTop: 10 },
+
+  /* Post-Broadcast Card */
+  broadcastCard: {
+    width: '100%',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    marginBottom: 20,
+  },
+  broadcastHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  broadcastTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  broadcastSub: {
+    fontSize: 12,
+    color: '#047857',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  coordsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#D1FAE5',
+  },
+  coordsText: {
+    fontSize: 11,
+    color: '#065F46',
+    fontWeight: '600',
+    flex: 1,
+  },
+  livePulseDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+  },
 });
 
 export default SOSScreen;

@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -15,10 +16,12 @@ import {
 import {
   Hospital,
   CalendarDays,
-  TestTube,
+  FlaskConical,
   FileText,
   ChevronRight,
   ArrowLeft,
+  Stethoscope,
+  Pill,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -29,74 +32,94 @@ export default function HealthRecordsScreen() {
 
   const recordCategories = [
     {
-      id: 'hospitals',
-      title: 'Registered Hospitals',
-      subtitle: 'Hospitals where you are registered',
-      icon: Hospital,
+      id: 'doctor-prescriptions',
+      title: 'Doctor Prescriptions',
+      subtitle: 'Clinical prescriptions directly from your consulting doctors',
+      icon: Stethoscope,
       color: '#006AF5',
-      bgColor: '#EBF4FF',
-      onPress: () => navigation.navigate('Hospitals'),
+      bgColor: '#EFF6FF',
+      onPress: () => navigation.navigate('Reports', { initialTab: 'prescriptions' }),
+    },
+    {
+      id: 'pharmacy-orders',
+      title: 'Pharmacy & Orders',
+      subtitle: 'Medication fulfillment, dispensary tokens & bills',
+      icon: Pill,
+      color: '#8B5CF6',
+      bgColor: '#F5F3FF',
+      onPress: () => navigation.navigate('Reports', { initialTab: 'pharmacy' }),
+    },
+    {
+      id: 'lab-investigations',
+      title: 'Lab Investigations',
+      subtitle: 'Pathology results, diagnostic reports & blood tests',
+      icon: FlaskConical,
+      color: '#0D9488',
+      bgColor: '#F0FDFA',
+      onPress: () => navigation.navigate('Reports', { initialTab: 'labs' }),
     },
     {
       id: 'appointments',
       title: 'Appointment History',
-      subtitle: 'Complete list of your visits',
+      subtitle: 'Complete list of OPD & IPD consultations',
       icon: CalendarDays,
-      color: '#38A169',
-      bgColor: '#F0FFF4',
+      color: '#16A34A',
+      bgColor: '#F0FDF4',
       onPress: () => navigation.navigate('Appointments'),
-    },
-    {
-      id: 'lab',
-      title: 'Pharmacy & Labs',
-      subtitle: 'Prescriptions and medical reports',
-      icon: TestTube,
-      color: '#E53E3E',
-      bgColor: '#FFF5F5',
-      onPress: () => navigation.navigate('Reports', {}),
     },
     {
       id: 'discharge',
       title: 'Discharge Summaries',
-      subtitle: 'View your hospital exit records',
+      subtitle: 'Inpatient hospital exit records & discharge bills',
       icon: FileText,
-      color: '#0369A1',
+      color: '#0284C7',
       bgColor: '#F0F9FF',
       onPress: () => navigation.navigate('DischargeRecords'),
+    },
+    {
+      id: 'hospitals',
+      title: 'Registered Hospitals',
+      subtitle: 'Hospitals where you are registered',
+      icon: Hospital,
+      color: '#EA580C',
+      bgColor: '#FFF7ED',
+      onPress: () => navigation.navigate('Hospitals'),
     },
   ];
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <Surface style={styles.header} elevation={1}>
+      <Surface style={styles.header} elevation={0}>
         <View style={styles.headerContent}>
-          <IconButton icon="arrow-left" iconColor="#1A1A1A" size={24} onPress={() => navigation.goBack()} />
-          <Text variant="headlineSmall" style={styles.headerTitle}>Health Records</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <ArrowLeft size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>Health Records</Text>
+            <Text style={styles.headerSub}>Complete medical history & documents</Text>
+          </View>
         </View>
       </Surface>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text variant="bodyMedium" style={styles.description}>
-          Access your complete medical history, hospital registrations, and discharge details in one place.
-        </Text>
-
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.grid}>
           {recordCategories.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={styles.cardWrapper}
               onPress={item.onPress}
+              activeOpacity={0.7}
             >
-              <Surface style={styles.card} elevation={1}>
+              <Surface style={styles.card} elevation={0}>
                 <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
-                  <item.icon size={28} color={item.color} />
+                  <item.icon size={20} color={item.color} />
                 </View>
                 <View style={styles.cardInfo}>
-                  <Text variant="titleMedium" style={styles.cardTitle}>{item.title}</Text>
-                  <Text variant="bodySmall" style={styles.cardSubtitle}>{item.subtitle}</Text>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardSubtitle} numberOfLines={1}>{item.subtitle}</Text>
                 </View>
-                <IconButton icon="chevron-right" iconColor="#CCC" size={20} />
+                <ChevronRight size={16} color="#94A3B8" />
               </Surface>
             </TouchableOpacity>
           ))}
@@ -109,61 +132,78 @@ export default function HealthRecordsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F8FAFC',
+    height: '100%',
+    minHeight: 0,
   },
   header: {
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? 44 : 8,
     backgroundColor: '#FFF',
-    paddingBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+  },
+  backBtn: {
+    padding: 6,
+    marginRight: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
-    fontWeight: 'bold',
-    marginLeft: 8,
-    color: '#1A1A1A',
+    fontWeight: '800',
+    fontSize: 16,
+    color: '#0F172A',
+  },
+  headerSub: {
+    fontSize: 9.5,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 0.5,
   },
   scrollContent: {
-    padding: 20,
-  },
-  description: {
-    color: '#666',
-    marginBottom: 25,
-    lineHeight: 20,
+    padding: 12,
+    paddingBottom: 24,
   },
   grid: {
-    gap: 16,
+    gap: 8,
   },
   cardWrapper: {
-    marginBottom: 4,
+    marginBottom: 0,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardInfo: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 12,
   },
   cardTitle: {
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontWeight: '700',
+    fontSize: 13.5,
+    color: '#0F172A',
   },
   cardSubtitle: {
-    color: '#888',
-    marginTop: 2,
+    color: '#64748B',
+    fontSize: 10.5,
+    marginTop: 1,
   },
 });

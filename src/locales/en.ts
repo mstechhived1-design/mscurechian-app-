@@ -158,5 +158,6 @@ export default {
     saveChanges: 'Save Changes',
     digitalIdPass: 'Digital ID Pass',
     mrn: 'MRN Number',
+    deleteAccountPermanently: 'Delete Account Permanently',
   },
 };

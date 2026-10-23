@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, Pressable } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   Home,
@@ -17,28 +17,16 @@ import PaymentsScreen from '@/screens/PaymentsScreen';
 import ProfileScreen from '@/screens/ProfileScreen';
 import { COLORS } from '@/constants/designSystem';
 
-/**
- * Tab screen names intentionally match the stack navigation names used in
- * DashboardScreen (e.g. navigate('Appointments'), navigate('Vitals'), …)
- * so that React Navigation finds these screens in the nearest Tab navigator
- * first, switching tabs instead of pushing a new stack frame.
- */
 export type BottomTabParamList = {
-  /** Maps to DashboardScreen */
   Home: undefined;
-  /** navigate('Appointments') from any tab child resolves here */
   Appointments: undefined;
-  /** navigate('AISymptomChecker') resolves here */
   AISymptomChecker: undefined;
-  /** navigate('Payments') resolves here */
   Payments: undefined;
-  /** navigate('Profile') resolves here */
   Profile: undefined;
 };
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
-// ── Pill‑style active icon wrapper ──────────────────────────────────────────
 function TabIcon({
   Icon,
   focused,
@@ -47,11 +35,11 @@ function TabIcon({
   focused: boolean;
 }) {
   return (
-    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+    <View style={styles.iconWrap}>
       <Icon
-        size={24}
+        size={22}
         color={focused ? COLORS.primary : '#94A3B8'}
-        strokeWidth={focused ? 2.5 : 2.0}
+        strokeWidth={focused ? 2.4 : 1.9}
       />
     </View>
   );
@@ -70,6 +58,13 @@ export default function BottomTabNavigator() {
         tabBarInactiveTintColor: '#94A3B8',
         tabBarHideOnKeyboard: true,
         tabBarItemStyle: styles.tabItem,
+        tabBarButton: ({ ref, style, ...rest }: any) => (
+          <Pressable
+            {...rest}
+            android_ripple={null}
+            style={({ pressed }) => [style, pressed && { opacity: 0.85 }]}
+          />
+        ),
       }}
     >
       <Tab.Screen
@@ -84,7 +79,7 @@ export default function BottomTabNavigator() {
         name="Appointments"
         component={AppointmentsScreen}
         options={{
-          tabBarLabel: 'Appointments',
+          tabBarLabel: 'Visits',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Calendar} focused={focused} />,
         }}
       />
@@ -116,40 +111,34 @@ export default function BottomTabNavigator() {
   );
 }
 
-const TAB_HEIGHT = Platform.OS === 'ios' ? 95 : 75;
+const TAB_HEIGHT = Platform.OS === 'ios' ? 84 : 64;
 
 const styles = StyleSheet.create({
   tabBar: {
     height: TAB_HEIGHT,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E8EDF5',
-    // Premium shadow
+    borderTopColor: '#F1F5F9',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
-    elevation: 20,
-    paddingBottom: Platform.OS === 'ios' ? 22 : 8,
-    paddingTop: 6,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 16,
+    paddingBottom: Platform.OS === 'ios' ? 18 : 6,
+    paddingTop: 4,
   },
   tabItem: {
-    paddingTop: 2,
+    paddingTop: 1,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.1,
-    marginTop: 2,
+    letterSpacing: -0.2,
+    marginTop: 1,
   },
   iconWrap: {
-    width: 50,
-    height: 32,
-    borderRadius: 16,
+    height: 26,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  iconWrapActive: {
-    backgroundColor: '#EEF4FF',
   },
 });

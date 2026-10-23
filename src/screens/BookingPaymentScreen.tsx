@@ -24,8 +24,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -50,6 +50,7 @@ import {
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '@/constants/designSystem';
 import { SanctuaryText } from '@/components/SanctuaryComponents';
+import apiClient from '@/api/axiosConfig';
 import {
   bookAppointment,
   createRazorpayOrder,
@@ -154,7 +155,31 @@ export default function BookingPaymentScreen() {
     setIsProcessing(true);
     try {
       console.log('[BookingPayment] Creating Razorpay order for ₹', finalFee);
-      const order = await createRazorpayOrder(finalFee);
+      const [order, profileRes] = await Promise.all([
+        createRazorpayOrder(finalFee),
+        apiClient.get('/patients/profile').catch(() => ({ data: null }))
+      ]);
+
+      const patientData = profileRes?.data?.user || profileRes?.data || {};
+      const patientName = patientData.name || 'Valued Patient';
+      const patientContact = patientData.mobile || patientData.contactNumber || patientData.phone || '';
+      const patientEmail = patientData.email || '';
+      const rawDob = patientData.dateOfBirth || patientData.dob || profileRes?.data?.dob || '';
+      
+      let formattedDob = '';
+      if (rawDob) {
+        try {
+          const d = new Date(rawDob);
+          if (!isNaN(d.getTime())) {
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = d.toLocaleString('en-US', { month: 'short' });
+            const year = d.getFullYear();
+            formattedDob = `${day} ${month} ${year}`;
+          }
+        } catch (e) {
+          formattedDob = String(rawDob);
+        }
+      }
 
       // order = { orderId, amount (paise), currency, receipt }
       const orderId = order.orderId || order.id;
@@ -168,6 +193,10 @@ export default function BookingPaymentScreen() {
 
       // Build the URL pointing to our backend's checkout HTML page
       const url = buildCheckoutUrl(orderId, amountPaise, {
+        name: patientName,
+        contact: patientContact,
+        email: patientEmail,
+        dob: formattedDob,
         description: `${booking.appointmentType} with ${booking.doctorName}`,
       });
 
@@ -537,6 +566,27 @@ export default function BookingPaymentScreen() {
             source={{ uri: checkoutUrl }}
             style={styles.webView}
             onMessage={handleWebViewMessage}
+            onNavigationStateChange={(navState) => {
+              if (navState.url && navState.url.startsWith('mscurechain-patient://payment-result')) {
+                try {
+                  const urlObj = new URL(navState.url);
+                  const status = urlObj.searchParams.get('status');
+                  if (status === 'success') {
+                    const paymentId = urlObj.searchParams.get('payment_id') || `pay_sim_${Date.now()}`;
+                    const orderId = urlObj.searchParams.get('order_id') || currentOrderId;
+                    const signature = urlObj.searchParams.get('signature') || 'sig_test_verified';
+                    setWebViewVisible(false);
+                    setIsProcessing(true);
+                    handlePaymentSuccess(orderId, paymentId, signature);
+                  } else if (status === 'cancelled') {
+                    setWebViewVisible(false);
+                    Alert.alert('Payment Cancelled', 'You cancelled the payment. Your slot is not booked yet.');
+                  }
+                } catch (e) {
+                  console.warn('[WebView Nav] URL parse err:', e);
+                }
+              }
+            }}
             onLoadStart={() => setIsWebViewLoading(true)}
             onLoadEnd={() => setIsWebViewLoading(false)}
             javaScriptEnabled

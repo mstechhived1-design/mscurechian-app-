@@ -118,6 +118,25 @@ export interface BookingSlot {
   appointmentType: string;
   symptoms: string;
   notes: string;
+  patientDetails?: {
+    relation?: string;
+    honorific?: string;
+    name?: string;
+    phone?: string;
+    dob?: string;
+    age?: string;
+    ageUnit?: string;
+    gender?: string;
+    fatherName?: string;
+    address?: string;
+  };
+  patientName?: string;
+  patientPhone?: string;
+  patientHonorific?: string;
+  appointmentHonorific?: string;
+  fatherName?: string;
+  address?: string;
+  relation?: string;
   vitals?: {
     weight?: string;
     bp?: string;
@@ -360,7 +379,11 @@ export const bookAppointment = async (booking: BookingSlot): Promise<BookingConf
 
   console.log('[PaymentService] bookAppointment payload:', JSON.stringify(payload));
 
-  const res = await apiClient.post('/mobile/book', payload);
+  const res = await apiClient.post('/mobile/book', payload, {
+    headers: {
+      'x-hospital-id': booking.hospitalId,
+    },
+  });
   const appt = res.data?.appointment || res.data;
 
   return {
@@ -423,7 +446,7 @@ export const verifyRazorpayPayment = async (data: {
 export const buildCheckoutUrl = (
   orderId: string,
   amountPaise: number,
-  patientInfo?: { name?: string; email?: string; contact?: string; description?: string },
+  patientInfo?: { name?: string; email?: string; contact?: string; dob?: string; description?: string },
 ): string => {
   const base = (process.env.EXPO_PUBLIC_API_URL || '').replace('/api', '');
   const params = new URLSearchParams({
@@ -432,6 +455,7 @@ export const buildCheckoutUrl = (
     ...(patientInfo?.name    ? { name: patientInfo.name }       : {}),
     ...(patientInfo?.email   ? { email: patientInfo.email }     : {}),
     ...(patientInfo?.contact ? { contact: patientInfo.contact } : {}),
+    ...(patientInfo?.dob     ? { dob: patientInfo.dob }         : {}),
     ...(patientInfo?.description ? { description: patientInfo.description } : {}),
   });
   return `${base}/api/mobile/checkout?${params.toString()}`;

@@ -44,12 +44,31 @@ export const notificationService = {
         lightColor: '#3B82F6',
         sound: 'default',
       });
+      await Notifications.setNotificationChannelAsync('medicine-reminders', {
+        name: 'Medicine Reminders',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 400, 200, 400],
+        lightColor: '#10B981',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+        audioAttributes: {
+          usage: Notifications.AndroidAudioUsage?.ALARM || 4,
+          contentType: Notifications.AndroidAudioContentType?.SONIFICATION || 4,
+        },
+      });
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF231F7C',
+        sound: 'default',
       });
+    }
+
+    if (isExpoGo && Platform.OS === 'android') {
+      // In Expo Go on Android (SDK 53+), remote push notifications require a development build.
+      return null;
     }
 
     if (Device.isDevice) {
@@ -149,5 +168,136 @@ export const notificationService = {
         },
       });
     } catch (e) { console.error(e); }
+  },
+
+  async schedulePrescriptionFollowup(prescription: any) {
+    if (!Notifications) return;
+    try {
+      const medName = prescription?.medicines?.[0]?.name || 'medication';
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "💊 Medication Reminder",
+          body: `Don't forget to take your prescribed ${medName}.`,
+          sound: true,
+        },
+        trigger: {
+          type: 'timeInterval',
+          seconds: 3600 * 4,
+          repeats: false,
+        },
+      });
+    } catch (e) {
+      console.warn('[NotificationService] schedulePrescriptionFollowup error:', e);
+    }
+  },
+
+  async ensurePermissions(): Promise<boolean> {
+    if (!Notifications) return false;
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      return finalStatus === 'granted';
+    } catch {
+      return false;
+    }
+  },
+
+  async scheduleDailyMedicineReminder(id: string, name: string, dosage: string, hour: number, minute: number, details?: { slot?: string; doctor?: string; hospital?: string }) {
+    if (!Notifications) return null;
+    try {
+      await this.ensurePermissions();
+
+      if (Platform.OS === 'android') {
+        try {
+          await Notifications.setNotificationChannelAsync('medicine-reminders', {
+            name: 'Medicine Reminders',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 400, 200, 400],
+            lightColor: '#10B981',
+            sound: 'default',
+            enableVibrate: true,
+            showBadge: true,
+            audioAttributes: {
+              usage: Notifications.AndroidAudioUsage?.ALARM || 4,
+              contentType: Notifications.AndroidAudioContentType?.SONIFICATION || 4,
+            },
+          });
+        } catch (cErr) {}
+      }
+
+      // Cancel previous notification if exists for this ID
+      try {
+        await Notifications.cancelScheduledNotificationAsync(`med_${id}`);
+      } catch (err) {}
+
+      const slotInfo = details?.slot ? ` [${details.slot}]` : '';
+      const docInfo = details?.doctor ? ` • Prescribed by ${details.doctor}` : '';
+
+      const triggerInput: any = {
+        hour,
+        minute,
+        repeats: true,
+      };
+      if (Platform.OS === 'android') {
+        triggerInput.channelId = 'medicine-reminders';
+      }
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        identifier: `med_${id}`,
+        content: {
+          title: `💊 Time for your Medicine!${slotInfo}`,
+          body: `Please take ${name} (${dosage})${docInfo}. Stay consistent for optimal recovery!`,
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority ? Notifications.AndroidNotificationPriority.MAX : 'max',
+          channelId: 'medicine-reminders',
+          data: { type: 'medicine_reminder', medicineId: id, name, hour, minute }
+        },
+        trigger: triggerInput,
+      });
+
+      return notificationId;
+    } catch (e) {
+      console.warn('[NotificationService] scheduleDailyMedicineReminder error:', e);
+      return null;
+    }
+  },
+
+  async cancelMedicineReminder(id: string) {
+    if (!Notifications) return;
+    try {
+      await Notifications.cancelScheduledNotificationAsync(`med_${id}`);
+    } catch (e) {
+      console.warn('[NotificationService] cancelMedicineReminder error:', e);
+    }
+  },
+
+  async scheduleRandomHealthTip() {
+    if (!Notifications) return;
+    try {
+      const tips = [
+        "Drink a glass of water to keep your hydration optimal today!",
+        "Take a 5-minute break and stretch to relax your back and neck.",
+        "A 15-minute brisk walk after meals helps regulate digestion."
+      ];
+      const tip = tips[Math.floor(Math.random() * tips.length)];
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "🌿 MS CureChain Daily Health Tip",
+          body: tip,
+          sound: true,
+        },
+        trigger: {
+          type: 'timeInterval',
+          seconds: 3600 * 8,
+          repeats: false,
+        },
+      });
+    } catch (e) {
+      console.warn('[NotificationService] scheduleRandomHealthTip error:', e);
+    }
   }
 };

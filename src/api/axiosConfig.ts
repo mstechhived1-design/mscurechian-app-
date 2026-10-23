@@ -54,6 +54,14 @@ export const TOKEN_KEYS = {
 //   Production : https://www.mscurechain.com/api
 //
 const getBaseUrl = (): string => {
+  // When running in Chrome/Web on localhost, connect directly to local backend on 5003
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      console.log('[AxiosConfig] Running on web localhost, using http://localhost:5003/api');
+      return 'http://localhost:5003/api';
+    }
+  }
+
   // 1. Expo Public API URL (Primary)
   const expoUrl = process.env.EXPO_PUBLIC_API_URL;
   if (expoUrl && expoUrl !== 'undefined' && expoUrl.startsWith('http')) {
@@ -126,13 +134,15 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // 2. X-Hospital-Id header
-    //    The backend tenantMiddleware (tenantMiddleware.ts L102-L109) gives patients
-    //    GLOBAL access with no tenant scoping — no X-Hospital-Id needed for patients.
-    //    If you ever need SuperAdmin impersonation, uncomment below and set hospitalId:
-    //
-    //    const hospitalId = await AsyncStorage.getItem('activeHospitalId');
-    //    if (hospitalId) config.headers['X-Hospital-Id'] = hospitalId;
+    // 2. X-Hospital-Id header for tenant-scoped routes (e.g. messages, pharmacy, labs)
+    try {
+      const hospitalId = await AsyncStorage.getItem('activeHospitalId');
+      if (hospitalId && !config.headers['X-Hospital-Id']) {
+        config.headers['X-Hospital-Id'] = hospitalId;
+      }
+    } catch {
+      // ignore storage read failures
+    }
 
     return config;
   },
@@ -157,7 +167,7 @@ apiClient.interceptors.response.use(
         `Connectivity Error: Please ensure you are connected to the internet and the server is online.\n\nAPI: ${BASE_URL}`,
       );
       (networkError as any).isNetworkError = true;
-      console.error('[AxiosConfig] Network error:', error.message);
+      console.warn('[AxiosConfig] Network connectivity notice:', error.message);
       return Promise.reject(networkError);
     }
 

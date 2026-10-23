@@ -14,9 +14,9 @@ export type RootStackParamList = {
   BookingConfirmation: { confirmation: BookingConfirmation };
   BMICalculator: undefined;
   AISymptomChecker: undefined;
-  Reports: { patientId?: string } | undefined;
+  Reports: { patientId?: string; initialTab?: 'prescriptions' | 'pharmacy' | 'labs' } | undefined;
   Profile: undefined;
-  Chat: { doctorId?: string; doctorName?: string } | undefined;
+  Chat: { doctorId?: string; doctorName?: string; hospitalId?: string } | undefined;
   SOS: undefined;
   Vitals: undefined;
   Payments: undefined;
@@ -32,4 +32,9 @@ export type RootStackParamList = {
   WaterReminder: undefined;
   MedicineReminder: undefined;
   Achievements: undefined;
+  EmergencyMedicalId: undefined;
+  LiveQueue: { appointmentId?: string; appointment?: any } | undefined;
+  NotificationCenter: undefined;
+  OfflineVault: undefined;
+  FamilyMembers: undefined;
 };

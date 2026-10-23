@@ -198,7 +198,7 @@ export default function QRScannerScreen() {
       <StatusBar barStyle="light-content" />
       
       <CameraView
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill as any}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         enableTorch={torch}
         barcodeScannerSettings={{

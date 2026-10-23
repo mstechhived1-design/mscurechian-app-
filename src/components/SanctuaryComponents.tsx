@@ -98,12 +98,11 @@ export const SanctuaryInput = ({ label, value, onChangeText, secureTextEntry, er
   );
 };
 
-// --- LOADING ---
-export const DigitalAtriumLoader = () => (
-    <View style={styles.loaderContainer}>
-        <ActivityIndicator animating={true} size="large" color={COLORS.primary} />
-        <SanctuaryText variant="body_md" style={{ marginTop: 12, opacity: 0.6 }}>Synchronizing Health Data...</SanctuaryText>
-    </View>
+// --- LOADING (Simple Round Spinner) ---
+export const DigitalAtriumLoader = ({ fullscreen = true }: { message?: string; subMessage?: string; fullscreen?: boolean }) => (
+  <View style={fullscreen ? styles.loaderContainer : { padding: SPACING.xl, justifyContent: 'center', alignItems: 'center' }}>
+    <ActivityIndicator size="large" color={COLORS.primary} />
+  </View>
 );
 
 const styles = StyleSheet.create({

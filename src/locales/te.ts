@@ -145,5 +145,20 @@ export default {
     en: 'English',
     hi: 'हिन्दी',
     te: 'తెలుగు',
-  }
+  },
+  profile: {
+    title: 'మెడికల్ వాల్ట్',
+    identityBio: 'గుర్తింపు మరియు వివరాలు',
+    emergencyContact: 'అత్యవసర సంప్రదింపు',
+    signOutOfAccount: 'ఖాతా నుండి సైన్ అవుట్ చేయండి',
+    updateProfile: 'ప్రొఫైల్ అప్‌డేట్ చేయండి',
+    personalInfo: 'వ్యక్తిగత సమాచారం',
+    contactAddress: 'సంప్రదింపు మరియు చిరునామా',
+    emergencySOSContact: 'అత్యవసర SOS సంప్రదింపు',
+    saveChanges: 'మార్పులను సేవ్ చేయండి',
+    digitalIdPass: 'డిజిటల్ ఐడి పాస్',
+    mrn: 'MRN సంఖ్య',
+    deleteAccountPermanently: 'ఖాతాను శాశ్వతంగా తొలగించండి',
+  },
 };
+

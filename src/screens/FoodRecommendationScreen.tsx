@@ -32,6 +32,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { SanctuaryText, DigitalAtriumLoader } from '../components/SanctuaryComponents';
 import { COLORS } from '../constants/designSystem';
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
+import { familyService } from '@/services/familyService';
 
 const { width } = Dimensions.get('window');
 
@@ -66,26 +67,72 @@ export default function FoodRecommendationScreen() {
 
   useEffect(() => {
     fetchProfile();
+
+    const unsubProfile = familyService.onProfileChange(() => {
+      fetchProfile();
+    });
+
+    return () => {
+      unsubProfile();
+    };
   }, []);
 
   const fetchProfile = async () => {
     try {
+      setLoading(true);
       const res = await apiClient.get(PATIENT_ENDPOINTS.DASHBOARD_DATA);
       const prof = res.data.data?.profile || res.data.profile;
       setProfile(prof);
       
-      const h = parseFloat(prof?.user?.height || prof?.height);
-      const w = parseFloat(prof?.user?.weight || prof?.weight);
+      const hRaw = parseFloat(prof?.user?.height || prof?.height);
+      const wRaw = parseFloat(prof?.user?.weight || prof?.weight);
       
-      if (h && w) {
-        const bmiVal = w / ((h / 100) * (h / 100));
-        setBmi(Math.round(bmiVal * 10) / 10);
+      if (hRaw && wRaw && hRaw > 0 && wRaw > 0) {
+        let hMeters = 0;
+        if (hRaw < 3) {
+          // Already in meters (e.g. 1.75)
+          hMeters = hRaw;
+        } else if (hRaw >= 3 && hRaw <= 8) {
+          // In feet (e.g. 5.8)
+          hMeters = hRaw * 0.3048;
+        } else if (hRaw > 8 && hRaw <= 90) {
+          // In inches (e.g. 68)
+          hMeters = hRaw * 0.0254;
+        } else if (hRaw > 90 && hRaw <= 260) {
+          // In centimeters (e.g. 172)
+          hMeters = hRaw / 100;
+        } else {
+          hMeters = hRaw > 100 ? hRaw / 100 : hRaw * 0.0254;
+        }
+
+        if (hMeters > 0) {
+          const bmiVal = wRaw / (hMeters * hMeters);
+          const rounded = Math.round(bmiVal * 10) / 10;
+          if (rounded >= 10 && rounded <= 65) {
+            setBmi(rounded);
+          } else {
+            setBmi(null);
+          }
+        } else {
+          setBmi(null);
+        }
+      } else {
+        setBmi(null);
       }
     } catch (e) {
       console.error(e);
+      setBmi(null);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getBmiCategory = (val: number | null): { label: string; color: string } => {
+    if (!val) return { label: 'Not Recorded', color: '#64748B' };
+    if (val < 18.5) return { label: 'Underweight', color: '#3B82F6' };
+    if (val < 25) return { label: 'Normal', color: '#059669' };
+    if (val < 30) return { label: 'Overweight', color: '#D97706' };
+    return { label: 'Obese', color: '#DC2626' };
   };
 
   const getRecommendations = (): Category[] => {
@@ -150,12 +197,12 @@ export default function FoodRecommendationScreen() {
                 why: 'Probiotics in curd help restore healthy gut bacteria.', tags: ['Probiotic', 'Cooling'],
               },
               {
-                id: 'st2', name: 'Boiled Mashed Banana', calories: '105 kcal', protein: '1g', carbs: '27g', fats: '0.3g', prepTime: '2 min',
-                why: 'High potassium and pectin help firm up stools.', tags: ['Binding'],
+                id: 'st2', name: 'Boiled Potato Mash', calories: '130 kcal', protein: '3g', carbs: '30g', fats: '0g', prepTime: '15 min',
+                why: 'Provides binding starch and is very gentle on an upset stomach.', tags: ['Bland', 'Binding'],
               },
               {
-                id: 'st3', name: 'Chaas (Buttermilk)', calories: '40 kcal', protein: '2g', carbs: '4g', fats: '1g', prepTime: '2 min',
-                why: 'Hydrates and aids in cooling the digestive tract.', tags: ['Hydrating'],
+                id: 'st3', name: 'Electrolyte ORS Drink', calories: '50 kcal', protein: '0g', carbs: '12g', fats: '0g', prepTime: '2 min',
+                why: 'Maintains fluid balance and prevents dehydration.', tags: ['Essential'],
               }
             ]
           }
@@ -163,57 +210,53 @@ export default function FoodRecommendationScreen() {
         fatigue: [
           {
             id: 'recovery_energy',
-            title: 'Energy Revitalizers',
+            title: 'Sustained Energy',
             icon: Zap,
-            avoid: ['Caffeine', 'Sugary Snacks', 'Alcohol'],
+            avoid: ['Refined Sugar', 'White Bread', 'Excess Coffee'],
             items: [
               {
-                id: 'ft1', name: 'Sprouts Salad with Lemon', calories: '150 kcal', protein: '10g', carbs: '20g', fats: '1g', prepTime: '10 min',
-                why: 'High protein and vitamins to rebuild strength.', tags: ['High Protein'],
+                id: 'ft1', name: 'Sprouted Moong Salad', calories: '160 kcal', protein: '12g', carbs: '24g', fats: '1g', prepTime: '10 min',
+                why: 'Rich in B-vitamins, iron, and active enzymes to beat tiredness.', tags: ['Energizing', 'Raw'],
               },
               {
-                id: 'ft2', name: 'Mixed Dry Fruits', calories: '180 kcal', protein: '5g', carbs: '10g', fats: '14g', prepTime: '0 min',
-                why: 'Healthy fats and minerals for long-lasting energy.', tags: ['Nutrient Dense'],
+                id: 'ft2', name: 'Roasted Chana & Dates', calories: '190 kcal', protein: '8g', carbs: '38g', fats: '2g', prepTime: '2 min',
+                why: 'Slow-release complex carbs prevent energy slumps.', tags: ['Quick Snack'],
               }
             ]
           }
         ],
         acidity: [
           {
-            id: 'recovery_acidity',
-            title: 'Anti-Acidity Plan',
-            icon: Leaf,
-            avoid: ['Coffee', 'Citrus Fruits', 'Chilli'],
+            id: 'recovery_acid',
+            title: 'Alkaline & Cooling',
+            icon: Flame,
+            avoid: ['Tomatoes', 'Citrus', 'Fried Snacks', 'Tea'],
             items: [
               {
-                id: 'ac1', name: 'Cold Milk (Sugarless)', calories: '100 kcal', protein: '6g', carbs: '8g', fats: '4g', prepTime: '1 min',
-                why: 'Helps neutralize stomach acid and provides instant relief.', tags: ['Alkaline'],
+                id: 'ac1', name: 'Cold Low-Fat Milk', calories: '110 kcal', protein: '7g', carbs: '10g', fats: '3g', prepTime: '1 min',
+                why: 'Instant neutralizer for stomach acid.', tags: ['Cooling'],
               },
               {
-                id: 'ac2', name: 'Oatmeal with Almonds', calories: '220 kcal', protein: '8g', carbs: '35g', fats: '6g', prepTime: '10 min',
-                why: 'High fiber absorbs excess acid and stabilizes the gut.', tags: ['High Fiber'],
-              },
-              {
-                id: 'ac3', name: 'Fennel (Saunf) Water', calories: '5 kcal', protein: '0g', carbs: '1g', fats: '0g', prepTime: '5 min',
-                why: 'Known for its carminative properties that reduce gas.', tags: ['Digestive'],
+                id: 'ac2', name: 'Fennel Seed (Saunf) Water', calories: '15 kcal', protein: '0g', carbs: '3g', fats: '0g', prepTime: '5 min',
+                why: 'Soothes gastric lining and reduces bloating.', tags: ['Digestive'],
               }
             ]
           }
         ],
         diabetes: [
           {
-            id: 'recovery_diabetes',
-            title: 'Low Glycemic Diet',
+            id: 'recovery_sugar',
+            title: 'Low Glycemic Options',
             icon: Activity,
-            avoid: ['White Rice', 'Sugar', 'Sweets'],
+            avoid: ['White Rice', 'Potatoes', 'Sweets', 'Fruit Juices'],
             items: [
               {
-                id: 'db1', name: 'Methi (Fenugreek) Thepla', calories: '180 kcal', protein: '6g', carbs: '25g', fats: '6g', prepTime: '20 min',
-                why: 'Methi helps in improving insulin sensitivity.', tags: ['Low GI'],
+                id: 'db1', name: 'Besan Chilla with Methi', calories: '210 kcal', protein: '11g', carbs: '28g', fats: '5g', prepTime: '15 min',
+                why: 'Fenugreek slows glucose absorption while gram flour provides steady protein.', tags: ['Low GI'],
               },
               {
-                id: 'db2', name: 'Moong Dal Chilla', calories: '150 kcal', protein: '10g', carbs: '20g', fats: '4g', prepTime: '15 min',
-                why: 'High protein and low carb option for blood sugar control.', tags: ['High Protein'],
+                id: 'db2', name: 'Bitter Gourd (Karela) Stir Fry', calories: '90 kcal', protein: '3g', carbs: '12g', fats: '3g', prepTime: '20 min',
+                why: 'Contains polypeptide-p that naturally supports healthy blood sugar.', tags: ['Active'],
               }
             ]
           }
@@ -222,6 +265,7 @@ export default function FoodRecommendationScreen() {
       return recoveryData[sickness] || [];
     }
 
+    // Default Daily Diet Plan based on BMI
     return [
       {
         id: 'breakfast',
@@ -229,12 +273,12 @@ export default function FoodRecommendationScreen() {
         icon: Sun,
         items: [
           {
-            id: 'b1', name: isOverweight ? 'Idli with Sambar' : 'Masala Dosa with Ghee', calories: isOverweight ? '180 kcal' : '450 kcal', protein: '8g', carbs: '45g', fats: isOverweight ? '2g' : '22g', prepTime: '15 min',
+            id: 'b1', name: isOverweight ? 'Oats Vegetable Upma' : 'Idli with Sambar', calories: isOverweight ? '220 kcal' : '180 kcal', protein: '8g', carbs: '45g', fats: '2g', prepTime: '15 min',
             why: 'Fermented foods are great for gut health.', tags: ['Fermented'],
           },
           {
-            id: 'b2', name: isOverweight ? 'Vegetable Poha' : 'Paneer Paratha', calories: isOverweight ? '220 kcal' : '380 kcal', protein: isOverweight ? '5g' : '18g', carbs: '40g', fats: isOverweight ? '4g' : '15g', prepTime: '10 min',
-            why: 'Flattened rice is light; Paneer is protein-rich.', tags: ['Balanced'],
+            id: 'b2', name: isOverweight ? 'Poha with Peanuts & Veggies' : 'Egg/Paneer Bhurji + Roti', calories: isOverweight ? '260 kcal' : '380 kcal', protein: isOverweight ? '6g' : '18g', carbs: '42g', fats: '8g', prepTime: '15 min',
+            why: 'High satiety protein fuels morning productivity.', tags: ['Protein'],
           }
         ]
       },
@@ -267,7 +311,7 @@ export default function FoodRecommendationScreen() {
     ];
   };
 
-  if (loading) return <DigitalAtriumLoader />;
+  if (loading) return <DigitalAtriumLoader message="Personalizing dietary care..." />;
 
   const sicknessOptions: { type: SicknessType; label: string; icon: any; color: string }[] = [
     { type: 'cold',     label: 'Cold/Flu',    icon: Coffee,      color: '#F59E0B' },
@@ -277,23 +321,30 @@ export default function FoodRecommendationScreen() {
     { type: 'diabetes', label: 'Sugar Care',  icon: Droplet,     color: '#3B82F6' },
   ];
 
+  const bmiCategory = getBmiCategory(bmi);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={22} color="#1E293B" />
         </TouchableOpacity>
         <View style={styles.headerTitleWrap}>
           <SanctuaryText variant="headline_sm" style={styles.headerTitle}>Dietary Care</SanctuaryText>
-          <SanctuaryText variant="body_sm" style={styles.headerSub}>Personalized for your health</SanctuaryText>
+          <SanctuaryText variant="body_sm" style={styles.headerSub}>
+            {profile?.user?.name ? `Personalized for ${profile.user.name}` : 'Personalized for your health'}
+          </SanctuaryText>
         </View>
-        <TouchableOpacity style={styles.headerAction}>
-          <Sparkles size={20} color={COLORS.primary} />
+        <TouchableOpacity 
+          style={styles.headerAction}
+          onPress={() => navigation.navigate('BMICalculator')}
+        >
+          <Sparkles size={18} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Sickness Check-in */}
         <View style={styles.checkInBox}>
           <SanctuaryText variant="label_lg" style={styles.sectionHeading}>How are you feeling today?</SanctuaryText>
@@ -302,7 +353,7 @@ export default function FoodRecommendationScreen() {
               style={[styles.statusChip, sickness === 'none' && styles.statusChipActive]}
               onPress={() => setSickness('none')}
             >
-              <Heart size={16} color={sickness === 'none' ? '#FFF' : COLORS.primary} />
+              <Heart size={15} color={sickness === 'none' ? '#FFF' : COLORS.primary} />
               <SanctuaryText variant="label_sm" style={[styles.chipText, sickness === 'none' && styles.chipTextActive]}>Feeling Great</SanctuaryText>
             </TouchableOpacity>
             {sicknessOptions.map((opt) => (
@@ -311,14 +362,14 @@ export default function FoodRecommendationScreen() {
                 style={[styles.statusChip, sickness === opt.type && { backgroundColor: opt.color }]}
                 onPress={() => setSickness(opt.type)}
               >
-                <opt.icon size={16} color={sickness === opt.type ? '#FFF' : '#64748B'} />
+                <opt.icon size={15} color={sickness === opt.type ? '#FFF' : '#64748B'} />
                 <SanctuaryText variant="label_sm" style={[styles.chipText, sickness === opt.type && styles.chipTextActive]}>{opt.label}</SanctuaryText>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* Dynamic Banner */}
+        {/* Dynamic Compact Health Insight Banner */}
         <LinearGradient 
           colors={sickness !== 'none' ? ['#1E293B', '#0F172A'] : [COLORS.primary, '#1E40AF']} 
           start={{x: 0, y: 0}} end={{x: 1, y: 1}}
@@ -330,18 +381,30 @@ export default function FoodRecommendationScreen() {
                 {sickness !== 'none' ? 'RECOVERY PROTOCOL' : 'HEALTH INSIGHT'}
               </SanctuaryText>
               <SanctuaryText variant="headline_sm" style={styles.bannerVal}>
-                {sickness !== 'none' ? `Healing: ${sickness.charAt(0).toUpperCase() + sickness.slice(1)}` : `BMI: ${bmi} (Normal)`}
+                {sickness !== 'none' 
+                  ? `Healing: ${sickness.charAt(0).toUpperCase() + sickness.slice(1)}` 
+                  : bmi 
+                  ? `BMI: ${bmi} (${bmiCategory.label})` 
+                  : 'BMI: Not Recorded'}
               </SanctuaryText>
             </View>
             <View style={styles.bannerIcon}>
-              {sickness !== 'none' ? <Activity color="#FFF" size={32} /> : <Zap color="#FFF" size={32} />}
+              {sickness !== 'none' ? <Activity color="#FFF" size={24} /> : <Zap color="#FFF" size={24} />}
             </View>
           </View>
           <View style={styles.bannerDivider} />
           <View style={styles.bannerFooter}>
-            <Info size={14} color="rgba(255,255,255,0.6)" />
+            <Info size={13} color="rgba(255,255,255,0.7)" />
             <SanctuaryText variant="body_sm" style={styles.bannerAdvice}>
-              {sickness !== 'none' ? 'Focusing on hydration and easy digestion.' : 'Maintaining balanced macros for energy.'}
+              {sickness !== 'none' 
+                ? 'Focusing on hydration and easy digestion.' 
+                : !bmi 
+                ? 'Tap View BMI to record height & weight.' 
+                : bmi < 18.5 
+                ? 'Focusing on nutrient-dense, healthy mass foods.' 
+                : bmi < 25 
+                ? 'Maintaining balanced macros and steady energy.' 
+                : 'Focusing on high fiber, lean protein, and portion control.'}
             </SanctuaryText>
           </View>
         </LinearGradient>
@@ -359,54 +422,58 @@ export default function FoodRecommendationScreen() {
             <View key={category.id} style={styles.categoryWrap}>
               <View style={styles.categoryLabelRow}>
                 <View style={styles.categoryInfo}>
-                  <category.icon size={18} color="#64748B" />
+                  <category.icon size={16} color="#64748B" />
                   <SanctuaryText variant="label_lg" style={styles.categoryTitle}>{category.title}</SanctuaryText>
                 </View>
                 {category.avoid && (
                   <View style={styles.avoidBadge}>
-                    <AlertCircle size={12} color="#EF4444" />
-                    <SanctuaryText variant="label_sm" style={styles.avoidText}>Avoid: {category.avoid[0]}</SanctuaryText>
+                    <AlertCircle size={11} color="#EF4444" />
+                    <SanctuaryText variant="label_sm" style={styles.avoidText}>Avoid: {category.avoid.join(', ')}</SanctuaryText>
                   </View>
                 )}
               </View>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardRow}>
-                {category.items.map((item) => (
-                  <View key={item.id} style={styles.foodCard}>
+                {category.items.map((food) => (
+                  <View key={food.id} style={styles.foodCard}>
                     <View style={styles.cardHeader}>
                       <View style={styles.nameWrap}>
-                        <SanctuaryText variant="label_lg" style={styles.foodName}>{item.name}</SanctuaryText>
+                        <SanctuaryText variant="label_lg" style={styles.foodName}>{food.name}</SanctuaryText>
                         <View style={styles.timeWrap}>
-                          <Clock size={10} color="#94A3B8" />
-                          <SanctuaryText variant="body_sm" style={styles.timeText}>{item.prepTime}</SanctuaryText>
+                          <Clock size={11} color="#94A3B8" />
+                          <SanctuaryText variant="body_sm" style={styles.timeText}>{food.prepTime}</SanctuaryText>
                         </View>
                       </View>
                       <View style={styles.calBadge}>
-                        <Flame size={12} color="#F59E0B" />
-                        <SanctuaryText variant="label_sm" style={styles.calText}>{item.calories}</SanctuaryText>
+                        <Flame size={12} color="#D97706" />
+                        <SanctuaryText variant="label_sm" style={styles.calText}>{food.calories}</SanctuaryText>
                       </View>
                     </View>
 
                     <View style={styles.macroRow}>
                       <View style={styles.macro}>
-                        <SanctuaryText variant="label_sm" style={styles.macroVal}>{item.protein}</SanctuaryText>
-                        <SanctuaryText variant="body_sm" style={styles.macroLabel}>Prot</SanctuaryText>
+                        <SanctuaryText variant="body_xs" style={styles.macroVal}>{food.protein}</SanctuaryText>
+                        <SanctuaryText variant="body_xs" style={styles.macroLabel}>Prot</SanctuaryText>
                       </View>
                       <View style={styles.macro}>
-                        <SanctuaryText variant="label_sm" style={styles.macroVal}>{item.carbs}</SanctuaryText>
-                        <SanctuaryText variant="body_sm" style={styles.macroLabel}>Carbs</SanctuaryText>
+                        <SanctuaryText variant="body_xs" style={styles.macroVal}>{food.carbs}</SanctuaryText>
+                        <SanctuaryText variant="body_xs" style={styles.macroLabel}>Carbs</SanctuaryText>
                       </View>
                       <View style={styles.macro}>
-                        <SanctuaryText variant="label_sm" style={styles.macroVal}>{item.fats}</SanctuaryText>
-                        <SanctuaryText variant="body_sm" style={styles.macroLabel}>Fats</SanctuaryText>
+                        <SanctuaryText variant="body_xs" style={styles.macroVal}>{food.fats}</SanctuaryText>
+                        <SanctuaryText variant="body_xs" style={styles.macroLabel}>Fats</SanctuaryText>
                       </View>
                     </View>
 
-                    <SanctuaryText variant="body_sm" style={styles.whyTxt} numberOfLines={2}>{item.why}</SanctuaryText>
-                    
+                    <SanctuaryText variant="body_xs" style={styles.whyText} numberOfLines={2}>
+                      {food.why}
+                    </SanctuaryText>
+
                     <View style={styles.tagRow}>
-                      {item.tags.map((tag, i) => (
-                        <View key={i} style={styles.tag}><SanctuaryText variant="body_sm" style={styles.tagText}>{tag}</SanctuaryText></View>
+                      {food.tags.map(t => (
+                        <View key={t} style={styles.tagBadge}>
+                          <SanctuaryText variant="body_xs" style={styles.tagText}>{t}</SanctuaryText>
+                        </View>
                       ))}
                     </View>
                   </View>
@@ -420,94 +487,98 @@ export default function FoodRecommendationScreen() {
         <View style={styles.tipsSection}>
           <SanctuaryText variant="label_lg" style={styles.tipsTitle}>Pro Recovery Tips</SanctuaryText>
           <View style={styles.tipBox}>
-            <View style={styles.tipIconWrap}><Droplet size={18} color="#3B82F6" /></View>
+            <View style={styles.tipIconWrap}><Droplet size={16} color="#3B82F6" /></View>
             <View style={styles.tipTextWrap}>
-              <SanctuaryText variant="label_lg" style={styles.tipTitleTxt}>Sip, Don't Gulp</SanctuaryText>
-              <SanctuaryText variant="body_sm" style={styles.tipBodyTxt}>Small, frequent sips of water or ORS are better for hydration during sickness.</SanctuaryText>
+              <SanctuaryText variant="label_md" style={styles.tipTitleTxt}>Sip, Don't Gulp</SanctuaryText>
+              <SanctuaryText variant="body_sm" style={styles.tipBodyTxt}>Small, frequent sips of water or ORS are better for hydration during recovery.</SanctuaryText>
             </View>
           </View>
           <View style={styles.tipBox}>
-            <View style={[styles.tipIconWrap, { backgroundColor: '#F0FDF4' }]}><Leaf size={18} color="#10B981" /></View>
+            <View style={[styles.tipIconWrap, { backgroundColor: '#F0FDF4' }]}><Leaf size={16} color="#10B981" /></View>
             <View style={styles.tipTextWrap}>
-              <SanctuaryText variant="label_lg" style={styles.tipTitleTxt}>Natural Antibiotics</SanctuaryText>
-              <SanctuaryText variant="body_sm" style={styles.tipBodyTxt}>Include Garlic and Ginger in your meals to naturally fight off microbes.</SanctuaryText>
+              <SanctuaryText variant="label_md" style={styles.tipTitleTxt}>Natural Antibiotics</SanctuaryText>
+              <SanctuaryText variant="body_sm" style={styles.tipBodyTxt}>Include Garlic and Ginger in meals to naturally fight microbes and boost immunity.</SanctuaryText>
             </View>
           </View>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFBFC' },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 24, paddingBottom: 20, backgroundColor: '#FFF',
+    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    paddingHorizontal: 16, paddingBottom: 14, backgroundColor: '#FFF',
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
-  backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
-  headerTitleWrap: { flex: 1, marginLeft: 16 },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#1E293B' },
-  headerSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  headerAction: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F0F7FF', justifyContent: 'center', alignItems: 'center' },
+  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+  headerTitleWrap: { flex: 1, marginLeft: 12 },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B' },
+  headerSub: { fontSize: 11, color: '#64748B', marginTop: 1 },
+  headerAction: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#DBEAFE' },
 
   scroll: { flex: 1 },
-  checkInBox: { padding: 24 },
-  sectionHeading: { color: '#1E293B', fontWeight: '800', marginBottom: 16 },
-  chipRow: { gap: 12 },
-  statusChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, height: 44, borderRadius: 22, backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, marginRight: 10 },
-  statusChipActive: { backgroundColor: COLORS.primary },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  scrollContent: { paddingBottom: 30 },
+  checkInBox: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
+  sectionHeading: { color: '#1E293B', fontWeight: '800', fontSize: 14, marginBottom: 10 },
+  chipRow: { gap: 8, paddingRight: 16 },
+  statusChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', marginRight: 4 },
+  statusChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  chipText: { fontSize: 11.5, fontWeight: '700', color: '#64748B' },
   chipTextActive: { color: '#FFF' },
 
-  banner: { marginHorizontal: 24, borderRadius: 28, padding: 24, overflow: 'hidden' },
+  banner: { marginHorizontal: 16, marginTop: 6, borderRadius: 20, padding: 16, overflow: 'hidden' },
   bannerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  bannerLabel: { color: 'rgba(255,255,255,0.6)', letterSpacing: 1.5, fontWeight: '800' },
-  bannerVal: { color: '#FFF', fontSize: 20, fontWeight: '900', marginTop: 4 },
-  bannerIcon: { width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-  bannerDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 20 },
-  bannerFooter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  bannerAdvice: { color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
+  bannerLeft: { flex: 1, marginRight: 12 },
+  bannerLabel: { color: 'rgba(255,255,255,0.7)', letterSpacing: 1, fontWeight: '800', fontSize: 10 },
+  bannerVal: { color: '#FFF', fontSize: 18, fontWeight: '900', marginTop: 3 },
+  bannerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center' },
+  bannerDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 12 },
+  bannerFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bannerAdvice: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 11.5, flex: 1 },
 
-  contentSection: { padding: 24 },
-  contentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  contentTitle: { fontSize: 18, fontWeight: '900', color: '#1E293B' },
-  linkText: { color: COLORS.primary, fontWeight: '700' },
+  contentSection: { paddingHorizontal: 16, paddingTop: 18 },
+  contentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  contentTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
+  linkText: { color: COLORS.primary, fontWeight: '700', fontSize: 12 },
 
-  categoryWrap: { marginBottom: 32 },
-  categoryLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  categoryInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  categoryTitle: { color: '#475569', fontWeight: '800' },
-  avoidBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  avoidText: { color: '#EF4444', fontSize: 11, fontWeight: '700' },
+  categoryWrap: { marginBottom: 20 },
+  categoryLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  categoryInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  categoryTitle: { color: '#334155', fontWeight: '800', fontSize: 13 },
+  avoidBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  avoidText: { color: '#EF4444', fontSize: 10, fontWeight: '700' },
 
-  cardRow: { gap: 16 },
-  foodCard: { width: width * 0.75, backgroundColor: '#FFF', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, marginRight: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  nameWrap: { flex: 1, marginRight: 12 },
-  foodName: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
-  timeWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  timeText: { fontSize: 11, color: '#94A3B8', fontWeight: '600' },
-  calBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFBEB', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  calText: { color: '#D97706', fontSize: 12, fontWeight: '800' },
+  cardRow: { gap: 12, paddingRight: 16 },
+  foodCard: { width: Math.min(width - 50, 260), backgroundColor: '#FFF', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, marginRight: 4 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  nameWrap: { flex: 1, marginRight: 8 },
+  foodName: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
+  timeWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  timeText: { fontSize: 10, color: '#94A3B8', fontWeight: '600' },
+  calBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFFBEB', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  calText: { color: '#D97706', fontSize: 11, fontWeight: '800' },
 
-  macroRow: { flexDirection: 'row', gap: 20, marginBottom: 16 },
+  macroRow: { flexDirection: 'row', gap: 14, marginBottom: 10 },
   macro: { alignItems: 'flex-start' },
-  macroVal: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
-  macroLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '700', marginTop: 2 },
-  whyTxt: { color: '#64748B', lineHeight: 20, fontSize: 13, marginBottom: 16 },
-  tagRow: { flexDirection: 'row', gap: 8 },
-  tag: { backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  tagText: { color: '#475569', fontSize: 11, fontWeight: '700' },
+  macroVal: { fontSize: 12, fontWeight: '800', color: '#1E293B' },
+  macroLabel: { fontSize: 9, color: '#94A3B8', fontWeight: '600', marginTop: 1 },
 
-  tipsSection: { padding: 24, backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, marginTop: 10 },
-  tipsTitle: { fontSize: 16, fontWeight: '900', color: '#1E293B', marginBottom: 20 },
-  tipBox: { flexDirection: 'row', gap: 16, marginBottom: 20 },
-  tipIconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F0F7FF', justifyContent: 'center', alignItems: 'center' },
+  whyText: { color: '#64748B', fontSize: 11, lineHeight: 15, marginBottom: 10 },
+  tagRow: { flexDirection: 'row', gap: 6 },
+  tagBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6 },
+  tagText: { color: '#475569', fontSize: 9.5, fontWeight: '700' },
+
+  tipsSection: { paddingHorizontal: 16, paddingTop: 4 },
+  tipsTitle: { fontSize: 14, fontWeight: '800', color: '#1E293B', marginBottom: 10 },
+  tipBox: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#E2E8F0', gap: 10, alignItems: 'center' },
+  tipIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
   tipTextWrap: { flex: 1 },
-  tipTitleTxt: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
-  tipBodyTxt: { fontSize: 13, color: '#64748B', lineHeight: 18, marginTop: 4 }
+  tipTitleTxt: { fontSize: 12.5, fontWeight: '800', color: '#1E293B' },
+  tipBodyTxt: { fontSize: 11, color: '#64748B', marginTop: 2, lineHeight: 15 },
 });

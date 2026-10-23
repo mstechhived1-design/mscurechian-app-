@@ -17,6 +17,8 @@ import { RootStackParamList } from '@/navigation/types';
 import { SanctuaryText } from '../components/SanctuaryComponents';
 import { COLORS } from '../constants/designSystem';
 import { streakService } from '@/services/streakService';
+import { apiClient, PATIENT_ENDPOINTS } from '@/api';
+import { familyService } from '@/services/familyService';
 
 const { width } = Dimensions.get('window');
 
@@ -184,22 +186,11 @@ export default function BMICalculatorScreen() {
   const [result, setResult]   = useState<BmiResult | null>(null);
   const [streak, setStreak]   = useState(0);
 
-  React.useEffect(() => {
-    loadStreak();
-  }, []);
-
-  const loadStreak = async () => {
-    try {
-      const data = await streakService.getStreakData();
-      setStreak(data.currentStreak);
-    } catch (e) { console.error(e); }
-  };
-
-  const calculate = () => {
+  const calculateWithValues = (hStr: string, wStr: string, u: Unit, g: FitnessGoal, strk: number) => {
     let bmi = 0;
-    const w = parseFloat(weight);
-    if (unit === 'metric') {
-      const h = parseFloat(height) / 100;
+    const w = parseFloat(wStr);
+    if (u === 'metric') {
+      const h = parseFloat(hStr) / 100;
       if (!h || !w || h <= 0 || w <= 0) return;
       bmi = w / (h * h);
     } else {
@@ -207,7 +198,84 @@ export default function BMICalculatorScreen() {
       if (!totalIn || !w || totalIn <= 0 || w <= 0) return;
       bmi = (w / (totalIn * totalIn)) * 703;
     }
-    setResult(classify(Math.round(bmi * 10) / 10, goal, streak));
+    if (bmi > 0 && bmi < 120) {
+      setResult(classify(Math.round(bmi * 10) / 10, g, strk));
+    }
+  };
+
+  const loadPatientProfile = async (currentStreakVal: number) => {
+    try {
+      const res = await apiClient.get(PATIENT_ENDPOINTS.DASHBOARD_DATA);
+      const data = res.data?.data || res.data || {};
+      const profile = data.profile || {};
+      const metrics = data.metrics || {};
+      
+      const rawHeight = metrics.height || profile.height;
+      const rawWeight = metrics.weight || profile.weight;
+      
+      let parsedH = '';
+      let parsedW = '';
+
+      if (rawHeight) {
+        let hVal = parseFloat(String(rawHeight));
+        if (!isNaN(hVal) && hVal > 0) {
+          if (hVal < 3) {
+            hVal = Math.round(hVal * 100);
+          } else if (hVal < 8.5) {
+            hVal = Math.round(hVal * 30.48);
+          } else if (hVal < 90) {
+            hVal = Math.round(hVal * 2.54);
+          }
+          parsedH = String(Math.round(hVal));
+          setHeight(parsedH);
+        }
+      }
+
+      if (rawWeight) {
+        let wVal = parseFloat(String(rawWeight));
+        if (!isNaN(wVal) && wVal > 0) {
+          if (wVal > 220) {
+            wVal = Math.round(wVal / 2.20462);
+          }
+          parsedW = String(Math.round(wVal));
+          setWeight(parsedW);
+        }
+      }
+
+      if (parsedH && parsedW) {
+        calculateWithValues(parsedH, parsedW, 'metric', goal, currentStreakVal);
+      }
+    } catch (e) {
+      console.warn('[BMICalculator] Load profile error:', e);
+    }
+  };
+
+  React.useEffect(() => {
+    loadStreakAndProfile();
+
+    const unsubProfile = familyService.onProfileChange(() => {
+      loadStreakAndProfile();
+    });
+
+    return () => {
+      unsubProfile();
+    };
+  }, []);
+
+  const loadStreakAndProfile = async () => {
+    let currentStreakVal = 0;
+    try {
+      const data = await streakService.getStreakData();
+      currentStreakVal = data.currentStreak || 0;
+      setStreak(currentStreakVal);
+    } catch (e) { 
+      console.error(e); 
+    }
+    await loadPatientProfile(currentStreakVal);
+  };
+
+  const calculate = () => {
+    calculateWithValues(height, weight, unit, goal, streak);
   };
 
   const reset = () => {
@@ -476,7 +544,7 @@ const styles = StyleSheet.create({
 
   gaugeWrap: { padding: 20 },
   gaugeTrack: { height: 14, borderRadius: 7, overflow: 'hidden', position: 'relative', marginBottom: 8 },
-  gaugeBar: { ...StyleSheet.absoluteFillObject },
+  gaugeBar: { ...StyleSheet.absoluteFill as any },
   gaugeNeedle: { position: 'absolute', top: -3, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF', borderWidth: 3, borderColor: '#1E293B', marginLeft: -10 },
   gaugeLabels: { flexDirection: 'row', justifyContent: 'space-between' },
   gaugeLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '700' },

@@ -113,6 +113,25 @@ export const PATIENT_ENDPOINTS = {
    * Auth: Bearer patient token
    */
   DELETE_ACCOUNT: '/patients/profile',
+
+  /**
+   * GET / POST — Family members and dependents linked to the same mobile number
+   */
+  FAMILY_MEMBERS: '/patients/family-members',
+  ADD_FAMILY_MEMBER: '/patients/family-members',
+
+  /**
+   * POST — Switch active patient authentication context to linked family member
+   */
+  SWITCH_PROFILE: (patientId: string) => `/patients/switch-profile/${patientId}`,
+
+  /**
+   * Dedicated Medication Tracking & Reminders
+   */
+  MEDICATION_INTAKE: '/patients/medications/intake',
+  MEDICATION_STATUS: '/patients/medications/status',
+  MEDICATION_HISTORY: '/patients/medications/history',
+  MEDICATION_REMINDER_TRIGGER: '/patients/medications/reminder-trigger',
 } as const;
 
 // ─── Booking / Appointment Endpoints ─────────────────────────────────────────
@@ -128,6 +147,9 @@ export const BOOKING_ENDPOINTS = {
 
   /** GET — Appointment detail by ID */
   DETAILS: (id: string) => `/bookings/${id}`,
+
+  /** GET — Dynamic real-time OPD Queue and Token tracker for doctor */
+  LIVE_QUEUE: (appointmentId: string) => `/bookings/live-queue/${appointmentId}`,
 } as const;
 
 // ─── Report / Lab Report Endpoints ───────────────────────────────────────────
@@ -214,3 +236,30 @@ export const PAYMENT_ENDPOINTS = {
    */
   HISTORY: '/payments/history',
 } as const;
+
+// ─── Messaging / Doctor Chat Endpoints ─────────────────────────────────────────
+export const MESSAGE_ENDPOINTS = {
+  /** POST — Send message: { recipientId, content, hospitalId, replyTo } */
+  SEND: '/messages/send',
+
+  /** GET — Get conversation messages with doctor: /messages/conversation/:otherUserId */
+  CONVERSATION: (otherUserId: string) => `/messages/conversation/${otherUserId}`,
+
+  /** GET — Get all conversations for current user */
+  CONVERSATIONS: '/messages/conversations',
+} as const;
+
+// ─── Official Receipt & Clinical Document Endpoints ─────────────────────────
+export const RECEIPT_ENDPOINTS = {
+  /**
+   * GET — Retrieve the authentic rendered HTML document from the centralized hospital engine.
+   * Types: 'prescription' | 'appointment' | 'lab-token' | 'lab-invoice' | 'lab-report' | 'pharmacy' | 'discharge-summary' | 'discharge-settlement'
+   */
+  GET_HTML: (type: string, id: string) => `/patient/receipts/${type}/${id}`,
+
+  /**
+   * POST — Dispatch official PDF receipt to patient WhatsApp via hospital gateway
+   */
+  SEND_WHATSAPP: (type: string, id: string) => `/patient/receipts/${type}/${id}/whatsapp`,
+} as const;
+

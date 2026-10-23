@@ -3,14 +3,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TOKEN_KEYS } from '@/api/axiosConfig';
 import { socketService } from '@/services/socketService';
 import { apiClient, PATIENT_ENDPOINTS, NOTIFICATION_ENDPOINTS } from '@/api';
+import { familyService } from '@/services/familyService';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
-interface LiveNotification {
+export interface LiveNotification {
   _id: string;
   message: string;
   type: string;
   isRead: boolean;
   createdAt: string;
+  relatedId?: string;
+  sender?: any;
+  hospital?: any;
 }
 
 interface AppointmentUpdate {
@@ -24,9 +28,11 @@ interface SocketContextValue {
   notifications: LiveNotification[];
   unreadCount: number;
   latestAppointmentUpdate: AppointmentUpdate | null;
-  markNotificationRead: (id: string) => void;
-  markAllRead: () => void;
-  refreshNotifications: () => void;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
 }
 
 // ─── Context ───────────────────────────────────────────────────────────────
@@ -35,9 +41,11 @@ const SocketContext = createContext<SocketContextValue>({
   notifications: [],
   unreadCount: 0,
   latestAppointmentUpdate: null,
-  markNotificationRead: () => {},
-  markAllRead: () => {},
-  refreshNotifications: () => {},
+  markNotificationRead: async () => {},
+  markAllRead: async () => {},
+  deleteNotification: async () => {},
+  clearAllNotifications: async () => {},
+  refreshNotifications: async () => {},
 });
 
 export const useSocket = () => useContext(SocketContext);
@@ -95,6 +103,26 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {}
   }, []);
 
+  // Delete single notification
+  const deleteNotification = useCallback(async (id: string) => {
+    try {
+      await apiClient.delete(NOTIFICATION_ENDPOINTS.DELETE(id));
+      setNotifications(prev => prev.filter(n => n._id !== id));
+    } catch (err) {
+      console.warn('[SocketContext] Delete notification failed:', err);
+    }
+  }, []);
+
+  // Clear all notifications
+  const clearAllNotifications = useCallback(async () => {
+    try {
+      await apiClient.delete(NOTIFICATION_ENDPOINTS.CLEAR_ALL);
+      setNotifications([]);
+    } catch (err) {
+      console.warn('[SocketContext] Clear all notifications failed:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const base64Decode = (str: string) => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
@@ -137,6 +165,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     init();
 
+    const unsubProfile = familyService.onProfileChange(() => {
+      console.log('[SocketContext] Profile change detected, re-initializing socket and notifications...');
+      setNotifications([]);
+      init();
+    });
+
     const intervalId = setInterval(() => {
       setIsConnected(socketService.isConnected());
     }, 2000);
@@ -177,6 +211,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       unsubCancelled();
       unsubConfirmed();
       unsubCompleted();
+      unsubProfile();
       socketService.disconnect();
     };
   }, [refreshNotifications]);
@@ -189,6 +224,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       latestAppointmentUpdate,
       markNotificationRead,
       markAllRead,
+      deleteNotification,
+      clearAllNotifications,
       refreshNotifications,
     }}>
       {children}

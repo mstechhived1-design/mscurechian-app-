@@ -9,7 +9,6 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import { Portal, Modal } from 'react-native-paper';
 import {
   ChevronLeft,
@@ -21,14 +20,17 @@ import {
   Stethoscope,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
+import { familyService } from '@/services/familyService';
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '../constants/designSystem';
 import { SanctuaryText, DigitalAtriumLoader } from '../components/SanctuaryComponents';
+import GlassModal from '@/components/GlassModal';
 import { safeFormat } from '@/utils/dateUtils';
+import { notificationService } from '@/services/notificationService';
 
 // ── Components — reuse logic from shared screen ───────────────────────────────
 export default function UpcomingAppointmentsScreen() {
@@ -56,7 +58,20 @@ export default function UpcomingAppointmentsScreen() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+    }, [])
+  );
+
+  useEffect(() => {
+    fetchData();
+
+    const unsub = familyService.onProfileChange(() => {
+      fetchData();
+    });
+    return () => unsub();
+  }, []);
 
   const handleCancel = async (id: string) => {
     Alert.alert(
@@ -75,14 +90,10 @@ export default function UpcomingAppointmentsScreen() {
               fetchData();
 
               // Trigger a proper system notification
-              await Notifications.scheduleNotificationAsync({
-                content: {
-                  title: "Appointment Cancelled",
-                  body: "Your appointment has been cancelled successfully. Amount will be refunded under 24 hours.",
-                  data: { appointmentId: id },
-                },
-                trigger: null,
-              });
+              await notificationService.scheduleInstantNotification(
+                "Appointment Cancelled",
+                "Your appointment has been cancelled successfully. Amount will be refunded under 24 hours."
+              );
 
               Alert.alert('Appointment Cancelled', 'Your appointment has been cancelled successfully. The amount will be refunded under 24 hours to your account.');
             } catch (err: any) {
@@ -154,21 +165,20 @@ export default function UpcomingAppointmentsScreen() {
       </TouchableOpacity>
 
       {/* Detail Modal */}
-      <Portal>
-        <Modal
-          visible={!!selected}
-          onDismiss={() => setSelected(null)}
-          contentContainerStyle={{ margin: 0, justifyContent: 'flex-end' }}
-        >
-          {selected && (
-            <AppointmentDetail 
-              apt={selected} 
-              onClose={() => setSelected(null)} 
-              onCancel={handleCancel}
-            />
-          )}
-        </Modal>
-      </Portal>
+      <GlassModal
+        visible={!!selected}
+        onDismiss={() => setSelected(null)}
+        animationType="slide"
+        contentContainerStyle={{ width: '100%', maxWidth: '100%', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderTopLeftRadius: 32, borderTopRightRadius: 32, alignSelf: 'flex-end', marginTop: 'auto' }}
+      >
+        {selected && (
+          <AppointmentDetail 
+            apt={selected} 
+            onClose={() => setSelected(null)} 
+            onCancel={handleCancel}
+          />
+        )}
+      </GlassModal>
     </View>
   );
 }

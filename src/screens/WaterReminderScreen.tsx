@@ -32,6 +32,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { SanctuaryText, DigitalAtriumLoader } from '../components/SanctuaryComponents';
 import { COLORS } from '../constants/designSystem';
 import { notificationService } from '@/services/notificationService';
+import { familyService } from '@/services/familyService';
 
 const { width } = Dimensions.get('window');
 const DAILY_GOAL = 2500; // ml
@@ -43,33 +44,50 @@ export default function WaterReminderScreen() {
   const [intake, setIntake] = useState(0);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [interval, setIntervalTime] = useState(2); // Default 2 hours
+  const [currentPid, setCurrentPid] = useState<string | null>(null);
+
+  const getStorageKey = (key: string, pid?: string | null) => {
+    const id = pid || currentPid || 'default';
+    return `${key}_${id}`;
+  };
+
+  const loadData = async (overridePid?: string | null) => {
+    try {
+      const activeId = overridePid !== undefined ? overridePid : await familyService.getActivePatientId();
+      setCurrentPid(activeId);
+      const [savedIntake, savedReminders, savedInterval] = await Promise.all([
+        AsyncStorage.getItem(getStorageKey('water_intake', activeId)),
+        AsyncStorage.getItem(getStorageKey('water_reminders_enabled', activeId)),
+        AsyncStorage.getItem(getStorageKey('water_reminder_interval', activeId)),
+      ]);
+      
+      setIntake(savedIntake ? parseInt(savedIntake, 10) : 0);
+      setRemindersEnabled(savedReminders === 'true');
+      setIntervalTime(savedInterval ? parseInt(savedInterval, 10) : 2);
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
 
   useEffect(() => {
     loadData();
-  }, []);
 
-  const loadData = async () => {
-    try {
-      const [savedIntake, savedReminders, savedInterval] = await Promise.all([
-        AsyncStorage.getItem('water_intake'),
-        AsyncStorage.getItem('water_reminders_enabled'),
-        AsyncStorage.getItem('water_reminder_interval'),
-      ]);
-      
-      if (savedIntake) setIntake(parseInt(savedIntake));
-      if (savedReminders) setRemindersEnabled(savedReminders === 'true');
-      if (savedInterval) setIntervalTime(parseInt(savedInterval));
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  };
+    const unsubProfile = familyService.onProfileChange((newPid) => {
+      loadData(newPid);
+    });
+
+    return () => {
+      unsubProfile();
+    };
+  }, []);
 
   const updateIntake = async (amount: number) => {
     const newIntake = Math.max(0, intake + amount);
     setIntake(newIntake);
     try {
-      await AsyncStorage.setItem('water_intake', newIntake.toString());
-      // If user drinks, we should ideally reset the reminder timer so they don't get 
-      // a notification immediately after drinking.
+      await AsyncStorage.setItem(getStorageKey('water_intake'), newIntake.toString());
       if (remindersEnabled && amount > 0) {
         await notificationService.scheduleWaterReminders(interval);
       }
@@ -79,7 +97,7 @@ export default function WaterReminderScreen() {
   const toggleReminders = async () => {
     const newState = !remindersEnabled;
     setRemindersEnabled(newState);
-    await AsyncStorage.setItem('water_reminders_enabled', newState.toString());
+    await AsyncStorage.setItem(getStorageKey('water_reminders_enabled'), newState.toString());
 
     if (newState) {
       await notificationService.scheduleWaterReminders(interval);
@@ -92,7 +110,7 @@ export default function WaterReminderScreen() {
 
   const updateInterval = async (val: number) => {
     setIntervalTime(val);
-    await AsyncStorage.setItem('water_reminder_interval', val.toString());
+    await AsyncStorage.setItem(getStorageKey('water_reminder_interval'), val.toString());
     if (remindersEnabled) {
       await notificationService.scheduleWaterReminders(val);
     }
@@ -256,68 +274,68 @@ const styles = StyleSheet.create({
   reminderBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
   reminderBtnActive: { backgroundColor: '#3B82F6' },
 
-  scrollContent: { padding: 24 },
+  scrollContent: { padding: 16 },
 
-  tankSection: { marginBottom: 32 },
+  tankSection: { marginBottom: 18 },
   tankContainer: {
-    height: 320,
+    height: 185,
     backgroundColor: '#FFF',
-    borderRadius: 40,
+    borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    elevation: 4,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 8,
     justifyContent: 'flex-end',
   },
   waterFill: { width: '100%', position: 'relative' },
-  waterSparkle: { position: 'absolute', top: 20, alignSelf: 'center' },
-  tankOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  waterSparkle: { position: 'absolute', top: 10, alignSelf: 'center' },
+  tankOverlay: { ...StyleSheet.absoluteFill as any, justifyContent: 'center', alignItems: 'center', paddingVertical: 12 },
   percentageCircle: {
-    width: 120, height: 120, borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     justifyContent: 'center', alignItems: 'center',
-    elevation: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10,
-    marginBottom: 40,
+    elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6,
+    marginBottom: 12,
   },
-  percentTxt: { fontSize: 32, fontWeight: '900', color: '#1E293B' },
-  percentSub: { fontSize: 12, color: '#64748B', fontWeight: '700' },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 30 },
+  percentTxt: { fontSize: 22, fontWeight: '900', color: '#1E293B' },
+  percentSub: { fontSize: 10, color: '#64748B', fontWeight: '700' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 24 },
   infoCol: { alignItems: 'center' },
-  valTxt: { fontSize: 22, fontWeight: '900', color: '#1E293B' },
-  lblTxt: { fontSize: 12, color: '#64748B', fontWeight: '700', marginTop: 4 },
-  divider: { width: 1, height: 40, backgroundColor: '#E2E8F0' },
+  valTxt: { fontSize: 16, fontWeight: '900', color: '#1E293B' },
+  lblTxt: { fontSize: 11, color: '#64748B', fontWeight: '700', marginTop: 2 },
+  divider: { width: 1, height: 28, backgroundColor: '#E2E8F0' },
 
-  controlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 },
-  controlBtnSecondary: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
-  mainAddBtn: { flex: 1, marginHorizontal: 16, height: 72, borderRadius: 24, overflow: 'hidden', elevation: 4 },
-  mainAddGrad: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  addBtnTxt: { color: '#FFF', fontWeight: '900', fontSize: 16 },
-  smallPlusTxt: { fontSize: 10, fontWeight: '900', color: '#3B82F6', marginTop: 2 },
+  controlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+  controlBtnSecondary: { width: 50, height: 50, borderRadius: 16, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+  mainAddBtn: { flex: 1, marginHorizontal: 12, height: 52, borderRadius: 18, overflow: 'hidden', elevation: 3 },
+  mainAddGrad: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  addBtnTxt: { color: '#FFF', fontWeight: '900', fontSize: 14 },
+  smallPlusTxt: { fontSize: 9, fontWeight: '900', color: '#3B82F6', marginTop: 1 },
 
-  statsGrid: { flexDirection: 'row', gap: 12, marginBottom: 32 },
-  statCard: { flex: 1, backgroundColor: '#FFF', borderRadius: 24, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F1F5F9' },
-  statIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  statVal: { fontSize: 16, fontWeight: '900', color: '#1E293B' },
-  statLbl: { fontSize: 11, color: '#64748B', fontWeight: '700' },
+  statsGrid: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  statCard: { flex: 1, backgroundColor: '#FFF', borderRadius: 18, padding: 12, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#F1F5F9' },
+  statIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  statVal: { fontSize: 14, fontWeight: '900', color: '#1E293B' },
+  statLbl: { fontSize: 10, color: '#64748B', fontWeight: '700' },
 
-  settingsSection: { marginBottom: 32 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: '#1E293B' },
-  intervalRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  intervalChip: { flex: 1, height: 50, borderRadius: 16, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+  settingsSection: { marginBottom: 18 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionTitle: { fontSize: 14, fontWeight: '900', color: '#1E293B' },
+  intervalRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  intervalChip: { flex: 1, height: 42, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
   intervalChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
-  intervalTxt: { color: '#64748B', fontWeight: '800' },
+  intervalTxt: { color: '#64748B', fontWeight: '800', fontSize: 13 },
   intervalTxtActive: { color: '#FFF' },
-  infoBox: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  infoTxt: { flex: 1, color: '#64748B', fontSize: 12, fontWeight: '600' },
+  infoBox: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  infoTxt: { flex: 1, color: '#64748B', fontSize: 11, fontWeight: '600' },
 
-  tipCard: { borderRadius: 32, overflow: 'hidden' },
-  tipGrad: { padding: 24 },
-  tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  tipTitle: { color: '#FFF', fontWeight: '900' },
-  tipBody: { color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 20, fontWeight: '600' },
+  tipCard: { borderRadius: 24, overflow: 'hidden' },
+  tipGrad: { padding: 16 },
+  tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  tipTitle: { color: '#FFF', fontWeight: '900', fontSize: 14 },
+  tipBody: { color: 'rgba(255,255,255,0.85)', fontSize: 12, lineHeight: 18, fontWeight: '600' },
 });

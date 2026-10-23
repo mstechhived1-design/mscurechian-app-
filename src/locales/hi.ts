@@ -145,5 +145,20 @@ export default {
     en: 'English',
     hi: 'हिन्दी',
     te: 'తెలుగు',
-  }
+  },
+  profile: {
+    title: 'मेडिकल वॉल्ट',
+    identityBio: 'पहचान और बायो',
+    emergencyContact: 'आपातकालीन संपर्क',
+    signOutOfAccount: 'खाते से लॉग आउट करें',
+    updateProfile: 'प्रोफ़ाइल अपडेट करें',
+    personalInfo: 'व्यक्तिगत जानकारी',
+    contactAddress: 'संपर्क और पता',
+    emergencySOSContact: 'आपातकालीन SOS संपर्क',
+    saveChanges: 'बदलाव सहेजें',
+    digitalIdPass: 'डिजिटल आईडी पास',
+    mrn: 'MRN संख्या',
+    deleteAccountPermanently: 'खाता स्थायी रूप से हटाएं',
+  },
 };
+

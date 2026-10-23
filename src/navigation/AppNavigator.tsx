@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DigitalAtriumLoader } from '@/components/SanctuaryComponents';
 
 import LoginScreen from '@/screens/LoginScreen';
 import RegisterScreen from '@/screens/RegisterScreen';
@@ -27,6 +27,15 @@ import FoodRecommendationScreen from '@/screens/FoodRecommendationScreen';
 import WaterReminderScreen from '@/screens/WaterReminderScreen';
 import MedicineReminderScreen from '@/screens/MedicineReminderScreen';
 import AchievementsScreen from '@/screens/AchievementsScreen';
+import VitalsScreen from '@/screens/VitalsScreen';
+import AppointmentsScreen from '@/screens/AppointmentsScreen';
+import PaymentsScreen from '@/screens/PaymentsScreen';
+import ProfileScreen from '@/screens/ProfileScreen';
+import EmergencyMedicalIdScreen from '@/screens/EmergencyMedicalIdScreen';
+import LiveQueueScreen from '@/screens/LiveQueueScreen';
+import NotificationCenterScreen from '@/screens/NotificationCenterScreen';
+import OfflineVaultScreen from '@/screens/OfflineVaultScreen';
+import FamilyMembersScreen from '@/screens/FamilyMembersScreen';
 
 // BottomTabNavigator hosts: Home (Dashboard), Appointments, Vitals, Payments, Profile
 import BottomTabNavigator from './BottomTabNavigator';
@@ -81,11 +90,7 @@ export default function AppNavigator() {
   }, []);
 
   if (isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator animating={true} size="large" color="#006AF5" />
-      </View>
-    );
+    return <DigitalAtriumLoader message="Initializing Secure Portal..." />;
   }
 
   return (
@@ -134,16 +139,17 @@ export default function AppNavigator() {
       <Stack.Screen name="WaterReminder" component={WaterReminderScreen} />
       <Stack.Screen name="MedicineReminder" component={MedicineReminderScreen} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} />
+      <Stack.Screen name="EmergencyMedicalId" component={EmergencyMedicalIdScreen} />
+      <Stack.Screen name="LiveQueue" component={LiveQueueScreen} />
+      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
+      <Stack.Screen name="OfflineVault" component={OfflineVaultScreen} />
+      <Stack.Screen name="FamilyMembers" component={FamilyMembersScreen} />
 
-      {/*
-       * NOTE: Appointments, Vitals, Payments, Profile are NOT listed here.
-       * They live inside BottomTabNavigator. React Navigation will find them
-       * there when navigate('Appointments') etc. is called from a tab screen.
-       *
-       * If you ever need to deep-link INTO a tab screen from OUTSIDE the tabs
-       * (e.g., a push notification), use:
-       *   navigation.navigate('Dashboard', { screen: 'Appointments' })
-       */}
+      {/* ── Main Tab Screens Direct Stack Access ───────────────────────── */}
+      <Stack.Screen name="Appointments" component={AppointmentsScreen} />
+      <Stack.Screen name="Vitals" component={VitalsScreen} />
+      <Stack.Screen name="Payments" component={PaymentsScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 }

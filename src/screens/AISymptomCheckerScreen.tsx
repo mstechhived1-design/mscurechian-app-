@@ -39,6 +39,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { SanctuaryText } from '../components/SanctuaryComponents';
 import { COLORS } from '../constants/designSystem';
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
+import { familyService } from '@/services/familyService';
 
 // IMPORT SYMPTOM DATABASE
 import SYMPTOM_DATA from '../../assets/symptoms.json';
@@ -141,6 +142,17 @@ export default function AISymptomCheckerScreen() {
       } catch (err) {}
     };
     init();
+
+    const unsubProfile = familyService.onProfileChange(() => {
+      setMessages([{ role: 'assistant', text: t('symptomChecker.hello') }]);
+      setChips([]);
+      setInput('');
+      init();
+    });
+
+    return () => {
+      unsubProfile();
+    };
   }, []);
 
   const send = async (override?: string) => {
@@ -285,20 +297,20 @@ export default function AISymptomCheckerScreen() {
                   {m.doctors.map((d: any) => (
                     <TouchableOpacity key={d._id} style={styles.docCard} onPress={() => navigation.navigate('Appointments')}>
                       <Avatar.Image 
-                        size={52} 
+                        size={38} 
                         source={(d.user?.avatar || d.avatar) ? { uri: d.user?.avatar || d.avatar } : require('../../assets/image.png')} 
                         style={{ backgroundColor: '#F1F5F9' }}
                       />
                       <View style={{ flex: 1, justifyContent: 'center' }}>
-                        <RNText style={{ color: COLORS?.primary || '#1E1B4B', fontSize: 20, fontWeight: '900', letterSpacing: -0.5 }}>
+                        <RNText style={{ color: COLORS?.primary || '#1E1B4B', fontSize: 13, fontWeight: '800' }} numberOfLines={1}>
                           {getDocName(d)}
                         </RNText>
-                        <RNText style={{ color: '#64748B', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', marginTop: 2 }}>
+                        <RNText style={{ color: '#64748B', fontSize: 9.5, fontWeight: '700', textTransform: 'uppercase', marginTop: 1 }} numberOfLines={1}>
                           {getSpecialty(d)}
                         </RNText>
                       </View>
-                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
-                        <CalendarDays size={20} color="#4F46E5" />
+                      <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
+                        <CalendarDays size={15} color="#4F46E5" />
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -327,12 +339,17 @@ export default function AISymptomCheckerScreen() {
                     <ScrollView 
                         horizontal 
                         showsHorizontalScrollIndicator={false} 
-                        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
-                        style={{ overflow: 'visible' }}
+                        contentContainerStyle={styles.chipScroll}
                     >
                       {COMMON_SYMPTOMS.slice(0, 15).map((s: string) => (
-                        <TouchableOpacity key={s} style={[styles.chip, selectedChips.includes(s) && styles.chipActive]} onPress={() => setChips(prev => prev.includes(s) ? prev.filter(c=>c!==s) : [...prev, s])}>
-                          <SanctuaryText variant="label_sm" style={{ color: selectedChips.includes(s) ? '#FFF' : '#64748B', fontWeight: '800', fontSize: 12 }}>{s.toUpperCase()}</SanctuaryText>
+                        <TouchableOpacity
+                          key={s}
+                          style={[styles.chip, selectedChips.includes(s) && styles.chipActive]}
+                          onPress={() => setChips(prev => prev.includes(s) ? prev.filter(c=>c!==s) : [...prev, s])}
+                        >
+                          <RNText style={[styles.chipText, selectedChips.includes(s) && styles.chipTextActive]}>
+                            {s.toUpperCase()}
+                          </RNText>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -358,81 +375,96 @@ export default function AISymptomCheckerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
   flex1: { flex: 1 },
-  chatBg: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F9FAFB' },
-  header: { padding: 16, paddingTop: Platform.OS === 'ios' ? 60 : 40, flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1B4B', elevation: 8, height: Platform.OS === 'ios' ? 110 : 90 },
-  headerTitleArea: { position: 'absolute', left: 0, right: 0, top: Platform.OS === 'ios' ? 55 : 35, bottom: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
-  scrollInside: { padding: 16, paddingBottom: 40 },
-  bottomContainer: { backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 },
-  chipArea: { height: 60, marginBottom: 8 },
+  chatBg: { ...StyleSheet.absoluteFill as any, backgroundColor: '#F9FAFB' },
+  header: { paddingHorizontal: 12, paddingTop: Platform.OS === 'ios' ? 48 : 28, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1B4B', elevation: 4, height: Platform.OS === 'ios' ? 84 : 68 },
+  headerTitleArea: { position: 'absolute', left: 0, right: 0, top: Platform.OS === 'ios' ? 44 : 26, bottom: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  backBtn: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  scrollInside: { padding: 12, paddingBottom: 30 },
+  bottomContainer: { backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 6 },
+  chipArea: { marginBottom: 6, minHeight: 38 },
+  chipScroll: { paddingHorizontal: 12, paddingVertical: 4, alignItems: 'center' },
   chip: { 
-    paddingHorizontal: 16, 
-    paddingVertical: 8, 
-    borderRadius: 25, 
+    paddingHorizontal: 12, 
+    paddingVertical: 6, 
+    borderRadius: 16, 
     backgroundColor: '#FFF', 
-    marginRight: 10,
+    marginRight: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    elevation: 2,
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    marginVertical: 4, // Added to prevent clipping from elevation
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5', elevation: 4 },
-  quickReply: { flexDirection: 'row', gap: 12, marginTop: 10, justifyContent: 'center' },
+  chipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5', elevation: 2 },
+  chipText: {
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0.3,
+  },
+  chipTextActive: {
+    color: '#FFF',
+    fontWeight: '800',
+  },
+  quickReply: { flexDirection: 'row', gap: 10, marginTop: 8, justifyContent: 'center' },
   replyBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 10, 
-    paddingHorizontal: 22, 
-    paddingVertical: 14, 
-    borderRadius: 18, 
-    borderWidth: 2, 
+    gap: 6, 
+    paddingHorizontal: 14, 
+    paddingVertical: 7, 
+    borderRadius: 12, 
+    borderWidth: 1.5, 
     borderColor: '#10B981', 
     backgroundColor: '#FFF',
-    elevation: 3,
+    elevation: 1.5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
   },
-  inputAreaOuter: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: Platform.OS === 'ios' ? 20 : 15 },
-  input: { flex: 1, backgroundColor: '#F9FAFB', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, maxHeight: 100, fontSize: 14, color: '#1E293B', borderWidth: 1, borderColor: '#F1F5F9' },
-  send: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center' },
-  docArea: { marginTop: 15, gap: 12, paddingBottom: 10 },
+  inputAreaOuter: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingBottom: Platform.OS === 'ios' ? 16 : 10 },
+  input: { flex: 1, backgroundColor: '#F9FAFB', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, maxHeight: 80, fontSize: 13, color: '#1E293B', borderWidth: 1, borderColor: '#E2E8F0' },
+  send: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center' },
+  docArea: { marginTop: 10, gap: 8, paddingBottom: 6 },
   docCard: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     backgroundColor: '#FFF', 
-    padding: 16, 
-    borderRadius: 20, 
-    gap: 15, 
-    elevation: 3, 
+    padding: 10, 
+    borderRadius: 14, 
+    gap: 10, 
+    elevation: 2, 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    marginVertical: 4,
-    width: '95%'
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    marginVertical: 2,
+    width: '98%',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   disclaimerBanner: {
     backgroundColor: '#FEF2F2',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#FEE2E2',
   },
   disclaimerText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 9.5,
     color: '#991B1B',
     fontWeight: '700',
-    lineHeight: 14,
+    lineHeight: 12,
   },
 });
 

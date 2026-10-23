@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Text, Surface, IconButton, RadioButton } from 'react-native-paper';
 import { Languages } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -25,22 +26,29 @@ const LanguageSelector = () => {
         onPress={() => setVisible(true)}
         style={styles.langBtn}
       >
-        <Languages size={20} color="#006AF5" />
+        <Languages size={15} color="#006AF5" />
         <Text style={styles.langCode}>{currentLanguage.toUpperCase()}</Text>
       </TouchableOpacity>
 
       <Modal
         visible={visible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setVisible(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.dismissOverlay} 
-            activeOpacity={1} 
-            onPress={() => setVisible(false)} 
-          />
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 45 : 70}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          >
+            <TouchableOpacity 
+              style={StyleSheet.absoluteFill} 
+              activeOpacity={1} 
+              onPress={() => setVisible(false)} 
+            />
+          </BlurView>
           <Surface style={[styles.modalContent, styles.modalSurface]} elevation={0}>
             <View style={styles.modalHeader}>
               <Text variant="titleLarge" style={styles.modalTitle}>Select Language</Text>
@@ -89,18 +97,17 @@ const styles = StyleSheet.create({
   langBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EBF4FF',
-    paddingHorizontal: 8,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 9,
     borderWidth: 1,
-    borderColor: '#D0E6FF',
-    marginRight: 8,
+    borderColor: '#BFDBFE',
   },
   langCode: {
     marginLeft: 4,
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 10.5,
+    fontWeight: '800',
     color: '#006AF5',
   },
   modalOverlay: {

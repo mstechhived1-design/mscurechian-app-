@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -24,11 +25,13 @@ import {
   ArrowLeft,
   Calendar,
 } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '@/navigation/types';
 import { apiClient, PATIENT_ENDPOINTS } from '@/api';
+import { familyService } from '@/services/familyService';
 
 interface HospitalData {
   _id: string;
@@ -43,6 +46,7 @@ interface HospitalData {
 export default function HospitalsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hospitals, setHospitals] = useState<HospitalData[]>([]);
@@ -66,8 +70,19 @@ export default function HospitalsScreen() {
     }
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchHospitals();
+    }, [])
+  );
+
   useEffect(() => {
     fetchHospitals();
+
+    const unsub = familyService.onProfileChange(() => {
+      fetchHospitals();
+    });
+    return () => unsub();
   }, []);
 
   const onRefresh = () => {
@@ -86,24 +101,33 @@ export default function HospitalsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <Surface style={styles.header} elevation={1}>
+      {/* Compact Header */}
+      <Surface style={[styles.header, { paddingTop: Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 44) : 8 }]} elevation={0}>
         <View style={styles.headerContent}>
-          <IconButton icon="arrow-left" iconColor="#1A1A1A" size={24} onPress={() => navigation.goBack()} />
-          <Text variant="headlineSmall" style={styles.headerTitle}>{t('hospitals.title')}</Text>
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()} 
+            style={styles.backBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <ArrowLeft size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>{t('hospitals.title')}</Text>
+            <Text style={styles.headerSubtitle}>Registered healthcare facilities</Text>
+          </View>
         </View>
       </Surface>
 
       <ScrollView 
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#006AF5']} />
+          Platform.OS !== 'web' ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#006AF5']} />
+          ) : undefined
         }
       >
-        <Text variant="bodyMedium" style={styles.description}>
-          Hospitals where your records are maintained. 
-        </Text>
-
         {error ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
@@ -112,26 +136,26 @@ export default function HospitalsScreen() {
         ) : (Array.isArray(hospitals) && hospitals.length === 0) ? (
           <View style={styles.emptyContainer}>
             <Surface style={styles.emptyIcon} elevation={0}>
-              <HospitalIcon size={48} color="#CCC" />
+              <HospitalIcon size={36} color="#CBD5E1" />
             </Surface>
             <Text style={styles.emptyText}>{t('hospitals.noHospitals')}</Text>
           </View>
         ) : (
           Array.isArray(hospitals) && hospitals.map((hospital) => (
-            <Card key={hospital._id} style={styles.hospitalCard} mode="elevated" elevation={2}>
-              <Card.Content>
+            <Card key={hospital._id} style={styles.hospitalCard} mode="elevated" elevation={1}>
+              <Card.Content style={styles.cardContent}>
                 <View style={styles.hospitalHeader}>
                   <Avatar.Text 
-                    size={48} 
+                    size={36} 
                     label={hospital.name.substring(0, 1).toUpperCase()} 
                     style={styles.hospitalAvatar}
                     labelStyle={styles.hospitalAvatarLabel}
                   />
                   <View style={styles.hospitalInfo}>
-                    <Text variant="titleLarge" style={styles.hospitalName}>{hospital.name}</Text>
+                    <Text style={styles.hospitalName} numberOfLines={1}>{hospital.name}</Text>
                     <View style={styles.infoRow}>
-                       <MapPin size={12} color="#666" />
-                       <Text variant="bodySmall" style={styles.infoText} numberOfLines={1}>{hospital.address}</Text>
+                       <MapPin size={11} color="#64748B" />
+                       <Text style={styles.infoText} numberOfLines={1}>{hospital.address}</Text>
                     </View>
                   </View>
                 </View>
@@ -140,7 +164,7 @@ export default function HospitalsScreen() {
 
                 <View style={styles.contactRow}>
                   <View style={styles.contactItem}>
-                    <Phone size={14} color="#006AF5" />
+                    <Phone size={12} color="#006AF5" />
                     <Text style={styles.contactText}>{hospital.phone}</Text>
                   </View>
                   <View style={styles.actionButtons}>
@@ -149,6 +173,7 @@ export default function HospitalsScreen() {
                       compact 
                       onPress={() => navigation.navigate('Appointments')}
                       style={styles.bookBtn}
+                      labelStyle={styles.btnLabel}
                     >
                       {t('hospitals.details')}
                     </Button>
@@ -161,6 +186,7 @@ export default function HospitalsScreen() {
                       })}
                       style={[styles.bookBtn, styles.feedbackBtn]}
                       textColor="#006AF5"
+                      labelStyle={styles.btnLabel}
                     >
                       {t('hospitals.feedback')}
                     </Button>
@@ -179,6 +205,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    height: '100%',
+    minHeight: 0,
   },
   centered: {
     flex: 1,
@@ -190,65 +218,83 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   header: {
-    paddingTop: 50,
     backgroundColor: '#FFF',
-    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    paddingBottom: 8,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+  },
+  backBtn: {
+    padding: 6,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
-    fontWeight: 'bold',
-    marginLeft: 8,
-    color: '#1A1A1A',
+    fontWeight: '800',
+    fontSize: 16,
+    color: '#0F172A',
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 1,
   },
   scrollContent: {
-    padding: 20,
-  },
-  description: {
-    color: '#666',
-    marginBottom: 20,
+    padding: 10,
+    paddingBottom: 20,
   },
   hospitalCard: {
-    marginBottom: 16,
-    borderRadius: 20,
+    marginBottom: 8,
+    borderRadius: 14,
     backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  cardContent: {
+    padding: 10,
   },
   hospitalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 8,
   },
   hospitalAvatar: {
-    backgroundColor: '#F0F7FF',
+    backgroundColor: '#EFF6FF',
   },
   hospitalAvatarLabel: {
     color: '#006AF5',
-    fontWeight: 'bold',
+    fontWeight: '800',
+    fontSize: 15,
   },
   hospitalInfo: {
-    marginLeft: 15,
+    marginLeft: 10,
     flex: 1,
   },
   hospitalName: {
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontWeight: '800',
+    fontSize: 13,
+    color: '#0F172A',
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   infoText: {
     marginLeft: 4,
-    color: '#666',
+    fontSize: 11,
+    color: '#64748B',
+    flex: 1,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
-    marginVertical: 12,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 8,
   },
   contactRow: {
     flexDirection: 'row',
@@ -260,19 +306,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   contactText: {
-    marginLeft: 6,
-    fontSize: 13,
-    color: '#444',
-  },
-  bookBtn: {
-    borderRadius: 10,
+    marginLeft: 5,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#334155',
   },
   actionButtons: {
     flexDirection: 'row',
+    gap: 6,
+  },
+  bookBtn: {
+    borderRadius: 8,
+    height: 30,
+    justifyContent: 'center',
   },
   feedbackBtn: {
-    marginLeft: 8,
     borderColor: '#006AF5',
+  },
+  btnLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    marginVertical: 0,
+    marginHorizontal: 8,
   },
   errorContainer: {
     alignItems: 'center',
@@ -288,19 +343,19 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 100,
+    marginTop: 60,
   },
   emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFF',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   emptyText: {
     color: '#888',
-    fontSize: 14,
+    fontSize: 13,
   },
 });

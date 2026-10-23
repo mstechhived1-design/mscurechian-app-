@@ -37,6 +37,7 @@ import { apiClient, PATIENT_ENDPOINTS } from '@/api';
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '@/constants/designSystem';
 import { SanctuaryText, PrimaryButton } from '@/components/SanctuaryComponents';
+import { GlassModal } from '@/components/GlassModal';
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -385,35 +386,32 @@ export default function ProfileSetupScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
       
-      <Portal>
-        <Modal
-          visible={bloodModalVisible}
-          onDismiss={() => setBloodModalVisible(false)}
-          contentContainerStyle={styles.bloodModalContent}
-        >
-          <SanctuaryText variant="headline_sm" style={styles.bloodModalTitle}>Select Blood Group</SanctuaryText>
-          <View style={styles.bloodGrid}>
-            {BLOOD_GROUPS.map((bg) => (
-              <TouchableOpacity
-                key={bg}
-                style={[styles.bloodOption, bloodGroup === bg && styles.bloodOptionActive]}
-                onPress={() => {
-                  setBloodGroup(bg);
-                  setBloodModalVisible(false);
-                }}
+      <GlassModal
+        visible={bloodModalVisible}
+        onClose={() => setBloodModalVisible(false)}
+        title="Select Blood Group"
+      >
+        <View style={styles.bloodGrid}>
+          {BLOOD_GROUPS.map((bg) => (
+            <TouchableOpacity
+              key={bg}
+              style={[styles.bloodOption, bloodGroup === bg && styles.bloodOptionActive]}
+              onPress={() => {
+                setBloodGroup(bg);
+                setBloodModalVisible(false);
+              }}
+            >
+              <Droplet size={20} color={bloodGroup === bg ? '#FFF' : '#EF4444'} />
+              <SanctuaryText 
+                variant="label_lg" 
+                style={[styles.bloodOptionTxt, bloodGroup === bg && styles.bloodOptionTxtActive]}
               >
-                <Droplet size={20} color={bloodGroup === bg ? '#FFF' : '#EF4444'} />
-                <SanctuaryText 
-                  variant="label_lg" 
-                  style={[styles.bloodOptionTxt, bloodGroup === bg && styles.bloodOptionTxtActive]}
-                >
-                  {bg}
-                </SanctuaryText>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Modal>
-      </Portal>
+                {bg}
+              </SanctuaryText>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </GlassModal>
     </SafeAreaView>
   );
 }
