@@ -10,21 +10,43 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mscurechain-backend-latest-production.up.railway.app/api",
+        "REACT_APP_API_URL": "https://mscurechain-backend-latest-production.up.railway.app/api",
+        "REACT_APP_DEBUG_MODE": "false",
+        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyBPHYwQ2_Hjmaz2epxwEhS6dppipusKL3A",
+        "EXPO_PUBLIC_SPOONACULAR_API_KEY": "4c4c913ab4de42fc8afc343ce1643fde",
+        "EXPO_PUBLIC_USDA_API_KEY": "4HrRqWStmN8TgHxBFfwJPHYrWnc8kNU2Ja15QMlE"
+      },
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "apk"
       }
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mscurechain-backend-latest-production.up.railway.app/api",
+        "REACT_APP_API_URL": "https://mscurechain-backend-latest-production.up.railway.app/api",
+        "REACT_APP_DEBUG_MODE": "false",
+        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyBPHYwQ2_Hjmaz2epxwEhS6dppipusKL3A",
+        "EXPO_PUBLIC_SPOONACULAR_API_KEY": "4c4c913ab4de42fc8afc343ce1643fde",
+        "EXPO_PUBLIC_USDA_API_KEY": "4HrRqWStmN8TgHxBFfwJPHYrWnc8kNU2Ja15QMlE"
+      },
       "android": {
         "buildType": "app-bundle"
       }
     },
     "optimized": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mscurechain-backend-latest-production.up.railway.app/api",
+        "REACT_APP_API_URL": "https://mscurechain-backend-latest-production.up.railway.app/api",
+        "REACT_APP_DEBUG_MODE": "false",
+        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyBPHYwQ2_Hjmaz2epxwEhS6dppipusKL3A",
+        "EXPO_PUBLIC_SPOONACULAR_API_KEY": "4c4c913ab4de42fc8afc343ce1643fde",
+        "EXPO_PUBLIC_USDA_API_KEY": "4HrRqWStmN8TgHxBFfwJPHYrWnc8kNU2Ja15QMlE"
+      },
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "apk"
       }
     }
   },

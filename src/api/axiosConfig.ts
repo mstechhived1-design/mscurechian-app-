@@ -77,7 +77,7 @@ const getBaseUrl = (): string => {
   }
 
   // 3. Absolute Production Fallback
-  const fallback = 'https://www.mscurechain.com/api';
+  const fallback = 'https://mscurechain-backend-latest-production.up.railway.app/api';
   console.log('[AxiosConfig] No env var found, using fallback:', fallback);
   return fallback;
 };
