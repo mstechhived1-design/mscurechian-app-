@@ -12,7 +12,9 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Portal, Modal, Button } from 'react-native-paper';
 import {
   MapPin,
@@ -276,6 +278,11 @@ export default function DashboardScreen() {
   ];
 
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
+  const dynamicTopPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 44
+  ) + 8;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -691,7 +698,7 @@ export default function DashboardScreen() {
     <View style={styles.container}>
 
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: dynamicTopPadding }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.avatarWrap} onPress={() => navigation.navigate('Profile')}>
             <Avatar.Image
@@ -1348,7 +1355,6 @@ const styles = StyleSheet.create({
   /* Header */
   header: {
     backgroundColor: '#FFFFFF',
-    paddingTop: Platform.OS === 'ios' ? 48 : 28,
     paddingHorizontal: 16,
     paddingBottom: 10,
     borderBottomWidth: 1,

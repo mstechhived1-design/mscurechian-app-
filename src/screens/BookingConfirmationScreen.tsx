@@ -101,8 +101,8 @@ export default function BookingConfirmationScreen() {
         hospitalName: confirmation.hospitalName,
         date: formatDate(confirmation.date),
         time: confirmation.time,
-        amount: formatCurrency(confirmation.amount),
-        paymentMethod: confirmation.paymentMethod,
+        amount: confirmation.amount,
+        paymentMethod: confirmation.paymentMethod || 'UPI',
         paymentStatus: 'PAID',
       });
     } catch (err: any) {
@@ -229,35 +229,35 @@ export default function BookingConfirmationScreen() {
 
       {/* ── Bottom Actions ── */}
       <View style={styles.footer}>
-        <View style={styles.actionRow}>
-          {/* Download PDF Receipt */}
-          <TouchableOpacity style={[styles.shareBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={handleDownloadPdf} activeOpacity={0.8}>
-            <Download size={18} color="#006AF5" />
-            <SanctuaryText variant="label_lg" style={[styles.shareTxt, { color: '#006AF5' }]}>PDF Slip</SanctuaryText>
+        {/* Primary: View Appointments */}
+        <TouchableOpacity style={styles.primaryApptBtn} onPress={goToAppointments} activeOpacity={0.85}>
+          <LinearGradient
+            colors={['#1E40AF', '#2563EB']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={styles.primaryApptGrad}
+          >
+            <Calendar size={18} color="#fff" />
+            <SanctuaryText variant="label_lg" style={styles.primaryApptTxt}>View Appointments</SanctuaryText>
+            <ArrowRight size={16} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Secondary: PDF Slip & Share Slip */}
+        <View style={styles.secondaryRow}>
+          <TouchableOpacity style={[styles.secondaryBtn, styles.pdfBtn]} onPress={handleDownloadPdf} activeOpacity={0.8}>
+            <Download size={16} color="#006AF5" />
+            <SanctuaryText variant="label_lg" style={styles.pdfTxt}>PDF Slip</SanctuaryText>
           </TouchableOpacity>
 
-          {/* Share Receipt */}
-          <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
-            <Share2 size={18} color={COLORS.primary} />
-            <SanctuaryText variant="label_lg" style={styles.shareTxt}>Share</SanctuaryText>
-          </TouchableOpacity>
-
-          {/* View Appointments */}
-          <TouchableOpacity style={styles.apptBtn} onPress={goToAppointments} activeOpacity={0.85}>
-            <LinearGradient
-              colors={['#1E40AF', '#2563EB']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.apptGrad}
-            >
-              <Calendar size={15} color="#fff" />
-              <SanctuaryText variant="label_lg" style={styles.apptTxt}>Appointments</SanctuaryText>
-            </LinearGradient>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={handleShare} activeOpacity={0.8}>
+            <Share2 size={16} color={COLORS.primary} />
+            <SanctuaryText variant="label_lg" style={styles.secondaryTxt}>Share</SanctuaryText>
           </TouchableOpacity>
         </View>
 
-        {/* Go Home */}
+        {/* Back to Dashboard */}
         <TouchableOpacity style={styles.homeBtn} onPress={goHome} activeOpacity={0.8}>
-          <Home size={16} color="#64748B" />
+          <Home size={15} color="#64748B" />
           <SanctuaryText variant="label_lg" style={styles.homeTxt}>Back to Dashboard</SanctuaryText>
         </TouchableOpacity>
       </View>
@@ -338,21 +338,33 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
-  actionRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-
-  shareBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 20, paddingVertical: 14,
-    backgroundColor: '#EAF1FF', borderRadius: 16,
+  primaryApptBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 10 },
+  primaryApptGrad: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 10,
   },
-  shareTxt: { color: COLORS.primary, fontWeight: '800', fontSize: 14 },
+  primaryApptTxt: { color: '#fff', fontWeight: '900', fontSize: 15 },
 
-  apptBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
-  apptGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
-  apptTxt: { color: '#fff', fontWeight: '900', fontSize: 14 },
+  secondaryRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  secondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: '#EAF1FF',
+    borderRadius: 14,
+  },
+  pdfBtn: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
+  pdfTxt: { color: '#006AF5', fontWeight: '800', fontSize: 13 },
+  secondaryTxt: { color: COLORS.primary, fontWeight: '800', fontSize: 13 },
 
-  homeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: '#F8FAFC', borderRadius: 14 },
-  homeTxt: { color: '#64748B', fontWeight: '700', fontSize: 14 },
+  homeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, backgroundColor: '#F8FAFC', borderRadius: 12 },
+  homeTxt: { color: '#64748B', fontWeight: '700', fontSize: 13 },
 });
 
 const pill = StyleSheet.create({

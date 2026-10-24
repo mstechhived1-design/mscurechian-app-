@@ -67,15 +67,35 @@ class ReceiptService {
   /**
    * Prints the official receipt directly or exports it to high-res PDF.
    * Feeds the exact authentic HTML into the native device print engine.
+   * Includes automatic fallback for devices with disabled/broken system print spoolers.
    */
   async printOrExportPdf(type: ReceiptType, id: string, payload?: any): Promise<void> {
     try {
       const receipt = await this.getOfficialReceiptHtml(type, id, payload);
 
-      // Instantaneous native document / print preview (under 1-2 sec) on both Android & iOS
-      await Print.printAsync({
-        html: receipt.html,
-      });
+      let printHandled = false;
+      try {
+        await Print.printAsync({
+          html: receipt.html,
+        });
+        printHandled = true;
+      } catch (printErr: any) {
+        console.warn('[ReceiptService] printAsync unsupported on this handset, using printToFileAsync fallback:', printErr?.message);
+      }
+
+      // If printAsync failed or is unsupported on this device, export to PDF file and open native viewer
+      if (!printHandled) {
+        const file = await Print.printToFileAsync({ html: receipt.html });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(file.uri, {
+            UTI: '.pdf',
+            mimeType: 'application/pdf',
+            dialogTitle: receipt.title || 'Receipt PDF',
+          });
+        } else {
+          Alert.alert('Receipt Ready', 'PDF created successfully.');
+        }
+      }
     } catch (error: any) {
       console.error('[ReceiptService] printOrExportPdf error:', error);
       Alert.alert('Document Notice', error.message || 'Could not display document.');

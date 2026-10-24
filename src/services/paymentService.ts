@@ -146,6 +146,8 @@ export interface BookingSlot {
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
+  /** The payment method the user actually selected (e.g. 'UPI', 'Card', 'NetBanking', 'Wallet') */
+  selectedPaymentMethod?: string;
 }
 
 /** Returned by backend after successful booking */
@@ -356,6 +358,16 @@ export const generateFallbackHourBlocks = (): HourBlock[] => {
  * Walk-in patients go through the helpdesk dashboard and don't use this path.
  */
 export const bookAppointment = async (booking: BookingSlot): Promise<BookingConfirmation> => {
+  // Normalize the user-selected method to a clean display label and backend value
+  const methodMap: Record<string, { display: string; backend: string }> = {
+    upi:        { display: 'UPI',         backend: 'upi' },
+    card:       { display: 'Card',        backend: 'card' },
+    netbanking: { display: 'Net Banking', backend: 'netbanking' },
+    wallet:     { display: 'Wallet',      backend: 'wallet' },
+  };
+  const methodKey = (booking.selectedPaymentMethod || 'upi').toLowerCase();
+  const methodInfo = methodMap[methodKey] || { display: booking.selectedPaymentMethod || 'UPI', backend: methodKey };
+
   const payload = {
     doctorId: booking.doctorId,
     hospitalId: booking.hospitalId,
@@ -370,7 +382,7 @@ export const bookAppointment = async (booking: BookingSlot): Promise<BookingConf
     consultationFee: booking.consultationFee,
     vitals: booking.vitals,
     urgency: 'non-urgent',
-    paymentMethod: 'razorpay',
+    paymentMethod: methodInfo.backend,   // ✅ Real method (upi, card, etc.)
     paymentStatus: 'Paid',
     razorpayOrderId: booking.razorpayOrderId,
     razorpayPaymentId: booking.razorpayPaymentId,
@@ -394,8 +406,8 @@ export const bookAppointment = async (booking: BookingSlot): Promise<BookingConf
     hospitalName: booking.hospitalName,
     date: booking.date,
     time: `${booking.startTime} - ${booking.endTime}`,
-    amount: booking.consultationFee,
-    paymentMethod: 'Online',
+    amount: booking.consultationFee,            // ✅ Raw number, never a formatted string
+    paymentMethod: methodInfo.display,          // ✅ 'UPI' not 'Online'
     paymentStatus: 'Paid',
     mrn: appt.mrn,
   };

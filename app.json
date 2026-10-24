@@ -34,6 +34,12 @@
     ],
     "ios": {
       "bundleIdentifier": "com.mscurechain.patientapp"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f6b53d0e-c9cc-4be8-b7f5-9aa7def67ef7"
+      }
+    },
+    "owner": "mstech_hive_471"
   }
 }

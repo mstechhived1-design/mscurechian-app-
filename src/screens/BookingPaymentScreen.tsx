@@ -269,6 +269,7 @@ export default function BookingPaymentScreen() {
       const confirmation = await bookAppointment({
         ...booking,
         consultationFee: finalFee,
+        selectedPaymentMethod: selectedMethod,
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
