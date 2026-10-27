@@ -1,4 +1,6 @@
-import { StyleSheet, StatusBar, View, Text, Platform, LogBox } from 'react-native';
+import '@/polyfills/interactionManager';
+import { StyleSheet, View, Text, Platform, LogBox } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -297,7 +299,7 @@ export default function App() {
           }}
         >
           <ErrorBoundary>
-            <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+            <StatusBar style="dark" />
             <NavigationContainer ref={navigationRef}>
               <SocketProvider>
                 <AppNavigator />

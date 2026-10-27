@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  StatusBar,
   Share,
   ActivityIndicator,
   Linking,
@@ -153,6 +154,10 @@ export default function ReportsScreen() {
   const [patientProfile, setPatientProfile] = useState<any>(null);
   const [pdfExportingId, setPdfExportingId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const dynamicTopPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 44
+  ) + 8;
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
@@ -661,7 +666,7 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <Surface style={[styles.header, { paddingTop: Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 44) : 8 }]} elevation={0}>
+      <Surface style={[styles.header, { paddingTop: dynamicTopPadding }]} elevation={0}>
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}

@@ -4,6 +4,7 @@ import type {
 } from "@/services/paymentService";
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Login: undefined;
   Register: undefined;
   ProfileSetup: undefined;

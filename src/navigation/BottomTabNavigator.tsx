@@ -4,28 +4,26 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   Home,
   Calendar,
-  Activity,
-  CreditCard,
+  ReceiptText,
   User,
-  Brain,
 } from 'lucide-react-native';
 
 import DashboardScreen from '@/screens/DashboardScreen';
 import AppointmentsScreen from '@/screens/AppointmentsScreen';
-import AISymptomCheckerScreen from '@/screens/AISymptomCheckerScreen';
 import PaymentsScreen from '@/screens/PaymentsScreen';
 import ProfileScreen from '@/screens/ProfileScreen';
-import { COLORS } from '@/constants/designSystem';
 
 export type BottomTabParamList = {
   Home: undefined;
   Appointments: undefined;
-  AISymptomChecker: undefined;
   Payments: undefined;
   Profile: undefined;
 };
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
+
+const PRIMARY_BLUE = '#1769E0';
+const INACTIVE_GRAY = '#94A3B8';
 
 function TabIcon({
   Icon,
@@ -38,9 +36,10 @@ function TabIcon({
     <View style={styles.iconWrap}>
       <Icon
         size={22}
-        color={focused ? COLORS.primary : '#94A3B8'}
-        strokeWidth={focused ? 2.4 : 1.9}
+        color={focused ? PRIMARY_BLUE : INACTIVE_GRAY}
+        strokeWidth={focused ? 2.3 : 1.8}
       />
+      {focused && <View style={styles.activeIndicator} />}
     </View>
   );
 }
@@ -54,8 +53,8 @@ export default function BottomTabNavigator() {
         tabBarStyle: styles.tabBar,
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: PRIMARY_BLUE,
+        tabBarInactiveTintColor: INACTIVE_GRAY,
         tabBarHideOnKeyboard: true,
         tabBarItemStyle: styles.tabItem,
         tabBarButton: ({ ref, style, ...rest }: any) => (
@@ -84,19 +83,11 @@ export default function BottomTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="AISymptomChecker"
-        component={AISymptomCheckerScreen}
-        options={{
-          tabBarLabel: 'AI Symptoms',
-          tabBarIcon: ({ focused }) => <TabIcon Icon={Brain} focused={focused} />,
-        }}
-      />
-      <Tab.Screen
         name="Payments"
         component={PaymentsScreen}
         options={{
-          tabBarLabel: 'Payments',
-          tabBarIcon: ({ focused }) => <TabIcon Icon={CreditCard} focused={focused} />,
+          tabBarLabel: 'Bill History',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={ReceiptText} focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -120,8 +111,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 16,
     paddingBottom: Platform.OS === 'ios' ? 18 : 6,
@@ -131,14 +122,23 @@ const styles = StyleSheet.create({
     paddingTop: 1,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '700',
     letterSpacing: -0.2,
     marginTop: 1,
   },
   iconWrap: {
-    height: 26,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -18,
+    width: 24,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: PRIMARY_BLUE,
+  },
 });
+

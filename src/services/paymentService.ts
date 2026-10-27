@@ -29,12 +29,28 @@ export interface Hospital {
   _id: string;
   name: string;
   address?: string;
+  street?: string;
+  landmark?: string;
+  city?: string;
+  area?: string;
+  state?: string;
+  pincode?: string;
   phone?: string;
   email?: string;
   hospitalId?: string;
   branches?: Branch[];
   logo?: string;
+  buildingImages?: string[];
   specialties?: string[];
+  specialities?: string[];
+  website?: string;
+  locationLink?: string;
+  googleMapLink?: string;
+  location?: { lat: number; lng: number };
+  rating?: number;
+  reviewCount?: number;
+  establishedYear?: number;
+  distanceKm?: number;
 }
 
 export interface Branch {
@@ -52,12 +68,17 @@ export interface Doctor {
     email?: string;
     mobile?: string;
     doctorId?: string;
+    avatar?: string;
+    image?: string;
+    profilePic?: string;
+    department?: string;
   };
   hospital?: {
     _id: string;
     name: string;
     address?: string;
     hospitalId?: string;
+    logo?: string;
   };
   hospitals?: Array<{ _id: string; name: string }>;
   specialties?: string[];
@@ -69,6 +90,7 @@ export interface Doctor {
   experienceStart?: string;
   consultationFee: number;
   rating?: number;
+  reviewCount?: number;
   profilePic?: string;
   consultationDuration?: number;
   availability?: DoctorAvailability[];
@@ -186,15 +208,209 @@ export const getDoctorDisplayName = (doc: Doctor): string => {
   return raw.startsWith('Dr.') ? raw : `Dr. ${raw}`;
 };
 
-export const getDoctorSpecialty = (doc: Doctor): string =>
-  doc.specialties?.[0] || doc.specialty || doc.department || 'General';
+/**
+ * Infer medical department/specialty from doctor qualifications, bio, or titles.
+ */
+export const inferSpecialtyFromDoctor = (doc: Doctor): string | null => {
+  const textToScan = [
+    ...(doc.qualifications || []),
+    doc.bio || '',
+    doc.user?.name || '',
+    doc.name || '',
+  ].join(' ').toLowerCase();
+
+  if (/cardio|heart/i.test(textToScan)) return 'Cardiology';
+  if (/ortho|bone|joint|spine/i.test(textToScan)) return 'Orthopedics';
+  if (/gynec|obstet|dgo|women|pregnancy/i.test(textToScan)) return 'Gynecology & Obstetrics';
+  if (/pediat|child|dch/i.test(textToScan)) return 'Pediatrics';
+  if (/derma|skin|dvd/i.test(textToScan)) return 'Dermatology';
+  if (/neuro|brain/i.test(textToScan)) return 'Neurology';
+  if (/ent|ear|nose|throat|otorhino/i.test(textToScan)) return 'ENT Specialist';
+  if (/ophthal|eye/i.test(textToScan)) return 'Ophthalmology';
+  if (/dent|bds|mds|teeth/i.test(textToScan)) return 'Dental Surgery';
+  if (/gastro|liver|digest/i.test(textToScan)) return 'Gastroenterology';
+  if (/pulmo|chest|resp|lungs/i.test(textToScan)) return 'Pulmonology';
+  if (/oncol|cancer/i.test(textToScan)) return 'Oncology';
+  if (/uro|nephro|kidney/i.test(textToScan)) return 'Urology & Nephrology';
+  if (/psych|mental/i.test(textToScan)) return 'Psychiatry';
+  if (/physio/i.test(textToScan)) return 'Physiotherapy';
+  if (/radiolog/i.test(textToScan)) return 'Radiology';
+  if (/surgeon|surgery|ms /i.test(textToScan)) return 'General Surgery';
+  if (/physician|internal med|mbbs|md /i.test(textToScan)) return 'General Physician';
+  return null;
+};
+
+/**
+ * Return all specialty/department identifiers associated with a doctor.
+ */
+export const getDoctorSpecialtiesList = (doc: Doctor): string[] => {
+  const set = new Set<string>();
+
+  if (Array.isArray(doc.specialties)) {
+    doc.specialties.forEach((s) => {
+      const trimmed = s?.trim();
+      if (trimmed) set.add(trimmed);
+    });
+  }
+  if (doc.specialty?.trim()) set.add(doc.specialty.trim());
+  if (doc.department?.trim()) set.add(doc.department.trim());
+  if (doc.user?.department?.trim()) set.add(doc.user.department.trim());
+
+  if (set.size === 0) {
+    const inferred = inferSpecialtyFromDoctor(doc);
+    if (inferred) set.add(inferred);
+  }
+
+  if (set.size === 0) {
+    set.add('General Physician');
+  }
+
+  return Array.from(set);
+};
+
+export const getDoctorSpecialty = (doc: Doctor): string => {
+  if (Array.isArray(doc.specialties) && doc.specialties.length > 0) {
+    const valid = doc.specialties.filter((s) => !!s && s.trim().length > 0);
+    if (valid.length > 0) {
+      return valid.slice(0, 2).join(' & ');
+    }
+  }
+  if (doc.specialty?.trim()) return doc.specialty.trim();
+  if (doc.department?.trim()) return doc.department.trim();
+  if (doc.user?.department?.trim()) return doc.user.department.trim();
+  const inferred = inferSpecialtyFromDoctor(doc);
+  if (inferred) return inferred;
+  return 'General Physician';
+};
 
 export const getDoctorExperience = (doc: Doctor): number => {
   if (doc.experience !== undefined) return doc.experience;
   if (doc.experienceStart) {
-    return new Date().getFullYear() - new Date(doc.experienceStart).getFullYear();
+    return Math.max(0, new Date().getFullYear() - new Date(doc.experienceStart).getFullYear());
   }
   return 0;
+};
+
+export const getDoctorImage = (doc: Doctor): string | null => {
+  return doc.profilePic || doc.user?.avatar || doc.user?.image || doc.user?.profilePic || null;
+};
+
+/**
+ * Calculate geodesic distance between two points in kilometers using the Haversine formula
+ */
+export const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+export const formatDistance = (km: number): string => {
+  if (km < 1) {
+    return `${Math.round(km * 1000)} m`;
+  }
+  return `${km.toFixed(1)} km`;
+};
+
+/**
+ * Reverse geocodes latitude and longitude into a clean, human-readable
+ * location string in the exact format used by Rapido and BookMyShow:
+ * e.g., "RTC Colony, Kadapa" or "Madhapur, Hyderabad"
+ *
+ * Multi-layer resolution:
+ * 1. BigDataCloud Open Reverse Geocode Client API (free, fast, detailed localities)
+ * 2. Native geocoder fallback
+ * 3. Exact coordinates text if network is unavailable
+ * NO hardcoded fallback values.
+ */
+export const resolveLocationName = async (
+  latitude: number,
+  longitude: number,
+  nativeGeocoder?: (coords: { latitude: number; longitude: number }) => Promise<any[]>
+): Promise<string> => {
+  // Strategy 1: Free Client Geocoding API
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      const locality = (data.locality || '').trim();
+      const city = (data.city || '').trim();
+      const state = (data.principalSubdivision || '').trim();
+
+      const adminSub = data.localityInfo?.administrative?.find(
+        (x: any) =>
+          x.order >= 9 &&
+          x.name &&
+          x.name.toLowerCase() !== city.toLowerCase() &&
+          !x.name.toLowerCase().includes('mandal') &&
+          !x.name.toLowerCase().includes('district') &&
+          !x.name.toLowerCase().includes('constituency')
+      )?.name;
+
+      let primaryArea = '';
+      if (locality && locality.toLowerCase() !== city.toLowerCase()) {
+        primaryArea = locality;
+      } else if (adminSub) {
+        primaryArea = adminSub;
+      }
+
+      if (primaryArea && city) {
+        return `${primaryArea}, ${city}`;
+      }
+      if (city && state) {
+        return `${city}, ${state}`;
+      }
+      if (city) return city;
+      if (locality) return state ? `${locality}, ${state}` : locality;
+    }
+  } catch (err) {
+    console.log('[LocationService] Web reverse geocode error:', err);
+  }
+
+  // Strategy 2: Native Geocoder callback
+  if (nativeGeocoder) {
+    try {
+      const geo = await nativeGeocoder({ latitude, longitude });
+      if (geo && geo.length > 0) {
+        const p = geo[0];
+        const sub = p.district || p.subregion || p.street || p.name;
+        const c = p.city || p.subregion;
+        const reg = p.region;
+
+        if (sub && c && sub.toLowerCase() !== c.toLowerCase()) {
+          return `${sub}, ${c}`;
+        }
+        if (c && reg) {
+          return `${c}, ${reg}`;
+        }
+        if (c) return c;
+        if (sub) return sub;
+      }
+    } catch (e) {
+      console.log('[LocationService] Native geocoder error:', e);
+    }
+  }
+
+  return `Location (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`;
 };
 
 // ─── API: Hospitals ────────────────────────────────────────────────────────────
@@ -272,9 +488,10 @@ export const fetchDoctors = async (opts?: {
 export const extractSpecialties = (doctors: Doctor[]): string[] => {
   const set = new Set<string>();
   doctors.forEach((d) => {
-    (d.specialties || []).forEach((s) => { if (s) set.add(s); });
-    if (d.specialty) set.add(d.specialty);
-    if (d.department) set.add(d.department);
+    const specs = getDoctorSpecialtiesList(d);
+    specs.forEach((s) => {
+      if (s && s.trim()) set.add(s.trim());
+    });
   });
   return Array.from(set).sort();
 };

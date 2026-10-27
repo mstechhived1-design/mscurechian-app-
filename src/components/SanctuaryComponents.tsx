@@ -6,6 +6,7 @@ import {
   TextInput as RNTextInput,
   View,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, TYPOGRAPHY, RADIUS, SPACING } from '../constants/designSystem';
@@ -98,10 +99,27 @@ export const SanctuaryInput = ({ label, value, onChangeText, secureTextEntry, er
   );
 };
 
-// --- LOADING (Simple Round Spinner) ---
-export const DigitalAtriumLoader = ({ fullscreen = true }: { message?: string; subMessage?: string; fullscreen?: boolean }) => (
+// --- LOADING (With MS CureChain Logo) ---
+export const DigitalAtriumLoader = ({ fullscreen = true, message, subMessage }: { message?: string; subMessage?: string; fullscreen?: boolean }) => (
   <View style={fullscreen ? styles.loaderContainer : { padding: SPACING.xl, justifyContent: 'center', alignItems: 'center' }}>
+    {fullscreen && (
+      <Image
+        source={require('../../assets/image.png')}
+        style={{ width: 84, height: 84, marginBottom: 20 }}
+        resizeMode="contain"
+      />
+    )}
     <ActivityIndicator size="large" color={COLORS.primary} />
+    {message && (
+      <SanctuaryText variant="body_md" style={{ marginTop: 14, fontWeight: '700', color: COLORS.on_surface, textAlign: 'center' }}>
+        {message}
+      </SanctuaryText>
+    )}
+    {subMessage && (
+      <SanctuaryText variant="body_sm" style={{ marginTop: 4, color: COLORS.on_surface, opacity: 0.65, fontSize: 12, textAlign: 'center' }}>
+        {subMessage}
+      </SanctuaryText>
+    )}
   </View>
 );
 

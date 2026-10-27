@@ -4,6 +4,11 @@
     "slug": "mscurechain-patient-app",
     "version": "1.2.3",
     "icon": "./assets/image.png",
+    "splash": {
+      "image": "./assets/image.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "android": {
       "package": "com.mscurechain.patientapp",
       "versionCode": 10,

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
+  StatusBar,
 } from 'react-native';
 import {
   Text,
@@ -25,10 +26,16 @@ import {
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '@/navigation/types';
 
 export default function HealthRecordsScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
+  const dynamicTopPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 44
+  ) + 8;
 
   const recordCategories = [
     {
@@ -90,7 +97,7 @@ export default function HealthRecordsScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <Surface style={styles.header} elevation={0}>
+      <Surface style={[styles.header, { paddingTop: dynamicTopPadding }]} elevation={0}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <ArrowLeft size={20} color="#0F172A" />
@@ -137,7 +144,6 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 44 : 8,
     backgroundColor: '#FFF',
     paddingBottom: 8,
     borderBottomWidth: 1,

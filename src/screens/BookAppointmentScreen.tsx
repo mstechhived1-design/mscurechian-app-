@@ -15,7 +15,7 @@
  * API Base: https://www.mscurechain.com/api
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -27,10 +27,15 @@ import {
   Dimensions,
   ActivityIndicator,
   GestureResponderEvent,
+  Animated,
+  Easing,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ChevronLeft,
   ChevronRight,
@@ -50,11 +55,19 @@ import {
   Heart,
   MapPin,
   Filter,
+  Compass,
+  Sparkles,
+  ChevronDown,
+  ArrowRight,
+  ArrowUpDown,
 } from 'lucide-react-native';
 
 import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '@/constants/designSystem';
 import { SanctuaryText } from '@/components/SanctuaryComponents';
+import { HospitalDiscoveryCard } from '@/components/HospitalDiscoveryCard';
+import { DoctorDiscoveryCard } from '@/components/DoctorDiscoveryCard';
+import { AttractiveDiscoveryLoader } from '@/components/AttractiveDiscoveryLoader';
 import {
   fetchHospitals,
   fetchDoctors,
@@ -62,7 +75,12 @@ import {
   extractSpecialties,
   getDoctorDisplayName,
   getDoctorSpecialty,
+  getDoctorSpecialtiesList,
   getDoctorExperience,
+  getDoctorImage,
+  calculateDistance,
+  formatDistance,
+  resolveLocationName,
   formatCurrency,
   formatDate,
   Hospital,
@@ -110,6 +128,19 @@ export default function BookAppointmentScreen() {
   // ── Wizard step ──
   const [step, setStep] = useState(1);
 
+  // ── Two-stage Discovery (Step 1 Sub-step & Animation) ──
+  const [subStep, setSubStep] = useState<'hospitals' | 'doctors'>('hospitals');
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // ── User Location (Zero hardcoded fallbacks, Rapido/BookMyShow text format) ──
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationName, setLocationName] = useState<string>('Detecting location...');
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+
+  // ── Hospital Discovery Filters ──
+  const [hospitalSearch, setHospitalSearch] = useState('');
+  const [hospitalSort, setHospitalSort] = useState<'nearby' | 'relevance' | 'rating' | 'name'>('nearby');
+
   const [notes, setNotes] = useState('');
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
 
@@ -146,14 +177,170 @@ export default function BookAppointmentScreen() {
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [customSymptom, setCustomSymptom] = useState('');
 
+  // ── Location Fetcher (Active GPS + Multi-layer Web/Native Geocoder) ──
+  const handleGetLocation = useCallback(async (isUserInitiated: boolean = false) => {
+    try {
+      setIsLocating(true);
+      let { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        const permissionReq = await Location.requestForegroundPermissionsAsync();
+        status = permissionReq.status;
+      }
+
+      if (status !== 'granted') {
+        setIsLocating(false);
+        if (isUserInitiated) {
+          Alert.alert(
+            'Location Access Required',
+            'Please enable location services in your phone settings to see distances to nearby hospitals.',
+          );
+        }
+        setLocationName((prev) =>
+          prev === 'Detecting location...' ? 'Tap to enable location' : prev
+        );
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: isUserInitiated ? Location.Accuracy.High : Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = loc.coords;
+      setUserLocation({ latitude, longitude });
+      AsyncStorage.setItem(
+        'user_current_coords',
+        JSON.stringify({ latitude, longitude })
+      ).catch(() => {});
+
+      // Resolve human-readable text format (e.g., "RTC Colony, Kadapa" or "Madhapur, Hyderabad")
+      const resolvedAddress = await resolveLocationName(
+        latitude,
+        longitude,
+        Location.reverseGeocodeAsync,
+      );
+      setLocationName(resolvedAddress);
+      AsyncStorage.setItem('user_current_location', resolvedAddress).catch(() => {});
+    } catch (err: any) {
+      console.warn('[Location] fetch error:', err.message);
+      if (isUserInitiated) {
+        Alert.alert(
+          'GPS Location',
+          'Unable to fetch current GPS location. Please check your GPS and internet connection.'
+        );
+      }
+      setLocationName((prev) =>
+        prev === 'Detecting location...' ? 'Location unavailable' : prev
+      );
+    } finally {
+      setIsLocating(false);
+    }
+  }, []);
+
+  // On mount: check cached location first, then actively fetch live position
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const cachedLoc = await AsyncStorage.getItem('user_current_location');
+        const cachedCoordsStr = await AsyncStorage.getItem('user_current_coords');
+        if (cachedCoordsStr) {
+          try {
+            const parsed = JSON.parse(cachedCoordsStr);
+            if (parsed?.latitude && parsed?.longitude && isMounted) {
+              setUserLocation(parsed);
+            }
+          } catch {}
+        }
+        if (cachedLoc && isMounted) {
+          setLocationName(cachedLoc);
+        }
+        // Actively request fresh live location
+        await handleGetLocation(false);
+      } catch (e) {
+        console.warn('[Location] Mount error:', e);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [handleGetLocation]);
+
+  // ── Processed Hospitals with Distance & Sorting ──
+  const processedHospitals = useMemo(() => {
+    let list = hospitals.map((h) => {
+      let distanceKm: number | undefined = undefined;
+      const lat = h.location?.lat ?? (h as any).latitude;
+      const lng = h.location?.lng ?? (h as any).longitude;
+      if (userLocation && typeof lat === 'number' && typeof lng === 'number') {
+        distanceKm = calculateDistance(userLocation.latitude, userLocation.longitude, lat, lng);
+      }
+      return { ...h, distanceKm };
+    });
+
+    if (hospitalSearch.trim()) {
+      const q = hospitalSearch.toLowerCase();
+      list = list.filter((h) => {
+        const name = (h.name || '').toLowerCase();
+        const addr = (h.address || '').toLowerCase();
+        const city = (h.city || '').toLowerCase();
+        const state = (h.state || '').toLowerCase();
+        const specs = (h.specialties || h.specialities || []).join(' ').toLowerCase();
+        return (
+          name.includes(q) ||
+          addr.includes(q) ||
+          city.includes(q) ||
+          state.includes(q) ||
+          specs.includes(q)
+        );
+      });
+    }
+
+    if (hospitalSort === 'nearby') {
+      list.sort((a, b) => {
+        if (a.distanceKm !== undefined && b.distanceKm !== undefined) {
+          return a.distanceKm - b.distanceKm;
+        }
+        if (a.distanceKm !== undefined) return -1;
+        if (b.distanceKm !== undefined) return 1;
+        return (b.rating || 4.5) - (a.rating || 4.5);
+      });
+    } else if (hospitalSort === 'rating') {
+      list.sort((a, b) => (b.rating || 4.0) - (a.rating || 4.0));
+    } else if (hospitalSort === 'name') {
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else {
+      // 'relevance'
+      list.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+    }
+
+    return list;
+  }, [hospitals, userLocation, hospitalSearch, hospitalSort]);
+
+  // ── Scoped specialties based strictly on the selected hospital's doctors ──
+  const hospitalSpecialties = useMemo(() => {
+    let docs = allDoctors;
+    if (selectedHospital) {
+      docs = docs.filter((d) => {
+        const hId = d.hospital?._id || (d.hospitals?.[0] as any)?._id;
+        return hId === selectedHospital._id;
+      });
+    }
+    return extractSpecialties(docs);
+  }, [allDoctors, selectedHospital]);
+
   // ── Filtered doctors ──
   const filteredDoctors = useMemo(() => {
     let list = allDoctors;
-    if (selectedSpecialty) {
+    if (selectedHospital) {
       list = list.filter((d) => {
-        const specs = d.specialties || [];
-        const s = d.specialty || d.department || '';
-        return specs.includes(selectedSpecialty) || s === selectedSpecialty;
+        const hId = d.hospital?._id || (d.hospitals?.[0] as any)?._id;
+        return hId === selectedHospital._id;
+      });
+    }
+    if (selectedSpecialty) {
+      const target = selectedSpecialty.toLowerCase();
+      list = list.filter((d) => {
+        const specs = getDoctorSpecialtiesList(d);
+        return specs.some((s) => s.toLowerCase() === target);
       });
     }
     if (doctorSearch.trim()) {
@@ -161,11 +348,13 @@ export default function BookAppointmentScreen() {
       list = list.filter((d) => {
         const n = getDoctorDisplayName(d).toLowerCase();
         const sp = getDoctorSpecialty(d).toLowerCase();
-        return n.includes(q) || sp.includes(q);
+        const specs = getDoctorSpecialtiesList(d).join(' ').toLowerCase();
+        const bio = (d.bio || '').toLowerCase();
+        return n.includes(q) || sp.includes(q) || specs.includes(q) || bio.includes(q);
       });
     }
     return list;
-  }, [allDoctors, selectedSpecialty, doctorSearch]);
+  }, [allDoctors, selectedHospital, selectedSpecialty, doctorSearch]);
 
   // ── NEXT 7 days (starts from tomorrow) ──
   const availableDates = useMemo(() =>
@@ -209,21 +398,62 @@ export default function BookAppointmentScreen() {
       const doc = allDoctors.find(d => d._id === qrParams.doctorId);
       if (doc) {
         setSelectedDoctor(doc);
+        if (doc.hospital?._id) {
+          const h = hospitals.find(x => x._id === doc.hospital?._id);
+          if (h) setSelectedHospital(h);
+        }
         setStep(2); // Jump to Step 2 (Date & Time)
       }
     }
-  }, [qrParams, allDoctors]);
+  }, [qrParams, allDoctors, hospitals]);
 
   // Handle Hospital Auto-Selection from Navigation Params
   useEffect(() => {
-    if (qrParams?.hospitalId && hospitals.length > 0) {
+    if (qrParams?.hospitalId && hospitals.length > 0 && subStep === 'hospitals') {
       console.log('[BookAppointment] Applying Hospital Params:', qrParams.hospitalId);
       const h = hospitals.find(x => x._id === qrParams.hospitalId);
       if (h) {
         setSelectedHospital(h);
+        setSubStep('doctors');
+        slideAnim.setValue(1);
       }
     }
-  }, [qrParams, hospitals]);
+  }, [qrParams, hospitals, subStep, slideAnim]);
+
+  // ── Two-stage slide animations ──
+  const slideToDoctors = useCallback((h: Hospital) => {
+    setSelectedHospital(h);
+    setSelectedSpecialty(''); // Reset specialty filter when selecting a hospital
+    setDoctorSearch(''); // Reset search
+    setSubStep('doctors');
+    Animated.timing(slideAnim, {
+      toValue: 1,
+      duration: 350,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
+  const slideToHospitals = useCallback(() => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setSubStep('hospitals');
+    });
+  }, [slideAnim]);
+
+  // ── Booking Doctor Directly moves to Step 2 ──
+  const handleBookDoctor = useCallback((doc: Doctor) => {
+    setSelectedDoctor(doc);
+    if (!selectedHospital && doc.hospital?._id) {
+      const h = hospitals.find((x) => x._id === doc.hospital?._id);
+      if (h) setSelectedHospital(h);
+    }
+    setStep(2); // Jump to Step 2 (Date & Time slot picker)
+  }, [selectedHospital, hospitals]);
 
   // ── LOAD AVAILABILITY when doctor + date selected ──
   useEffect(() => {
@@ -245,9 +475,16 @@ export default function BookAppointmentScreen() {
 
   // ── Wizard helpers ──
   const goBack = useCallback(() => {
-    if (step > 1) setStep((s) => s - 1);
-    else navigation.goBack();
-  }, [step, navigation]);
+    if (step === 1) {
+      if (subStep === 'doctors') {
+        slideToHospitals();
+      } else {
+        navigation.goBack();
+      }
+    } else if (step > 1) {
+      setStep((s) => s - 1);
+    }
+  }, [step, subStep, slideToHospitals, navigation]);
 
   const goNext = useCallback(() => {
     if (step < TOTAL_STEPS) setStep((s) => s + 1);
@@ -304,32 +541,39 @@ export default function BookAppointmentScreen() {
           <ChevronLeft size={22} color="#1E293B" />
         </TouchableOpacity>
         <SanctuaryText variant="headline_sm" style={styles.headerTitle}>
-          Book Appointment
+          {step === 1 && subStep === 'doctors' ? 'Select Doctor' : 'Book Appointment'}
         </SanctuaryText>
         <View style={{ width: 40 }} />
       </View>
-
-
 
       {/* ── Step Content ── */}
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {step === 1 && (
           <StepDoctor
-            hospitals={hospitals}
+            hospitals={processedHospitals}
+            loadingHospitals={loadingDoctors}
             selectedHospital={selectedHospital}
-            onSelectHospital={setSelectedHospital}
+            onSelectHospital={slideToDoctors}
             doctors={filteredDoctors}
-            loading={loadingDoctors}
-            selected={selectedDoctor}
-            onSelect={setSelectedDoctor}
-            specialties={specialties}
+            loadingDoctors={loadingDoctors}
+            selectedDoctor={selectedDoctor}
+            onBookDoctor={handleBookDoctor}
+            subStep={subStep}
+            slideAnim={slideAnim}
+            onBackToHospitals={slideToHospitals}
+            locationName={locationName}
+            isLocating={isLocating}
+            onGetLocation={handleGetLocation}
+            hospitalSearch={hospitalSearch}
+            onHospitalSearch={setHospitalSearch}
+            hospitalSort={hospitalSort}
+            onHospitalSort={setHospitalSort}
+            doctorSearch={doctorSearch}
+            onDoctorSearch={setDoctorSearch}
+            specialties={hospitalSpecialties}
             selectedSpecialty={selectedSpecialty}
             onSelectSpecialty={setSelectedSpecialty}
-            search={doctorSearch}
-            onSearch={setDoctorSearch}
-            appointmentType={appointmentType}
-            onTypeChange={setAppointmentType}
           />
         )}
 
@@ -385,45 +629,47 @@ export default function BookAppointmentScreen() {
       </ScrollView>
 
       {/* ── Bottom CTA ── */}
-      <View style={styles.footer}>
-        {step < TOTAL_STEPS ? (
-          <TouchableOpacity
-            style={[styles.nextBtn, !canProceed() && styles.nextBtnDisabled]}
-            onPress={goNext}
-            disabled={!canProceed()}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={canProceed() ? ['#1E40AF', '#2563EB'] : ['#CBD5E1', '#CBD5E1']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.nextGrad}
+      {!(step === 1 && subStep === 'hospitals') && (
+        <View style={styles.footer}>
+          {step < TOTAL_STEPS ? (
+            <TouchableOpacity
+              style={[styles.nextBtn, !canProceed() && styles.nextBtnDisabled]}
+              onPress={goNext}
+              disabled={!canProceed()}
+              activeOpacity={0.85}
             >
-              <SanctuaryText variant="label_lg" style={styles.nextTxt}>
-                Continue — {STEP_LABELS[step] || 'Next'}
-              </SanctuaryText>
-              <ChevronRight size={18} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.payBtn, !canProceed() && styles.nextBtnDisabled]} 
-            onPress={proceedToPayment} 
-            disabled={!canProceed()}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={canProceed() ? ['#15803D', '#16A34A'] : ['#CBD5E1', '#CBD5E1']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.nextGrad}
+              <LinearGradient
+                colors={canProceed() ? ['#1E40AF', '#2563EB'] : ['#CBD5E1', '#CBD5E1']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={styles.nextGrad}
+              >
+                <SanctuaryText variant="label_lg" style={styles.nextTxt}>
+                  Continue — {STEP_LABELS[step] || 'Next'}
+                </SanctuaryText>
+                <ChevronRight size={18} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.payBtn, !canProceed() && styles.nextBtnDisabled]} 
+              onPress={proceedToPayment} 
+              disabled={!canProceed()}
+              activeOpacity={0.85}
             >
-              <CreditCard size={20} color="#fff" />
-              <SanctuaryText variant="label_lg" style={styles.nextTxt}>
-                Confirm & Pay {selectedDoctor ? formatCurrency(selectedDoctor.consultationFee || 500) : ''}
-              </SanctuaryText>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-      </View>
+              <LinearGradient
+                colors={canProceed() ? ['#15803D', '#16A34A'] : ['#CBD5E1', '#CBD5E1']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={styles.nextGrad}
+              >
+                <CreditCard size={20} color="#fff" />
+                <SanctuaryText variant="label_lg" style={styles.nextTxt}>
+                  Confirm & Pay {selectedDoctor ? formatCurrency(selectedDoctor.consultationFee || 500) : ''}
+                </SanctuaryText>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -431,214 +677,499 @@ export default function BookAppointmentScreen() {
 // ─── STEP COMPONENTS ─────────────────────────────────────────────────────────
 
 function StepDoctor({
-  hospitals, selectedHospital, onSelectHospital,
-  doctors, loading, selected, onSelect,
-  specialties, selectedSpecialty, onSelectSpecialty,
-  search, onSearch,
-  appointmentType,
-  onTypeChange,
+  hospitals,
+  loadingHospitals,
+  selectedHospital,
+  onSelectHospital,
+  doctors,
+  loadingDoctors,
+  selectedDoctor,
+  onBookDoctor,
+  subStep,
+  slideAnim,
+  onBackToHospitals,
+  locationName,
+  isLocating,
+  onGetLocation,
+  hospitalSearch,
+  onHospitalSearch,
+  hospitalSort,
+  onHospitalSort,
+  doctorSearch,
+  onDoctorSearch,
+  specialties,
+  selectedSpecialty,
+  onSelectSpecialty,
 }: {
   hospitals: Hospital[];
+  loadingHospitals: boolean;
   selectedHospital: Hospital | null;
-  onSelectHospital: (h: Hospital | null) => void;
+  onSelectHospital: (h: Hospital) => void;
   doctors: Doctor[];
-  loading: boolean;
-  selected: Doctor | null;
-  onSelect: (d: Doctor | null) => void;
+  loadingDoctors: boolean;
+  selectedDoctor: Doctor | null;
+  onBookDoctor: (d: Doctor) => void;
+  subStep: 'hospitals' | 'doctors';
+  slideAnim: Animated.Value;
+  onBackToHospitals: () => void;
+  locationName: string;
+  isLocating: boolean;
+  onGetLocation: () => void;
+  hospitalSearch: string;
+  onHospitalSearch: (t: string) => void;
+  hospitalSort: 'nearby' | 'relevance' | 'rating' | 'name';
+  onHospitalSort: (s: 'nearby' | 'relevance' | 'rating' | 'name') => void;
+  doctorSearch: string;
+  onDoctorSearch: (t: string) => void;
   specialties: string[];
   selectedSpecialty: string;
   onSelectSpecialty: (s: string) => void;
-  search: string;
-  onSearch: (t: string) => void;
-  appointmentType: string;
-  onTypeChange: (t: string) => void;
 }) {
-  const filteredByHospital = useMemo(() => {
-    if (!selectedHospital) return doctors;
-    return doctors.filter(d => {
-      const hId = d.hospital?._id || (d.hospitals?.[0] as any)?._id;
-      return hId === selectedHospital._id;
-    });
-  }, [doctors, selectedHospital]);
-
   return (
-    <View>
-      <SanctuaryText variant="headline_sm" style={S.sectionTitle}>Find Your Doctor</SanctuaryText>
-      <SanctuaryText variant="body_sm" style={S.sectionSub}>
-        Collaborated Hospitals: {hospitals.length} centers available
-      </SanctuaryText>
-
-      {/* Hospital scroll (Collaborated with) */}
-      <View style={{ marginBottom: 20 }}>
-        <View style={S.filterHeader}>
-          <Building2 size={13} color="#64748B" />
-          <SanctuaryText variant="label_sm" style={S.filterLabel}>OUR COLLABORATED HOSPITALS</SanctuaryText>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.specialtyScroll}>
-          <TouchableOpacity
-            style={[S.specChip, !selectedHospital && S.specChipActive]}
-            onPress={() => onSelectHospital(null)}
-          >
-            <SanctuaryText variant="label_sm" style={[S.specChipTxt, !selectedHospital && { color: '#fff' }]}>
-              All Hospitals
-            </SanctuaryText>
-          </TouchableOpacity>
-          {hospitals.map((h) => (
-            <TouchableOpacity
-              key={h._id}
-              style={[S.specChip, selectedHospital?._id === h._id && S.specChipActive]}
-              onPress={() => onSelectHospital(selectedHospital?._id === h._id ? null : h)}
-            >
-              <SanctuaryText variant="label_sm" style={[S.specChipTxt, selectedHospital?._id === h._id && { color: '#fff' }]}>
-                {h.name}
+    <View style={{ width: '100%', overflow: 'hidden' }}>
+      {/* ── SCREEN 1: Hospital Discovery ── */}
+      <Animated.View
+        style={{
+          width: '100%',
+          transform: [
+            {
+              translateX: slideAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -width],
+              }),
+            },
+          ],
+          opacity: slideAnim.interpolate({
+            inputRange: [0, 0.7, 1],
+            outputRange: [1, 0.2, 0],
+          }),
+          ...(subStep === 'doctors'
+            ? { position: 'absolute', top: 0, left: 0, right: 0 }
+            : { position: 'relative' }),
+        }}
+        pointerEvents={subStep === 'hospitals' ? 'auto' : 'none'}
+      >
+        {/* User Location Bar */}
+        <View style={S.locationContainer}>
+          <View style={S.locationLeft}>
+            <MapPin size={16} color={COLORS.primary} />
+            <View style={S.locationTextWrap}>
+              <SanctuaryText variant="label_sm" style={S.locationLabel}>
+                Your Location:
               </SanctuaryText>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Appointment Type */}
-      <View style={S.typeRow}>
-        {APPOINTMENT_TYPES.map((t) => (
+              <TouchableOpacity activeOpacity={0.7} style={S.locationCityBtn} onPress={onGetLocation}>
+                {isLocating ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <SanctuaryText
+                      variant="label_md"
+                      style={S.locationCityText}
+                      numberOfLines={1}
+                    >
+                      Detecting location...
+                    </SanctuaryText>
+                  </View>
+                ) : (
+                  <>
+                    <SanctuaryText
+                      variant="label_md"
+                      style={S.locationCityText}
+                      numberOfLines={2}
+                    >
+                      {locationName}
+                    </SanctuaryText>
+                    <ChevronDown size={14} color="#64748B" />
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
           <TouchableOpacity
-            key={t.id}
-            style={[S.typeCard, appointmentType === t.id && [S.typeCardActive, { borderColor: t.color }]]}
-            onPress={() => onTypeChange(t.id)}
+            style={S.getLocationBtn}
+            onPress={onGetLocation}
+            disabled={isLocating}
             activeOpacity={0.8}
           >
-            <View style={[S.typeIcon, { backgroundColor: appointmentType === t.id ? t.color : '#F1F5F9' }]}>
-              <t.icon size={18} color={appointmentType === t.id ? '#fff' : t.color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <SanctuaryText variant="label_lg" style={[S.typeName, appointmentType === t.id && { color: t.color }]}>
-                {t.label}
-              </SanctuaryText>
-              <SanctuaryText variant="body_sm" style={S.typeDesc}>{t.desc}</SanctuaryText>
-            </View>
-            {appointmentType === t.id && <View style={[S.typeDot, { backgroundColor: t.color }]} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Specialty Filter */}
-      {specialties.length > 0 && (
-        <>
-          <View style={S.filterHeader}>
-            <Filter size={13} color="#64748B" />
-            <SanctuaryText variant="label_sm" style={S.filterLabel}>FILTER BY SPECIALTY</SanctuaryText>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.specialtyScroll}>
-            <TouchableOpacity
-              style={[S.specChip, !selectedSpecialty && S.specChipActive]}
-              onPress={() => onSelectSpecialty('')}
-            >
-              <SanctuaryText variant="label_sm" style={[S.specChipTxt, !selectedSpecialty && { color: '#fff' }]}>
-                All
-              </SanctuaryText>
-            </TouchableOpacity>
-            {specialties.map((sp) => (
-              <TouchableOpacity
-                key={sp}
-                style={[S.specChip, selectedSpecialty === sp && S.specChipActive]}
-                onPress={() => onSelectSpecialty(sp === selectedSpecialty ? '' : sp)}
-              >
-                <SanctuaryText variant="label_sm" style={[S.specChipTxt, selectedSpecialty === sp && { color: '#fff' }]}>
-                  {sp}
+            {isLocating ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <>
+                <Compass size={14} color={COLORS.primary} />
+                <SanctuaryText variant="label_sm" style={S.getLocationText}>
+                  Get Location
                 </SanctuaryText>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </>
-      )}
-
-      {/* Search */}
-      <View style={S.searchBox}>
-        <Search size={16} color="#94A3B8" />
-        <TextInput
-          style={S.searchInput}
-          placeholder="Search by name or specialty..."
-          placeholderTextColor="#94A3B8"
-          value={search}
-          onChangeText={onSearch}
-        />
-        {!!search && (
-          <TouchableOpacity onPress={() => onSearch('')}>
-            <X size={16} color="#94A3B8" />
+              </>
+            )}
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
 
-      {loading ? (
-        <View style={S.loadingBox}><ActivityIndicator color={COLORS.primary} size="large" /></View>
-      ) : filteredByHospital.length === 0 ? (
-        <View style={S.emptyCard}>
-          <Stethoscope size={36} color="#CBD5E1" />
-          <SanctuaryText variant="body_sm" style={S.emptyTxt}>
-            No doctors found {selectedSpecialty ? `for ${selectedSpecialty}` : ''}
-          </SanctuaryText>
-          {(!!selectedSpecialty || !!selectedHospital) && (
-            <TouchableOpacity onPress={() => { onSelectSpecialty(''); onSelectHospital(null); }} style={S.clearBtn}>
-              <SanctuaryText variant="label_sm" style={{ color: COLORS.primary, fontWeight: '700' }}>
-                Clear Filters
-              </SanctuaryText>
+        {/* Hospital Search */}
+        <View style={S.hospitalSearchBox}>
+          <Search size={18} color="#94A3B8" />
+          <TextInput
+            style={S.searchInput}
+            placeholder="Search hospital by name, area..."
+            placeholderTextColor="#94A3B8"
+            value={hospitalSearch}
+            onChangeText={onHospitalSearch}
+          />
+          {!!hospitalSearch && (
+            <TouchableOpacity
+              onPress={() => onHospitalSearch('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={16} color="#94A3B8" />
             </TouchableOpacity>
           )}
         </View>
-      ) : (
-        filteredByHospital.map((d) => {
-          const name = getDoctorDisplayName(d);
-          const spec = getDoctorSpecialty(d);
-          const exp = getDoctorExperience(d);
-          const isSelected = selected?._id === d._id;
-          return (
-            <TouchableOpacity
-              key={d._id}
-              style={[S.doctorCard, isSelected && S.doctorCardActive]}
-              onPress={() => onSelect(isSelected ? null : d)}
-              activeOpacity={0.8}
-            >
-              {/* Avatar */}
-              <View style={[S.avatar, isSelected && { backgroundColor: COLORS.primary }]}>
-                <SanctuaryText variant="label_lg" style={[S.avatarTxt, isSelected && { color: '#fff' }]}>
-                  {name.replace('Dr. ', '').charAt(0)}
-                </SanctuaryText>
-              </View>
 
-              <View style={S.doctorInfo}>
-                <SanctuaryText variant="label_lg" style={S.doctorName}>{name}</SanctuaryText>
-                <View style={S.specRow}>
-                  <View style={S.specPill}>
-                    <Stethoscope size={9} color={COLORS.primary} />
-                    <SanctuaryText variant="label_sm" style={S.specTxt}>{spec.toUpperCase()}</SanctuaryText>
-                  </View>
-                  {exp > 0 && (
-                    <View style={S.expPill}>
-                      <Star size={9} color="#D97706" />
-                      <SanctuaryText variant="label_sm" style={S.expTxt}>{exp}+ yrs</SanctuaryText>
-                    </View>
-                  )}
-                </View>
-                {d.hospital?.name && (
-                  <View style={S.cardSubRow}>
-                    <Building2 size={9} color="#94A3B8" />
-                    <SanctuaryText variant="body_sm" style={S.doctorHospital} numberOfLines={1}>
-                      {d.hospital.name}
-                    </SanctuaryText>
-                  </View>
+        {/* Sort Tabs — SINGLE ROW */}
+        <View style={S.sortTabsRow}>
+          <TouchableOpacity
+            style={[S.sortTab, hospitalSort === 'nearby' && S.sortTabActive]}
+            onPress={() => onHospitalSort('nearby')}
+            activeOpacity={0.8}
+          >
+            <Compass
+              size={12}
+              color={hospitalSort === 'nearby' ? '#FFFFFF' : '#64748B'}
+            />
+            <SanctuaryText
+              variant="label_sm"
+              style={[
+                S.sortTabText,
+                hospitalSort === 'nearby' && S.sortTabTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Nearby
+            </SanctuaryText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[S.sortTab, hospitalSort === 'relevance' && S.sortTabActive]}
+            onPress={() => onHospitalSort('relevance')}
+            activeOpacity={0.8}
+          >
+            <Sparkles
+              size={12}
+              color={hospitalSort === 'relevance' ? '#FFFFFF' : '#64748B'}
+            />
+            <SanctuaryText
+              variant="label_sm"
+              style={[
+                S.sortTabText,
+                hospitalSort === 'relevance' && S.sortTabTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Relevance
+            </SanctuaryText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[S.sortTab, hospitalSort === 'rating' && S.sortTabActive]}
+            onPress={() => onHospitalSort('rating')}
+            activeOpacity={0.8}
+          >
+            <Star
+              size={12}
+              color={hospitalSort === 'rating' ? '#FFFFFF' : '#64748B'}
+            />
+            <SanctuaryText
+              variant="label_sm"
+              style={[
+                S.sortTabText,
+                hospitalSort === 'rating' && S.sortTabTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Rating
+            </SanctuaryText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[S.sortTab, hospitalSort === 'name' && S.sortTabActive]}
+            onPress={() => onHospitalSort('name')}
+            activeOpacity={0.8}
+          >
+            <ArrowUpDown
+              size={12}
+              color={hospitalSort === 'name' ? '#FFFFFF' : '#64748B'}
+            />
+            <SanctuaryText
+              variant="label_sm"
+              style={[
+                S.sortTabText,
+                hospitalSort === 'name' && S.sortTabTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              Name (A-Z)
+            </SanctuaryText>
+          </TouchableOpacity>
+        </View>
+
+        {/* Hospital Cards List */}
+        {loadingHospitals ? (
+          <AttractiveDiscoveryLoader
+            type="hospitals"
+            title="Finding Trusted Hospitals"
+            subtitle="Loading your hospitals and doctors to book appointment for your favorite hospital..."
+          />
+        ) : hospitals.length === 0 ? (
+          <View style={S.emptyCard}>
+            <Building2 size={38} color="#CBD5E1" />
+            <SanctuaryText variant="headline_sm" style={{ color: '#1E293B', marginTop: 8 }}>
+              No Hospitals Found
+            </SanctuaryText>
+            <SanctuaryText variant="body_sm" style={S.emptyTxt}>
+              {hospitalSearch
+                ? `No hospitals match "${hospitalSearch}"`
+                : 'No partner hospitals available in this area.'}
+            </SanctuaryText>
+            {!!hospitalSearch && (
+              <TouchableOpacity
+                onPress={() => onHospitalSearch('')}
+                style={S.clearBtn}
+              >
+                <SanctuaryText
+                  variant="label_sm"
+                  style={{ color: COLORS.primary, fontWeight: '700' }}
+                >
+                  Clear Search
+                </SanctuaryText>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={S.hospitalsList}>
+            {hospitals.map((h) => (
+              <HospitalDiscoveryCard
+                key={h._id}
+                hospital={h}
+                distanceKm={h.distanceKm}
+                isSelected={selectedHospital?._id === h._id}
+                onSelect={() => onSelectHospital(h)}
+              />
+            ))}
+          </View>
+        )}
+      </Animated.View>
+
+      {/* ── SCREEN 2: Selected Hospital & Doctor Listing ── */}
+      <Animated.View
+        style={{
+          width: '100%',
+          transform: [
+            {
+              translateX: slideAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [width, 0],
+              }),
+            },
+          ],
+          opacity: slideAnim.interpolate({
+            inputRange: [0, 0.3, 1],
+            outputRange: [0, 0.5, 1],
+          }),
+          ...(subStep === 'hospitals'
+            ? { position: 'absolute', top: 0, left: 0, right: 0 }
+            : { position: 'relative' }),
+        }}
+        pointerEvents={subStep === 'doctors' ? 'auto' : 'none'}
+      >
+        {/* Pinned Selected Hospital Header */}
+        {selectedHospital && (
+          <View style={S.pinnedHospitalCard}>
+            <View style={S.pinnedTopRow}>
+              <View style={S.pinnedLogoBox}>
+                {selectedHospital.logo ? (
+                  <Image
+                    source={{ uri: selectedHospital.logo }}
+                    style={S.pinnedLogo}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Building2 size={22} color={COLORS.primary} />
                 )}
               </View>
-
-              <View style={S.doctorRight}>
-                <SanctuaryText variant="label_sm" style={S.feeLabel}>FEE</SanctuaryText>
-                <SanctuaryText variant="headline_sm" style={S.feeAmt}>
-                  ₹{(d.consultationFee || 500).toLocaleString('en-IN')}
+              <View style={S.pinnedInfo}>
+                <SanctuaryText
+                  variant="label_lg"
+                  style={S.pinnedName}
+                  numberOfLines={2}
+                >
+                  {selectedHospital.name}
                 </SanctuaryText>
-                {isSelected && <CheckCircle2 size={18} color={COLORS.primary} />}
+                <View style={S.pinnedRatingRow}>
+                  <Star size={12} color="#F59E0B" fill="#F59E0B" />
+                  <SanctuaryText variant="label_sm" style={S.pinnedRating}>
+                    {(selectedHospital.rating || 4.8).toFixed(1)}
+                  </SanctuaryText>
+                  <SanctuaryText variant="body_sm" style={S.pinnedDot}>
+                    •
+                  </SanctuaryText>
+                  <SanctuaryText
+                    variant="body_sm"
+                    style={S.pinnedCategory}
+                    numberOfLines={1}
+                  >
+                    {selectedHospital.city || 'Multi-Speciality'}
+                  </SanctuaryText>
+                </View>
               </View>
+              <TouchableOpacity
+                style={S.changeHospitalBtn}
+                onPress={onBackToHospitals}
+                activeOpacity={0.7}
+              >
+                <SanctuaryText variant="label_sm" style={S.changeHospitalText}>
+                  Change
+                </SanctuaryText>
+              </TouchableOpacity>
+            </View>
+
+            {selectedHospital.address && (
+              <View style={S.pinnedAddressRow}>
+                <MapPin size={12} color="#64748B" style={{ marginTop: 2 }} />
+                <SanctuaryText
+                  variant="body_sm"
+                  style={S.pinnedAddress}
+                  numberOfLines={2}
+                >
+                  {selectedHospital.address}
+                </SanctuaryText>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Section Header */}
+        <View style={S.doctorsSectionHeader}>
+          <SanctuaryText variant="headline_sm" style={S.doctorsTitle}>
+            Our Doctors
+          </SanctuaryText>
+          <SanctuaryText variant="body_sm" style={S.doctorsSubtitle}>
+            {doctors.length} qualified specialists available
+          </SanctuaryText>
+        </View>
+
+        {/* Doctor Search */}
+        <View style={S.doctorSearchBox}>
+          <Search size={16} color="#94A3B8" />
+          <TextInput
+            style={S.searchInput}
+            placeholder="Search doctor by name or specialty..."
+            placeholderTextColor="#94A3B8"
+            value={doctorSearch}
+            onChangeText={onDoctorSearch}
+          />
+          {!!doctorSearch && (
+            <TouchableOpacity
+              onPress={() => onDoctorSearch('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={16} color="#94A3B8" />
             </TouchableOpacity>
-          );
-        })
-      )}
+          )}
+        </View>
+
+        {/* Horizontal Specialty Chips */}
+        {specialties.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={S.specialtyScroll}
+            contentContainerStyle={S.specialtyScrollContent}
+          >
+            <TouchableOpacity
+              style={[S.specialtyChip, !selectedSpecialty && S.specialtyChipActive]}
+              onPress={() => onSelectSpecialty('')}
+              activeOpacity={0.8}
+            >
+              <SanctuaryText
+                variant="label_sm"
+                style={[
+                  S.specialtyChipText,
+                  !selectedSpecialty && S.specialtyChipTextActive,
+                ]}
+              >
+                All
+              </SanctuaryText>
+            </TouchableOpacity>
+            {specialties.map((sp) => {
+              const active = selectedSpecialty.toLowerCase() === sp.toLowerCase();
+              return (
+                <TouchableOpacity
+                  key={sp}
+                  style={[S.specialtyChip, active && S.specialtyChipActive]}
+                  onPress={() => onSelectSpecialty(active ? '' : sp)}
+                  activeOpacity={0.8}
+                >
+                  <SanctuaryText
+                    variant="label_sm"
+                    style={[
+                      S.specialtyChipText,
+                      active && S.specialtyChipTextActive,
+                    ]}
+                  >
+                    {sp}
+                  </SanctuaryText>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Doctor Cards List */}
+        {loadingDoctors ? (
+          <AttractiveDiscoveryLoader
+            type="doctors"
+            title="Finding Specialist Doctors"
+            subtitle="Loading your doctors and available consultation schedules for your favorite hospital..."
+          />
+        ) : doctors.length === 0 ? (
+          <View style={S.emptyCard}>
+            <Stethoscope size={38} color="#CBD5E1" />
+            <SanctuaryText variant="headline_sm" style={{ color: '#1E293B', marginTop: 8 }}>
+              No Doctors Available
+            </SanctuaryText>
+            <SanctuaryText variant="body_sm" style={S.emptyTxt}>
+              {doctorSearch || selectedSpecialty
+                ? 'No doctors found matching your search or specialty filter.'
+                : 'No doctors are currently listed for this hospital.'}
+            </SanctuaryText>
+            {(!!doctorSearch || !!selectedSpecialty) && (
+              <TouchableOpacity
+                onPress={() => {
+                  onDoctorSearch('');
+                  onSelectSpecialty('');
+                }}
+                style={S.clearBtn}
+              >
+                <SanctuaryText
+                  variant="label_sm"
+                  style={{ color: COLORS.primary, fontWeight: '700' }}
+                >
+                  Clear Filters
+                </SanctuaryText>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={S.doctorsList}>
+            {doctors.map((d) => (
+              <DoctorDiscoveryCard
+                key={d._id}
+                doctor={d}
+                isSelected={selectedDoctor?._id === d._id}
+                onBook={() => onBookDoctor(d)}
+              />
+            ))}
+          </View>
+        )}
+      </Animated.View>
     </View>
   );
 }
@@ -1048,6 +1579,268 @@ const S = StyleSheet.create({
   emptyCard: { alignItems: 'center', padding: 24, backgroundColor: '#fff', borderRadius: 14, gap: 8 },
   emptyTxt: { color: '#94A3B8', fontWeight: '600', textAlign: 'center', fontSize: 12 },
   clearBtn: { marginTop: 4, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#EAF1FF', borderRadius: 10 },
+
+  // Location bar
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  locationLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  locationTextWrap: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 9.5,
+    color: '#64748B',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  locationCityBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
+  locationCityText: {
+    fontSize: 12.5,
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  getLocationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  getLocationText: {
+    fontSize: 11,
+    color: '#2563EB',
+    fontWeight: '800',
+  },
+
+  // Hospital search & sort
+  hospitalSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 46,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+    gap: 8,
+  },
+  sortTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 5,
+    marginBottom: 16,
+    width: '100%',
+  },
+  sortTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: 2,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  sortTabActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  sortTabText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  sortTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  hospitalsList: {
+    paddingBottom: 20,
+  },
+
+  // Pinned Selected Hospital Header (Screen 2)
+  pinnedHospitalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  pinnedTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pinnedLogoBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  pinnedLogo: {
+    width: 44,
+    height: 44,
+  },
+  pinnedInfo: {
+    flex: 1,
+  },
+  pinnedName: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    lineHeight: 19,
+  },
+  pinnedRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  pinnedRating: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  pinnedDot: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  pinnedCategory: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  changeHospitalBtn: {
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    marginTop: 2,
+  },
+  changeHospitalText: {
+    fontSize: 11,
+    color: '#2563EB',
+    fontWeight: '800',
+  },
+  pinnedAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  pinnedAddress: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#64748B',
+    flex: 1,
+  },
+
+  // Doctors Section in Screen 2
+  doctorsSectionHeader: {
+    marginBottom: 12,
+  },
+  doctorsTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  doctorsSubtitle: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  doctorSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 46,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+    gap: 8,
+  },
+  specialtyScrollContent: {
+    gap: 6,
+    paddingBottom: 2,
+  },
+  specialtyChip: {
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 6,
+  },
+  specialtyChipActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  specialtyChipText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  specialtyChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  doctorsList: {
+    paddingBottom: 20,
+  },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12,

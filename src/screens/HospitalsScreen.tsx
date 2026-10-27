@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Image,
   Platform,
+  StatusBar,
 } from 'react-native';
 import {
   Text,
@@ -47,6 +48,10 @@ export default function HospitalsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const dynamicTopPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 44
+  ) + 8;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hospitals, setHospitals] = useState<HospitalData[]>([]);
@@ -102,7 +107,7 @@ export default function HospitalsScreen() {
   return (
     <View style={styles.container}>
       {/* Compact Header */}
-      <Surface style={[styles.header, { paddingTop: Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 44) : 8 }]} elevation={0}>
+      <Surface style={[styles.header, { paddingTop: dynamicTopPadding }]} elevation={0}>
         <View style={styles.headerContent}>
           <TouchableOpacity 
             onPress={() => navigation.goBack()} 

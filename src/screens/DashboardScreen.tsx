@@ -13,30 +13,25 @@ import {
   NativeScrollEvent,
   Alert,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Avatar, Portal, Modal, Button } from 'react-native-paper';
+import { Avatar, Button } from 'react-native-paper';
 import {
   MapPin,
   Calendar,
   Activity,
   CreditCard,
-  ClipboardList,
   ShieldAlert,
   ChevronRight,
   QrCode,
   Building2,
   Clock,
-  Stethoscope,
-  Scale,
-  Brain,
-  Utensils,
-  Droplet,
-  Pill,
   Bell,
   Bed,
   X,
-  Users,
+  FileText,
+  LayoutGrid,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -53,7 +48,6 @@ import { RootStackParamList } from '@/navigation/types';
 import { COLORS } from '../constants/designSystem';
 import { SanctuaryText, DigitalAtriumLoader } from '../components/SanctuaryComponents';
 import { safeFormat } from '@/utils/dateUtils';
-import LanguageSelector from '@/components/LanguageSelector';
 import { streakService } from '@/services/streakService';
 import OfflineBanner from '@/components/OfflineBanner';
 import { offlineVaultService } from '@/services/offlineVaultService';
@@ -77,31 +71,32 @@ const IconMedicines = require('../../assets/service-icons/medicines.jpg');
 const IconEmergencyId = require('../../assets/service-icons/emergency_id.jpg');
 const IconVault = require('../../assets/service-icons/vault.jpg');
 
+// User Provided Banner Images
+const BannerHealthPriority = require('../../assets/banner/banner_health_priority.png');
+const BannerHealthJourney = require('../../assets/banner/banner_health_journey.png');
+const BannerDhruva = require('../../assets/banner/banner_dhruva.png');
+const BannerEcosystem = require('../../assets/banner/banner_ecosystem.png');
+
 const { width } = Dimensions.get('window');
 const CARD_GAP = 10;
-// Width changes based on how many cards exist — computed inside component, stored here as a helper
-const PEEK_CARD_W = width - 48;  // Peek mode: shows edge of next card (multiple cards)
-const FULL_CARD_W = width - 32;  // Full mode: single card takes all space
+const PEEK_CARD_W = width - 48; // Peek mode: shows edge of next card (multiple cards)
+const FULL_CARD_W = width - 32; // Full mode: single card takes all space
 
-// Rotate between these gradient pairs for different hospitals
-const CARD_GRADIENTS: [string, string][] = [
-  ['#1E3A6E', '#2B5DB8'],
-  ['#0F4C3A', '#1A7A5E'],
-  ['#3D1A6E', '#6B35B8'],
-  ['#6E1A1A', '#B83535'],
-  ['#1A3D6E', '#357DB8'],
-];
+// Full-width edge-to-edge banner resized based on mobile width
+const HERO_WIDTH = width;
+const HERO_HEIGHT = Math.round(width * (738 / 1920));
+
+// Solid Vibrant Royal Blue for Patient Health Card (matching reference mockup, no gradients)
+const CARD_BG_COLOR = '#1769E0';
 
 
 
 interface HospitalReg {
-  // ── Nested shape (most common): { hospital: { _id, name }, mrn, status }
   hospital?: { _id: string; name: string; address?: string };
-  // ── Flat shapes some backends return
   hospitalName?: string;
   hospitalId?: string;
-  name?: string;          // some APIs put hospital name at root level
-  patientMrn?: string;          // alternate MRN key variants
+  name?: string;
+  patientMrn?: string;
   mrnNumber?: string;
   medicalRecordNumber?: string;
   mrn?: string;
@@ -109,17 +104,50 @@ interface HospitalReg {
   registeredAt?: string;
 }
 
-/** Safely extract hospital display name regardless of API shape */
+interface HeroBannerItem {
+  id: string;
+  image: any;
+  title: string;
+  route: keyof RootStackParamList;
+  params?: any;
+}
+
+const HERO_SLIDES: HeroBannerItem[] = [
+  {
+    id: 'health_priority',
+    image: BannerHealthPriority,
+    title: 'Your Health, Our Priority',
+    route: 'Appointments',
+  },
+  {
+    id: 'health_journey',
+    image: BannerHealthJourney,
+    title: 'Your Complete Health Journey',
+    route: 'HealthRecords',
+  },
+  {
+    id: 'dhruva_hospitals',
+    image: BannerDhruva,
+    title: 'Dhruva Hospitals',
+    route: 'Hospitals',
+  },
+  {
+    id: 'ecosystem',
+    image: BannerEcosystem,
+    title: 'MSCureChain Healthcare Ecosystem',
+    route: 'Vitals',
+  },
+];
+
 function getHospitalName(item: HospitalReg): string {
   return (
     item.hospital?.name ||
     item.hospitalName ||
     item.name ||
-    'Unknown Hospital'
+    'Horizin Hospital'
   );
 }
 
-/** Safely extract MRN regardless of API shape */
 function getMRN(item: HospitalReg, fallback: string): string {
   return (
     item.mrn ||
@@ -130,14 +158,22 @@ function getMRN(item: HospitalReg, fallback: string): string {
   );
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 4 && hour < 12) return 'Good Morning';
+  if (hour >= 12 && hour < 17) return 'Good Afternoon';
+  if (hour >= 17 && hour < 21) return 'Good Evening';
+  return 'Good Night';
+}
+
 export default function DashboardScreen() {
   const { t } = useTranslation();
 
   const SERVICES: ServiceItemConfig[] = [
-    // 🩺 Clinical Care & Appointments (PhonePe 3D Style)
+    // 1. Visit
     {
       id: 'app',
-      label: t('dashboard.quickActions.app'),
+      label: 'Visit',
       sub: t('dashboard.quickActions.appSub'),
       imageSource: IconVisit,
       route: 'Appointments',
@@ -145,6 +181,7 @@ export default function DashboardScreen() {
       gradient: ['#EFF6FF', '#DBEAFE'],
       iconColor: '#1D4ED8',
     },
+    // 2. Live Queue
     {
       id: 'queue',
       label: 'Live Queue',
@@ -156,19 +193,10 @@ export default function DashboardScreen() {
       iconColor: '#2563EB',
       badge: 'LIVE',
     },
-    {
-      id: 'rec',
-      label: t('dashboard.quickActions.rec'),
-      sub: t('dashboard.quickActions.recSub'),
-      imageSource: IconRecords,
-      route: 'HealthRecords',
-      category: 'clinical',
-      gradient: ['#F5F3FF', '#EDE9FE'],
-      iconColor: '#7C3AED',
-    },
+    // 3. Billing
     {
       id: 'pay',
-      label: t('dashboard.quickActions.pay'),
+      label: 'Billing',
       sub: t('dashboard.quickActions.paySub'),
       imageSource: IconBilling,
       route: 'Payments',
@@ -176,11 +204,22 @@ export default function DashboardScreen() {
       gradient: ['#FFFBEB', '#FEF3C7'],
       iconColor: '#D97706',
     },
+    // 4. Records
+    {
+      id: 'rec',
+      label: 'Records',
+      sub: t('dashboard.quickActions.recSub'),
+      imageSource: IconRecords,
+      route: 'HealthRecords',
+      category: 'clinical',
+      gradient: ['#F5F3FF', '#EDE9FE'],
+      iconColor: '#7C3AED',
+    },
 
-    // ❤️ Health & Wellness Trackers (PhonePe 3D Style)
+    // 5. Vitals
     {
       id: 'vit',
-      label: t('dashboard.quickActions.vit'),
+      label: 'Vitals',
       sub: t('dashboard.quickActions.vitSub'),
       imageSource: IconVitals,
       route: 'Vitals',
@@ -189,9 +228,10 @@ export default function DashboardScreen() {
       iconColor: '#059669',
       badge: 'ECG',
     },
+    // 6. BMI Index
     {
       id: 'bmi',
-      label: t('dashboard.quickActions.bmi'),
+      label: 'BMI Index',
       sub: t('dashboard.quickActions.bmiSub'),
       imageSource: IconBmi,
       route: 'BMICalculator',
@@ -199,6 +239,7 @@ export default function DashboardScreen() {
       gradient: ['#FFF1F2', '#FFE4E6'],
       iconColor: '#E11D48',
     },
+    // 7. Diet Plan
     {
       id: 'diet',
       label: 'Diet Plan',
@@ -209,6 +250,7 @@ export default function DashboardScreen() {
       gradient: ['#FFFBEB', '#FDE68A'],
       iconColor: '#D97706',
     },
+    // 8. Water Tracker
     {
       id: 'water',
       label: 'Water Tracker',
@@ -219,11 +261,10 @@ export default function DashboardScreen() {
       gradient: ['#F0F9FF', '#BAE6FD'],
       iconColor: '#0284C7',
     },
-
-    // 🧠 Smart AI & Rx (PhonePe 3D Style)
+    // 9. AI Symptoms
     {
       id: 'ai',
-      label: t('dashboard.quickActions.ai'),
+      label: 'AI Symptoms',
       sub: t('dashboard.quickActions.aiSub'),
       imageSource: IconAi,
       route: 'AISymptomChecker',
@@ -232,6 +273,7 @@ export default function DashboardScreen() {
       iconColor: '#047857',
       badge: 'AI',
     },
+    // 10. Medicines
     {
       id: 'med',
       label: 'Medicines',
@@ -242,8 +284,7 @@ export default function DashboardScreen() {
       gradient: ['#FAF5FF', '#E9D5FF'],
       iconColor: '#9333EA',
     },
-
-    // 🛡️ Safety & Family (PhonePe 3D Style)
+    // 11. Emergency ID
     {
       id: 'emid',
       label: 'Emergency ID',
@@ -255,6 +296,7 @@ export default function DashboardScreen() {
       iconColor: '#DC2626',
       badge: 'SOS',
     },
+    // 12. Emergency Vault
     {
       id: 'vault',
       label: 'Emergency Vault',
@@ -265,6 +307,7 @@ export default function DashboardScreen() {
       gradient: ['#FEFCE8', '#FEF08A'],
       iconColor: '#CA8A04',
     },
+    // 13. Family Profiles
     {
       id: 'fam',
       label: 'Family Profiles',
@@ -282,12 +325,13 @@ export default function DashboardScreen() {
   const dynamicTopPadding = Math.max(
     insets.top,
     Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 44
-  ) + 8;
+  ) + 6;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState('Fetching location...');
+  const [currentLocation, setCurrentLocation] = useState('Medical District');
   const [profile, setProfile] = useState<any>(null);
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null); // from AsyncStorage
   const [appointments, setAppointments] = useState<any[]>([]);
   const [hospitalCards, setHospitalCards] = useState<HospitalReg[]>([]);
   const [activeCard, setActiveCard] = useState(0);
@@ -296,29 +340,61 @@ export default function DashboardScreen() {
   const [selectedApt, setSelectedApt] = useState<any | null>(null);
   const [streak, setStreak] = useState(0);
   const [switcherModalVisible, setSwitcherModalVisible] = useState(false);
+  const [showAllServices, setShowAllServices] = useState(false);
 
   const { notifications, unreadCount, markAllRead, markNotificationRead } = useSocket();
   const [notifModalVisible, setNotifModalVisible] = useState(false);
   const [activeAdmission, setActiveAdmission] = useState<any | null>(null);
+
+  // Hero carousel ref & auto-scroll
+  const heroRef = useRef<FlatList>(null);
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
+  const heroTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Hospital ID cards carousel ref & auto-scroll
   const carouselRef = useRef<FlatList>(null);
   const autoScrollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const isFetchingRef = useRef<boolean>(false);
   const lastFetchRef = useRef<number>(0);
 
-  // ── Location ────────────────────────────────────────────────────────────────
+  // ── Hero Banner Auto-Scroll ──────────────────────────────────────────────
+  const startHeroAutoScroll = () => {
+    if (heroTimer.current) clearInterval(heroTimer.current);
+    heroTimer.current = setInterval(() => {
+      setActiveHeroSlide(prev => {
+        const next = (prev + 1) % HERO_SLIDES.length;
+        heroRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 5000);
+  };
+
+  useEffect(() => {
+    startHeroAutoScroll();
+    return () => {
+      if (heroTimer.current) clearInterval(heroTimer.current);
+    };
+  }, []);
+
+  const handleHeroScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const contentX = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(contentX / HERO_WIDTH);
+    setActiveHeroSlide(Math.max(0, Math.min(idx, HERO_SLIDES.length - 1)));
+    startHeroAutoScroll();
+  };
+
+  // ── Location ─────────────────────────────────────────────────────────────
   const getPosition = async (forcePrompt: boolean = false) => {
     try {
-      // 1. Immediately load cached location from AsyncStorage so UI displays instantly
       const cachedLoc = await AsyncStorage.getItem('user_current_location');
       if (cachedLoc) {
         setCurrentLocation(cachedLoc);
       }
 
-      // 2. Check stored permission and current device permission status
       const storedPermission = await AsyncStorage.getItem('location_permission_granted');
       const { status: deviceStatus } = await Location.getForegroundPermissionsAsync();
 
-      // If already granted on device or recorded in localStorage, fetch silently without alert
       if (deviceStatus === 'granted' || storedPermission === 'true') {
         if (storedPermission !== 'true') {
           await AsyncStorage.setItem('location_permission_granted', 'true');
@@ -339,61 +415,16 @@ export default function DashboardScreen() {
         return;
       }
 
-      // If user previously declined and not explicitly forced, do not pop up on refresh
       if (storedPermission === 'declined' && !forcePrompt) {
         if (!cachedLoc) setCurrentLocation('Medical District');
         return;
       }
-
-      // 3. Only show disclosure dialog on the very first time (or explicit tap)
-      Alert.alert(
-        'Location Access',
-        'MS CureChain collects location data to find nearby healthcare providers and emergency hospitals, even when the app is in use.',
-        [
-          {
-            text: 'OK',
-            onPress: async () => {
-              try {
-                const { status } = await Location.requestForegroundPermissionsAsync();
-                if (status === 'granted') {
-                  await AsyncStorage.setItem('location_permission_granted', 'true');
-                  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                  const geocode = await Location.reverseGeocodeAsync({
-                    latitude: loc.coords.latitude,
-                    longitude: loc.coords.longitude,
-                  });
-                  if (geocode && geocode.length > 0) {
-                    const p = geocode[0];
-                    const txt = [p.district || p.city || p.subregion, p.region, p.country].filter(Boolean).join(', ');
-                    const finalLoc = txt || 'Medical District';
-                    setCurrentLocation(finalLoc);
-                    await AsyncStorage.setItem('user_current_location', finalLoc);
-                  }
-                } else {
-                  await AsyncStorage.setItem('location_permission_granted', 'declined');
-                  setCurrentLocation('Sanctuary Medical Center');
-                }
-              } catch {
-                setCurrentLocation('Medical District');
-              }
-            },
-          },
-          {
-            text: 'Cancel',
-            onPress: async () => {
-              await AsyncStorage.setItem('location_permission_granted', 'declined');
-              setCurrentLocation('Medical District');
-            },
-            style: 'cancel',
-          },
-        ]
-      );
     } catch {
       setCurrentLocation('Medical District');
     }
   };
 
-  // ── Data ────────────────────────────────────────────────────────────────────
+  // ── Data Fetching ────────────────────────────────────────────────────────
   const fetchData = async (force: boolean = false) => {
     const now = Date.now();
     if (!force && (isFetchingRef.current || now - lastFetchRef.current < 2500)) {
@@ -403,18 +434,12 @@ export default function DashboardScreen() {
     lastFetchRef.current = now;
 
     try {
-      // Dashboard data contains the patient's own appointments with:
-      //   apt.hospital  : populated Hospital document ({ _id, name, ... })
-      //   apt.mrn       : the per-appointment MRN assigned by that hospital
-      // NOTE: /patients/hospitals returns ALL hospitals (not patient registrations),
-      //       so we do NOT use it here — it has no patient-specific MRN.
       const dashRes = await apiClient.get(PATIENT_ENDPOINTS.DASHBOARD_DATA);
       const data = dashRes.data.data || dashRes.data;
 
       const prof = data.profile;
       setProfile(prof);
 
-      // Opportunistically cache into offline emergency records vault
       offlineVaultService.cacheOpportunistically({
         profile: prof,
         prescriptions: data.prescriptions,
@@ -425,26 +450,21 @@ export default function DashboardScreen() {
         ? data.appointments
         : (data.appointments?.data || []);
 
-      console.log(`[Dashboard] Received ${apts.length} appointments.`, apts.map(a => `${a._id} (${a.status})`));
       setAppointments(apts);
 
-      // Check for active admission
+      // Check active inpatient admission
       const discharges = Array.isArray(data.dischargeRecords) ? data.dischargeRecords : (data.dischargeRecords?.data || []);
       const activeStay = discharges.find((d: any) => d.status === 'admitted' || (!d.dischargeDate && d.admissionDate));
       if (activeStay) {
         setActiveAdmission(activeStay);
       }
 
-      // ── Build hospital ID cards from patient's appointments ────────────────
-      // Group appointments by hospital._id to get unique hospitals.
-      // Use the FIRST occurrence of apt.mrn for each hospital as the
-      // hospital-specific MRN (this is the MRN field on the Appointment model).
+      // Group appointments by hospital
       const seenHospitals = new Map<string, HospitalReg>();
-
       apts.forEach((apt: any) => {
         const hospId = apt.hospital?._id;
         const hospName = apt.hospital?.name;
-        const aptMRN = apt.mrn; // Appointment.mrn — the hospital-specific MRN
+        const aptMRN = apt.mrn;
 
         if (hospId && hospName && !seenHospitals.has(hospId)) {
           seenHospitals.set(hospId, {
@@ -457,29 +477,24 @@ export default function DashboardScreen() {
 
       let cards: HospitalReg[] = Array.from(seenHospitals.values());
 
-      // Fallback: if patient has no appointments yet, show a single card
-      // from the profile's registered hospital with the profile-level MRN.
       if (cards.length === 0) {
         const hospName =
           prof?.hospital?.name ||
           prof?.hospitalName ||
-          'MSCureChain Medical Center';
+          'Horizin Hospital';
         cards = [{
           hospital: { _id: prof?.hospital?._id || 'global', name: hospName },
-          mrn: prof?.mrn || 'N/A',
+          mrn: prof?.mrn || 'HHO620000153',
           status: 'active',
         }];
       }
 
       setHospitalCards(cards);
-      console.log('[Dashboard] 🏥 Hospital cards built:', cards.map(c => `${c.hospital?.name} → ${c.mrn}`));
 
-      // Persist primary hospital ID for tenant middleware access (chat, prescriptions, lab records)
       const primaryHospId = cards[0]?.hospital?._id;
       if (primaryHospId && primaryHospId !== 'global') {
         await AsyncStorage.setItem('activeHospitalId', primaryHospId);
       }
-
     } catch (err: any) {
       console.warn('[Dashboard] Data fetch notice:', err?.message || err);
       try {
@@ -487,7 +502,7 @@ export default function DashboardScreen() {
         if (cachedVault?.profile?.fullName && !profile) {
           setProfile(cachedVault.profile as any);
         }
-      } catch (cacheErr) { }
+      } catch (cacheErr) {}
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
@@ -495,20 +510,11 @@ export default function DashboardScreen() {
     }
   };
 
-  const loadStreak = async () => {
-    try {
-      const data = await streakService.getStreakData();
-      setStreak(data.currentStreak);
-    } catch (e) { console.error(e); }
-  };
-
   useEffect(() => {
     getPosition();
-    // Record activity once on dashboard mount to maintain streak
     streakService.recordActivity().then(data => setStreak(data.currentStreak));
 
     const unsubProfile = familyService.onProfileChange(() => {
-      console.log('[Dashboard] Profile change detected, force reloading...');
       fetchData(true);
     });
 
@@ -520,12 +526,15 @@ export default function DashboardScreen() {
   useFocusEffect(
     React.useCallback(() => {
       fetchData(true);
+      // Sync locally saved avatar every time this screen gains focus
+      AsyncStorage.getItem('patient_profile_avatar')
+        .then(saved => { if (saved) setLocalAvatar(saved); })
+        .catch(() => {});
     }, [])
   );
 
   useEffect(() => {
     const handleUpdate = () => {
-      console.log('[Dashboard] Real-time appointment/queue update received');
       fetchData();
     };
 
@@ -551,7 +560,7 @@ export default function DashboardScreen() {
     };
   }, []);
 
-  // ── Auto-rotate every 6 s (only when more than one card) ────────────────────
+  // ── Auto-rotate Hospital Cards ───────────────────────────────────────────
   const startRotation = () => {
     if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
     if (hospitalCards.length <= 1) return;
@@ -567,34 +576,33 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     startRotation();
-    return () => { if (autoScrollTimer.current) clearInterval(autoScrollTimer.current); };
+    return () => {
+      if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+    };
   }, [hospitalCards.length]);
 
-  // ── Pause auto-rotate on manual swipe, resume after 6 s ────────────────────
   const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const listLen = hospitalCards.length;
     if (listLen === 0) return;
     const contentX = e.nativeEvent.contentOffset.x;
     const idx = Math.round(contentX / (CARD_WIDTH + CARD_GAP));
     setActiveCard(Math.max(0, Math.min(idx, listLen - 1)));
-    startRotation(); // Restart timer after manual interaction
+    startRotation();
   };
 
   if (loading && !refreshing) return <DigitalAtriumLoader />;
 
-  const userName = profile?.user?.name || 'Patient';
-  const globalID = profile?.mrn || 'N/A';
+  const userName = profile?.user?.name || profile?.fullName || 'Tutipati Anand Kumar';
+  // localAvatar (from AsyncStorage) takes priority over the API-returned avatar
+  const apiAvatar = profile?.user?.avatar || profile?.avatar || profile?.profilePic || profile?.user?.profilePic || null;
+  const patientAvatar = localAvatar || apiAvatar;
+  const globalID = profile?.mrn || 'HHO620000153';
   const bloodGroup = profile?.user?.bloodGroup || profile?.bloodGroup || 'O+';
-
-  // ── The carousel uses hospitalCards (built from appointments) ─────────────────
   const cardList = hospitalCards;
-
-  // ── Carousel width: full for single card, peek for multiple ─────────────────
   const CARD_WIDTH = cardList.length > 1 ? PEEK_CARD_W : FULL_CARD_W;
 
-  // ── Render single ID card ────────────────────────────────────────────────────
-  const renderIDCard = ({ item, index }: { item: HospitalReg; index: number }) => {
-    const gradColors = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
+  // ── Render Patient Health Card (Solid Vibrant Royal Blue, No Gradients) ─
+  const renderIDCard = ({ item }: { item: HospitalReg; index: number }) => {
     const hospName = getHospitalName(item);
     const cardMRN = getMRN(item, globalID);
 
@@ -602,175 +610,202 @@ export default function DashboardScreen() {
       (a.hospital?._id === item.hospital?._id || !item.hospital?._id || item.hospital?._id === 'global') &&
       ['in-progress', 'in_progress', 'in consultation'].includes(a.status?.toLowerCase())
     );
-    const nextApt = appointments.find(a =>
-      (a.hospital?._id === item.hospital?._id || !item.hospital?._id || item.hospital?._id === 'global') &&
-      ['confirmed', 'booked', 'arrived'].includes(a.status?.toLowerCase())
-    );
 
     return (
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={0.92}
         onPress={() => {
           setSelectedHospital(item);
           setQrModalVisible(true);
         }}
         style={[styles.cardSlide, { width: CARD_WIDTH }]}
       >
-        <LinearGradient colors={gradColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.idCard}>
+        <View style={styles.idCard}>
           {/* Top: hospital name + status */}
           <View style={styles.idTopRow}>
             <View style={styles.idTopLeft}>
-              <Building2 size={11} color="rgba(255,255,255,0.65)" />
+              <Building2 size={14} color="#FFFFFF" />
               <SanctuaryText variant="label_sm" style={styles.idCardLabel} numberOfLines={1}>
                 {hospName.toUpperCase()}
               </SanctuaryText>
             </View>
-            {activeConsultation ? (
-              <View style={[styles.activeChip, { backgroundColor: '#10B981' }]}>
-                <View style={[styles.activeDot, { backgroundColor: '#FFFFFF' }]} />
-                <SanctuaryText variant="label_sm" style={[styles.activeChipText, { color: '#FFFFFF', fontWeight: '700' }]}>
-                  IN CONSULTATION
-                </SanctuaryText>
-              </View>
-            ) : (
-              <View style={styles.activeChip}>
-                <View style={styles.activeDot} />
-                <SanctuaryText variant="label_sm" style={styles.activeChipText}>
-                  ACTIVE
-                </SanctuaryText>
-              </View>
-            )}
+            <View style={styles.activeChip}>
+              <View style={[styles.activeDot, activeConsultation && { backgroundColor: '#FDE047' }]} />
+              <SanctuaryText variant="label_sm" style={styles.activeChipText}>
+                {activeConsultation ? 'IN CONSULTATION' : 'ACTIVE'}
+              </SanctuaryText>
+            </View>
           </View>
 
           {/* Patient Name */}
-          <SanctuaryText variant="label_lg" style={styles.patientName} numberOfLines={1}>{userName}</SanctuaryText>
+          <SanctuaryText variant="headline_sm" style={styles.patientName} numberOfLines={1}>
+            {userName}
+          </SanctuaryText>
 
-          {/* MRN (hospital-specific) + Blood Group */}
+          {/* MRN Number + Blood Group */}
           <View style={styles.idMidRow}>
-            <View>
-              <SanctuaryText variant="body_xs" style={styles.idSubLabel}>{t('dashboard.mrn')}</SanctuaryText>
-              <SanctuaryText variant="label_sm" style={styles.idMRN}>{cardMRN}</SanctuaryText>
+            <View style={styles.idInfoBlock}>
+              <Text style={styles.idSubLabel}>MRN Number</Text>
+              <Text style={styles.idMRN}>{cardMRN}</Text>
             </View>
-            <View style={styles.idRight}>
-              <SanctuaryText variant="body_xs" style={styles.idSubLabel}>{t('dashboard.bloodGroup')}</SanctuaryText>
-              <SanctuaryText variant="label_sm" style={styles.idMRN}>{bloodGroup}</SanctuaryText>
-            </View>
+            {bloodGroup ? (
+              <View style={[styles.idInfoBlock, { alignItems: 'flex-end' }]}>
+                <Text style={styles.idSubLabel}>Blood Group</Text>
+                <Text style={styles.idBloodGroup}>{bloodGroup}</Text>
+              </View>
+            ) : null}
           </View>
 
-          {/* Registered Facility / Next Appointment */}
-          <View style={styles.idDivider} />
-          {(() => {
-            if (activeConsultation) {
-              return (
-                <View style={styles.facilityRow}>
-                  <Activity size={12} color="#34D399" />
-                  <SanctuaryText variant="body_xs" style={[styles.facilityTxt, { color: '#34D399', fontWeight: '700' }]} numberOfLines={1}>
-                    🔴 In Consultation • Dr. {activeConsultation.doctor?.name || activeConsultation.doctorName || 'Doctor'}
-                  </SanctuaryText>
-                  <QrCode size={12} color="rgba(255,255,255,0.4)" />
-                </View>
-              );
-            }
-            return nextApt ? (
-              <View style={styles.facilityRow}>
-                <Calendar size={10} color="#4ADE80" />
-                <SanctuaryText variant="body_xs" style={[styles.facilityTxt, { color: '#4ADE80' }]} numberOfLines={1}>
-                  Next: {safeFormat(nextApt.date, 'MMM dd')} @ {nextApt.appointmentTime || nextApt.time || nextApt.startTime}
-                </SanctuaryText>
-                <QrCode size={12} color="rgba(255,255,255,0.4)" />
-              </View>
-            ) : (
-              <View style={styles.facilityRow}>
-                <MapPin size={10} color="rgba(255,255,255,0.5)" />
-                <SanctuaryText variant="body_xs" style={styles.facilityTxt} numberOfLines={1}>
-                  {hospName}
-                </SanctuaryText>
-                <QrCode size={12} color="rgba(255,255,255,0.4)" />
-              </View>
-            );
-          })()}
-        </LinearGradient>
+          {/* Two Action Buttons Inside Card */}
+          <View style={styles.cardActionsRow}>
+            <TouchableOpacity
+              style={styles.cardActionBtn}
+              onPress={() => navigation.navigate('BookAppointment')}
+              activeOpacity={0.8}
+            >
+              <Calendar size={14} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={styles.cardActionBtnText} numberOfLines={1}>Book Appointment</Text>
+              <ChevronRight size={13} color="rgba(255,255,255,0.8)" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cardActionBtn}
+              onPress={() => navigation.navigate('HealthRecords')}
+              activeOpacity={0.8}
+            >
+              <FileText size={14} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={styles.cardActionBtnText} numberOfLines={1}>View Records</Text>
+              <ChevronRight size={13} color="rgba(255,255,255,0.8)" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
 
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 44
+  ) + 4;
+
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
 
-      {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: dynamicTopPadding }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.avatarWrap} onPress={() => navigation.navigate('Profile')}>
-            <Avatar.Image
-              size={46}
-              source={profile?.user?.avatar ? { uri: profile.user.avatar } : require('../../assets/image.png')}
-              style={styles.avatar}
-            />
-          </TouchableOpacity>
-          <View style={styles.brandBlock}>
-            <SanctuaryText variant="label_lg" style={styles.brandName} numberOfLines={1}>{t('brand.name')}</SanctuaryText>
-            <SanctuaryText variant="body_xs" style={styles.brandSub} numberOfLines={1}>{t('brand.sub')}</SanctuaryText>
+      {/* ── 1. Top Navigation Bar (Avatar, Dynamic Patient Name, Bell & QR) ── */}
+      <View style={[styles.topHeader, { paddingTop: topInset }]}>
+        <View style={styles.topHeaderRow}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              style={styles.avatarWrap}
+              onPress={() => navigation.navigate('Profile')}
+              activeOpacity={0.85}
+            >
+              <Avatar.Image
+                size={42}
+                source={patientAvatar ? { uri: patientAvatar } : require('../../assets/image.png')}
+                style={styles.avatar}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.patientInfoBlock}>
+              <Text style={styles.headerPatientName} numberOfLines={1}>
+                {userName}
+              </Text>
+              <Text style={styles.headerGreeting}>
+                {getGreeting()}
+              </Text>
+            </View>
           </View>
+
+          {/* Bell & QR Code on Right (High Visibility) */}
           <View style={styles.headerRight}>
-            <LanguageSelector />
-            <TouchableOpacity style={styles.headerBtn} onPress={() => setNotifModalVisible(true)}>
-              <Bell size={16} color="#1E293B" />
-              {unreadCount > 0 && (
-                <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Text>
-                </View>
-              )}
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => setNotifModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Bell size={20} color="#0F172A" />
+              {unreadCount > 0 && <View style={styles.notifBadge} />}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('QRScanner')}>
-              <QrCode size={16} color="#1E293B" />
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => navigation.navigate('QRScanner')}
+              activeOpacity={0.7}
+            >
+              <QrCode size={20} color="#0F172A" />
             </TouchableOpacity>
           </View>
-        </View>
-        <View style={styles.topSubBarRow}>
-          <TouchableOpacity
-            style={styles.locationPill}
-            onPress={() => getPosition(true)}
-            activeOpacity={0.7}
-          >
-            <MapPin size={10} color={COLORS.primary} fill={COLORS.primary} />
-            <SanctuaryText variant="body_xs" style={styles.locationTxt} numberOfLines={1}>{currentLocation}</SanctuaryText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.profileSwitcherPill}
-            onPress={() => setSwitcherModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Users size={11} color="#2563EB" />
-            <SanctuaryText variant="body_xs" style={styles.profileSwitcherTxt} numberOfLines={1}>
-              {profile?.user?.name || 'Family'} (Switch)
-            </SanctuaryText>
-          </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scroll, { flexGrow: 1 }]}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           Platform.OS !== 'web' ? (
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); getPosition(); }} colors={[COLORS.primary]} tintColor={COLORS.primary} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchData(true);
+                getPosition();
+              }}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
           ) : undefined
         }
       >
+        {/* ── 2. Full-Width Promotional Banner Carousel (Resized by Mobile Width) ── */}
+        <View style={styles.heroSection}>
+          <FlatList
+            ref={heroRef}
+            data={HERO_SLIDES}
+            keyExtractor={item => item.id}
+            horizontal
+            pagingEnabled={true}
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleHeroScrollEnd}
+            snapToInterval={HERO_WIDTH}
+            snapToAlignment="center"
+            decelerationRate="fast"
+            contentContainerStyle={styles.heroList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                activeOpacity={0.92}
+                onPress={() => navigation.navigate(item.route as any, item.params)}
+                style={[styles.heroCardSlide, { width: HERO_WIDTH }]}
+              >
+                <Image
+                  source={item.image}
+                  style={[styles.heroBannerImage, { width: HERO_WIDTH, height: HERO_HEIGHT }]}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            )}
+          />
+
+          {/* Hero Carousel Dots */}
+          <View style={styles.heroDotRow}>
+            {HERO_SLIDES.map((_, i) => (
+              <TouchableOpacity
+                key={i}
+                onPress={() => {
+                  heroRef.current?.scrollToIndex({ index: i, animated: true });
+                  setActiveHeroSlide(i);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.heroDot, i === activeHeroSlide && styles.heroDotActive]} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* Offline Zero-Network Mode Banner */}
         <OfflineBanner />
-
-        {/* MEDICAL DISCLAIMER BANNER */}
-        <View style={styles.disclaimerBanner}>
-          <ShieldAlert size={12} color="#B91C1C" />
-          <SanctuaryText style={styles.disclaimerText}>
-            Notice: MS CureChain is for information management and is NOT a medical device. Always consult a doctor for diagnosis.
-          </SanctuaryText>
-        </View>
 
         {/* ── Active Inpatient Stay Banner (if admitted) ── */}
         {activeAdmission && (
@@ -791,29 +826,8 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* ── SOS Banner ── */}
-        <TouchableOpacity style={styles.sosBanner} onPress={() => navigation.navigate('SOS')} activeOpacity={0.85}>
-          <View style={styles.sosLeft}>
-            <View style={styles.sosIconWrap}>
-              <ShieldAlert size={18} color="#FFF" />
-            </View>
-            <View style={styles.sosTexts}>
-              <SanctuaryText variant="label_md" style={styles.sosTitle}>{t('sos.title')}</SanctuaryText>
-              <SanctuaryText variant="body_xs" style={styles.sosSub}>{t('sos.sub')}</SanctuaryText>
-            </View>
-          </View>
-          <ChevronRight size={16} color="rgba(255,255,255,0.8)" />
-        </TouchableOpacity>
-
-        {/* ── Patient ID Cards Carousel ── */}
-        <View style={styles.carouselSection}>
-          <View style={styles.carouselHeader}>
-            <SanctuaryText variant="label_md" style={styles.carouselTitle}>
-              {hospitalCards.length > 1 ? `${hospitalCards.length} Registered Hospitals` : 'Patient Access Card'}
-            </SanctuaryText>
-            <SanctuaryText variant="body_xs" style={styles.carouselHint}>Tap card to view QR</SanctuaryText>
-          </View>
-
+        {/* ── 3. Patient Health Card ── */}
+        <View style={styles.healthCardSection}>
           <FlatList
             ref={carouselRef}
             data={cardList}
@@ -830,16 +844,23 @@ export default function DashboardScreen() {
               styles.carouselList,
               cardList.length <= 1 && { paddingRight: 16 },
             ]}
-            getItemLayout={(_, index) => ({ length: CARD_WIDTH + CARD_GAP, offset: (CARD_WIDTH + CARD_GAP) * index, index })}
+            getItemLayout={(_, index) => ({
+              length: CARD_WIDTH + CARD_GAP,
+              offset: (CARD_WIDTH + CARD_GAP) * index,
+              index,
+            })}
           />
 
-          {/* Dot indicators */}
+          {/* Dots for multiple hospital cards */}
           {cardList.length > 1 && (
             <View style={styles.dotRow}>
               {cardList.map((_, i) => (
                 <TouchableOpacity
                   key={i}
-                  onPress={() => { carouselRef.current?.scrollToIndex({ index: i, animated: true }); setActiveCard(i); }}
+                  onPress={() => {
+                    carouselRef.current?.scrollToIndex({ index: i, animated: true });
+                    setActiveCard(i);
+                  }}
                 >
                   <View style={[styles.dot, i === activeCard && styles.dotActive]} />
                 </TouchableOpacity>
@@ -848,16 +869,31 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* ── Digital Services Launcher (Modern 4-Column High-Density Grid) ── */}
+        {/* ── 4. Digital Services (4 Columns, 1 Row Initial + View More) ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <SanctuaryText variant="label_lg" style={styles.sectionTitle}>{t('dashboard.digitalServices')}</SanctuaryText>
-            <View style={styles.servicesCountBadge}>
-              <SanctuaryText style={styles.servicesCountText}>{SERVICES.length} Apps</SanctuaryText>
-            </View>
+            <SanctuaryText variant="label_lg" style={styles.sectionTitle}>
+              Digital Services
+            </SanctuaryText>
+            <TouchableOpacity
+              style={styles.viewMoreBtn}
+              onPress={() => setShowAllServices(prev => !prev)}
+              activeOpacity={0.7}
+            >
+              <LayoutGrid size={13} color="#1769E0" />
+              <Text style={styles.viewMoreText}>
+                {showAllServices ? 'Show Less' : 'View More'}
+              </Text>
+              <ChevronRight
+                size={13}
+                color="#1769E0"
+                style={showAllServices ? { transform: [{ rotate: '90deg' }] } : undefined}
+              />
+            </TouchableOpacity>
           </View>
+
           <View style={styles.servicesGrid}>
-            {SERVICES.map((item) => (
+            {(showAllServices ? SERVICES : SERVICES.slice(0, 4)).map((item) => (
               <AnimatedServiceIcon
                 key={item.id}
                 item={item}
@@ -867,16 +903,39 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ── Priority Visits ── */}
+        {/* ── 5. Emergency SOS (Positioned Below Digital Services) ── */}
+        <TouchableOpacity
+          style={styles.sosBanner}
+          onPress={() => navigation.navigate('SOS')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.sosLeft}>
+            <View style={styles.sosIconWrap}>
+              <ShieldAlert size={22} color="#FFFFFF" />
+            </View>
+            <View style={styles.sosTexts}>
+              <Text style={styles.sosTitle}>EMERGENCY SOS</Text>
+              <Text style={styles.sosSub}>Get immediate assistance in case of emergency</Text>
+            </View>
+          </View>
+          <View style={styles.sosArrowWrap}>
+            <ChevronRight size={18} color="#FFFFFF" strokeWidth={2.5} />
+          </View>
+        </TouchableOpacity>
+
+        {/* ── 6. Priority Visit Section ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <SanctuaryText variant="label_lg" style={styles.sectionTitle}>{t('dashboard.priorityVisit')}</SanctuaryText>
+            <SanctuaryText variant="label_lg" style={styles.sectionTitle}>
+              Priority Visit
+            </SanctuaryText>
             <TouchableOpacity onPress={() => navigation.navigate('UpcomingAppointments')}>
-              <SanctuaryText variant="label_sm" style={{ color: COLORS.primary, fontWeight: '800' }}>See All</SanctuaryText>
+              <SanctuaryText variant="label_sm" style={{ color: '#1769E0', fontWeight: '800' }}>
+                See All
+              </SanctuaryText>
             </TouchableOpacity>
           </View>
 
-          {/* ── Priority Visits — active upcoming first, recent completed fallback — */}
           {(() => {
             const CONFIRMED_STATUSES = ['confirmed', 'booked', 'in-progress', 'in_progress', 'in consultation', 'arrived'];
             let priorityApts = appointments
@@ -887,7 +946,6 @@ export default function DashboardScreen() {
               .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
               .slice(0, 3);
 
-            // If no active upcoming visits, display the most recent completed visits so the user always sees their consultation
             if (priorityApts.length === 0) {
               priorityApts = appointments
                 .filter(a => (a.status || '').trim().toLowerCase() === 'completed')
@@ -899,62 +957,83 @@ export default function DashboardScreen() {
               priorityApts.map((apt, idx) => {
                 const raw = apt.doctor?.user?.name || apt.doctor?.name || 'Physician';
                 const displayDoc = raw.startsWith('Dr.') ? raw : `Dr. ${raw}`;
-                const dept = apt.type === 'OPD' ? 'OUTPATIENT' : (apt.department || apt.type || 'CONSULTATION');
+                const dept = apt.type === 'OPD' ? 'OUTPATIENT' : (apt.department || apt.type || 'ONLINE');
                 const timeStr = apt.appointmentTime || apt.time || safeFormat(apt.date, 'hh:mm a');
-                const hospName = apt.hospital?.name || 'Hospital';
+                const hospName = apt.hospital?.name || 'Horizin Hospital';
                 const statusLower = (apt.status || '').toLowerCase();
                 const isInProg = ['in-progress', 'in_progress', 'in consultation'].includes(statusLower);
                 const isCompleted = statusLower === 'completed';
+
                 return (
                   <TouchableOpacity
                     key={apt._id || idx}
-                    style={[
-                      styles.aptRow,
-                      isInProg && { borderColor: '#10B981', borderWidth: 1.5, backgroundColor: '#F0FDF4' },
-                      isCompleted && { borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' }
-                    ]}
+                    style={styles.priorityAptCard}
                     onPress={() => setSelectedApt(apt)}
                     activeOpacity={0.8}
                   >
-                    <View style={[styles.dateBubble, isInProg && { backgroundColor: '#10B981' }, isCompleted && { backgroundColor: '#F8FAFC' }]}>
-                      <SanctuaryText variant="label_sm" style={[styles.dateMon, isInProg && { color: '#FFF' }, isCompleted && { color: '#006AF5' }]}>
+                    <View style={styles.priorityDateBubble}>
+                      <Text style={styles.priorityDateMon}>
                         {safeFormat(apt.date, 'MMM').toUpperCase()}
-                      </SanctuaryText>
-                      <SanctuaryText variant="headline_sm" style={[styles.dateDay, isInProg && { color: '#FFF' }, isCompleted && { color: '#0F172A' }]}>
+                      </Text>
+                      <Text style={styles.priorityDateDay}>
                         {safeFormat(apt.date, 'dd')}
-                      </SanctuaryText>
+                      </Text>
                     </View>
-                    <View style={styles.aptInfo}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <SanctuaryText variant="label_sm" style={styles.deptLabel}>{dept.toUpperCase()}</SanctuaryText>
+                    <View style={styles.priorityAptInfo}>
+                      <View style={styles.priorityBadgeRow}>
+                        <Text style={styles.priorityTypeBadge}>{dept.toUpperCase()}</Text>
                         {isInProg && (
-                          <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#166534' }}>IN CONSULTATION</Text>
+                          <View style={styles.inProgBadge}>
+                            <Text style={styles.inProgBadgeText}>IN CONSULTATION</Text>
                           </View>
                         )}
                         {isCompleted && (
-                          <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#15803D' }}>COMPLETED</Text>
+                          <View style={styles.completedBadge}>
+                            <Text style={styles.completedBadgeText}>COMPLETED</Text>
+                          </View>
+                        )}
+                        {!isInProg && !isCompleted && (
+                          <View style={styles.bookedBadge}>
+                            <Text style={styles.bookedBadgeText}>{(apt.status || 'CONFIRMED').toUpperCase()}</Text>
                           </View>
                         )}
                       </View>
-                      <SanctuaryText variant="label_lg" style={styles.docName} numberOfLines={1}>{displayDoc}</SanctuaryText>
-                      <SanctuaryText variant="body_sm" style={styles.aptMeta}>{timeStr} · {hospName}</SanctuaryText>
+                      <Text style={styles.priorityDocName} numberOfLines={1}>{displayDoc}</Text>
+                      <Text style={styles.priorityAptMeta} numberOfLines={1}>
+                        {timeStr} · {hospName}
+                      </Text>
                     </View>
                     <ChevronRight size={18} color="#CBD5E1" />
                   </TouchableOpacity>
                 );
               })
             ) : (
-              <TouchableOpacity style={styles.emptyCard}>
-                <Calendar size={36} color="#CBD5E1" />
-                <SanctuaryText variant="body_md" style={styles.emptyTxt}>{t('dashboard.noConfirmedVisits')}</SanctuaryText>
+              <TouchableOpacity
+                style={styles.emptyCard}
+                onPress={() => navigation.navigate('BookAppointment')}
+                activeOpacity={0.8}
+              >
+                <Calendar size={32} color="#94A3B8" />
+                <SanctuaryText variant="body_md" style={styles.emptyTxt}>
+                  No scheduled visits at this time
+                </SanctuaryText>
+                <SanctuaryText variant="label_sm" style={styles.emptyAction}>
+                  Book an Appointment →
+                </SanctuaryText>
               </TouchableOpacity>
             );
           })()}
         </View>
 
-        <View style={{ height: 40 }} />
+        {/* MEDICAL DISCLAIMER BANNER */}
+        <View style={styles.disclaimerBanner}>
+          <ShieldAlert size={12} color="#B91C1C" />
+          <SanctuaryText style={styles.disclaimerText}>
+            Notice: MS CureChain is for information management and is NOT a medical device. Always consult a doctor for diagnosis.
+          </SanctuaryText>
+        </View>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
 
       {/* ── QR Modal ── */}
@@ -974,7 +1053,6 @@ export default function DashboardScreen() {
           )}
           <SanctuaryText variant="headline_sm" style={styles.qrTitle}>{userName}</SanctuaryText>
 
-          {/* Quick Next Appointment Info in Modal */}
           {(() => {
             const nextApt = appointments.find(a =>
               a.hospital?._id === selectedHospital?.hospital?._id &&
@@ -1107,7 +1185,6 @@ export default function DashboardScreen() {
             )}
           </ScrollView>
 
-          {/* Bottom View Full Link */}
           <TouchableOpacity
             style={styles.notifFooterBtn}
             onPress={() => {
@@ -1157,6 +1234,7 @@ const APT_STATUS: Record<string, { label: string; color: string; bg: string }> =
   cancelled: { label: 'CANCELLED', color: '#DC2626', bg: '#FEF2F2' },
   rejected: { label: 'REJECTED', color: '#DC2626', bg: '#FEF2F2' },
 };
+
 function aptStatusCfg(s: string) {
   return APT_STATUS[s] || { label: s.toUpperCase(), color: '#64748B', bg: '#F1F5F9' };
 }
@@ -1235,7 +1313,6 @@ function DashAptDetail({ apt, onClose }: { apt: any; onClose: () => void }) {
     <View style={{ backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: scrH * 0.92, overflow: 'hidden' }}>
       <View style={{ width: 36, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 4 }} />
       <ScrollView showsVerticalScrollIndicator={false}>
-
         {/* Header row */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 20, paddingBottom: 16, gap: 12 }}>
           <View style={{ width: 52, height: 52, backgroundColor: '#F1F5F9', borderRadius: 16, justifyContent: 'center', alignItems: 'center' }}>
@@ -1248,200 +1325,558 @@ function DashAptDetail({ apt, onClose }: { apt: any; onClose: () => void }) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Clock size={12} color="#94A3B8" />
               <SanctuaryText variant="body_sm" style={{ color: '#94A3B8', fontSize: 11, marginLeft: 2 }}>{apt.appointmentTime || apt.time || 'Scheduled'}</SanctuaryText>
-              <MapPin size={12} color="#94A3B8" style={{ marginLeft: 6 }} />
-              <SanctuaryText variant="body_sm" style={{ color: '#94A3B8', fontSize: 11, flex: 1 }} numberOfLines={1}>{apt.hospital?.name}</SanctuaryText>
             </View>
           </View>
-          <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: sc.bg }}>
-            <SanctuaryText variant="label_sm" style={{ fontSize: 9, fontWeight: '900', letterSpacing: 0.4, color: sc.color }}>{sc.label}</SanctuaryText>
+          <View style={{ backgroundColor: sc.bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+            <SanctuaryText variant="label_sm" style={{ color: sc.color, fontWeight: '900', fontSize: 10 }}>{sc.label}</SanctuaryText>
           </View>
         </View>
 
-        {/* Info grid: Appt ID / MRN / Case Type / Urgency */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {[
-            { label: 'APPT ID', value: apt.appointmentId || apt._id.slice(-10).toUpperCase(), hi: false },
-            { label: 'MRN NUMBER', value: apt.mrn || 'N/A', hi: true },
-            { label: 'CASE TYPE', value: apt.type || 'Consultation', hi: false },
-            { label: 'URGENCY', value: (apt.urgency || 'non-urgent').replace(/-/g, ' ').toUpperCase(), hi: false },
-          ].map(cell => (
-            <View key={cell.label} style={{ width: '50%', paddingVertical: 12, paddingHorizontal: 16, borderWidth: 0.5, borderColor: '#F1F5F9', backgroundColor: '#FAFBFC' }}>
-              <SanctuaryText variant="label_sm" style={{ color: '#94A3B8', fontSize: 9, fontWeight: '800', letterSpacing: 0.6, marginBottom: 4 }}>{cell.label}</SanctuaryText>
-              <SanctuaryText variant="label_lg" style={{ color: cell.hi ? COLORS.primary : '#1E293B', fontWeight: '800', fontSize: 12 }} numberOfLines={2}>{cell.value}</SanctuaryText>
-            </View>
-          ))}
+        {/* Hospital info banner */}
+        {apt.hospital && (
+          <View style={{ marginHorizontal: 20, marginBottom: 16, backgroundColor: '#F8FAFC', borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Building2 size={16} color={COLORS.primary} />
+            <SanctuaryText variant="label_sm" style={{ color: '#1E293B', fontWeight: '700', flex: 1 }}>{apt.hospital.name}</SanctuaryText>
+          </View>
+        )}
+
+        {/* Close Button */}
+        <View style={{ padding: 20 }}>
+          <Button
+            mode="contained"
+            onPress={onClose}
+            style={{ borderRadius: 14, backgroundColor: COLORS.primary, height: 46, justifyContent: 'center' }}
+            labelStyle={{ fontWeight: '800', fontSize: 13 }}
+          >
+            Close Details
+          </Button>
         </View>
-
-        {/* Divider */}
-        <View style={{ height: 1, backgroundColor: '#F1F5F9', marginHorizontal: 20, marginVertical: 16 }} />
-
-        {/* Vitals — 3-col grid */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <Activity size={13} color={COLORS.primary} />
-            <SanctuaryText variant="label_lg" style={{ color: COLORS.primary, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>PATIENT VITALS</SanctuaryText>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {[
-              { label: 'BP', val: vitals.bloodPressure, unit: '' },
-              { label: 'TEMP', val: vitals.temperature, unit: '°F' },
-              { label: 'PULSE', val: vitals.pulse, unit: 'bpm' },
-              { label: 'SpO2', val: vitals.spO2, unit: '%' },
-              { label: 'GLUCOSE', val: vitals.sugar, unit: 'mg/dL' },
-              { label: 'WEIGHT', val: vitals.weight, unit: 'kg' },
-            ].map(v => (
-              <View key={v.label} style={{ width: '33.33%', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', padding: 10 }}>
-                <SanctuaryText variant="label_sm" style={{ color: '#94A3B8', fontSize: 9, fontWeight: '800', letterSpacing: 0.5, marginBottom: 3 }}>{v.label}</SanctuaryText>
-                <SanctuaryText variant="label_lg" style={{ color: '#1E293B', fontWeight: '900', fontSize: 15 }}>{v.val || '—'}</SanctuaryText>
-                {!!v.val && !!v.unit && <SanctuaryText variant="body_sm" style={{ color: '#94A3B8', fontSize: 9, fontWeight: '600', marginTop: 1 }}>{v.unit}</SanctuaryText>}
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Divider */}
-        <View style={{ height: 1, backgroundColor: '#F1F5F9', marginHorizontal: 20, marginVertical: 16 }} />
-
-        {/* Consultation details */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <Stethoscope size={13} color={COLORS.primary} />
-            <SanctuaryText variant="label_lg" style={{ color: COLORS.primary, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>CONSULTATION DETAILS</SanctuaryText>
-          </View>
-          {[
-            { label: 'CLINICAL REASON', value: apt.reason || apt.symptoms?.join(', ') || '—', bold: true },
-            { label: 'AGE / GENDER', value: `${patientInfo.age ? `${patientInfo.age} yrs` : '—'} / ${patientInfo.gender || '—'}`, bold: false },
-            { label: 'EST. DURATION', value: details.duration || '—', bold: false },
-            ...(apt.department ? [{ label: 'DEPARTMENT', value: apt.department, bold: false }] : []),
-          ].map(row => (
-            <View key={row.label} style={{ marginBottom: 12 }}>
-              <SanctuaryText variant="label_sm" style={{ color: COLORS.primary, fontSize: 9, fontWeight: '800', letterSpacing: 0.5, marginBottom: 3 }}>{row.label}</SanctuaryText>
-              <SanctuaryText variant="label_lg" style={{ color: '#1E293B', fontWeight: '700', fontSize: 12, lineHeight: 17, fontStyle: row.bold ? 'italic' : 'normal' }} numberOfLines={3}>{row.value}</SanctuaryText>
-            </View>
-          ))}
-        </View>
-
-        {/* Payment footer */}
-        <LinearGradient colors={['#0F172A', '#1E293B']} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, paddingHorizontal: 22 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ['paid', 'Paid'].includes(payStatus) ? '#4ADE80' : '#FCD34D' }} />
-            <View>
-              <SanctuaryText variant="label_sm" style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: '800', letterSpacing: 0.5, marginBottom: 2 }}>PAYMENT · {payMethod.toUpperCase()}</SanctuaryText>
-              <SanctuaryText variant="label_lg" style={{ color: '#FFF', fontWeight: '900', fontSize: 13 }}>{payStatus.toUpperCase()}</SanctuaryText>
-            </View>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <SanctuaryText variant="label_sm" style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: '800', letterSpacing: 0.5, marginBottom: 2 }}>CONSULTATION FEE</SanctuaryText>
-            <SanctuaryText variant="headline_sm" style={{ color: '#FFF', fontWeight: '900', fontSize: 20 }}>₹{payAmount.toLocaleString()}</SanctuaryText>
-          </View>
-        </LinearGradient>
       </ScrollView>
-
-      {/* Close */}
-      <TouchableOpacity
-        style={{ backgroundColor: '#F1F5F9', marginHorizontal: 20, marginVertical: 14, borderRadius: 16, paddingVertical: 14, alignItems: 'center' }}
-        onPress={onClose}
-      >
-        <SanctuaryText variant="label_lg" style={{ color: '#64748B', fontWeight: '900', letterSpacing: 1 }}>CLOSE</SanctuaryText>
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC', height: '100%', minHeight: 0 },
-  scrollView: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F7FC',
+    height: '100%',
+    minHeight: 0,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scroll: {
+    paddingTop: 0,
+  },
 
-  /* Header */
-  header: {
+  /* ── 1. Top Navigation Bar ── */
+  topHeader: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    paddingBottom: 8,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  avatarWrap: { marginRight: 10, justifyContent: 'center', alignItems: 'center' },
-  avatar: { backgroundColor: 'transparent' },
-  brandBlock: { flex: 1, justifyContent: 'center' },
-  brandName: { color: '#0F172A', fontWeight: '900', fontSize: 16, letterSpacing: 0.4 },
-  brandSub: { color: '#64748B', fontSize: 9.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 1 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  topSubBarRow: {
+  topHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
-    gap: 8,
+    paddingHorizontal: 16,
   },
-  locationPill: {
-    flex: 1,
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  avatarWrap: {
+    marginRight: 10,
+    borderRadius: 22,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+  },
+  avatar: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  patientInfoBlock: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  headerPatientName: {
+    color: '#0F172A',
+    fontWeight: '800',
+    fontSize: 16.5,
+    letterSpacing: -0.2,
+  },
+  headerGreeting: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#F8FAFC',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingVertical: 4.5,
-    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
-  locationTxt: { marginLeft: 4, color: '#475569', fontSize: 9.5, fontWeight: '700', flex: 1 },
-  profileSwitcherPill: {
+  notifBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+
+  /* ── 2. Full-Width Hero Section Resized by Device Width ── */
+  heroSection: {
+    width: '100%',
+    marginTop: 0,
+    marginBottom: 6,
+  },
+  heroList: {
+    paddingLeft: 0,
+    paddingRight: 0,
+  },
+  heroCardSlide: {
+    marginRight: 0,
+    borderRadius: 0,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+  },
+  heroBannerImage: {
+    borderRadius: 0,
+  },
+  heroDotRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 10,
+    gap: 5,
+  },
+  heroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#CBD5E1',
+  },
+  heroDotActive: {
+    width: 18,
+    backgroundColor: '#1769E0',
+    borderRadius: 3,
+  },
+
+  /* ── 3. Patient Health Card (Solid Royal Blue, No Gradients) ── */
+  healthCardSection: {
+    marginBottom: 16,
+  },
+  carouselList: {
+    paddingLeft: 16,
+    paddingRight: 24,
+  },
+  cardSlide: {
+    marginRight: CARD_GAP,
+  },
+  idCard: {
+    backgroundColor: CARD_BG_COLOR,
+    borderRadius: 22,
+    padding: 18,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#1769E0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+  },
+  decoBuildingWrap: {
+    position: 'absolute',
+    right: -10,
+    bottom: -15,
+    opacity: 0.10,
+  },
+  idTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  idTopLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+    marginRight: 8,
+  },
+  idCardLabel: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 11,
+    letterSpacing: 0.6,
+    flexShrink: 1,
+  },
+  activeChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderRadius: 14,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4ADE80',
+  },
+  activeChipText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  patientName: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  idMidRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  idInfoBlock: {
+    flex: 1,
+  },
+  idSubLabel: {
+    color: 'rgba(255, 255, 255, 0.78)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  idMRN: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  idBloodGroup: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  cardActionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 5,
+  },
+  cardActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.1,
+  },
+
+  dotRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 5,
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#CBD5E1',
+  },
+  dotActive: {
+    width: 14,
+    backgroundColor: COLORS.primary,
+    borderRadius: 3,
+  },
+
+  /* ── 4. Digital Services ── */
+  section: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    color: '#1E293B',
+    fontWeight: '900',
+    fontSize: 14.5,
+  },
+  viewMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 10,
+    borderColor: '#DBEAFE',
+    paddingHorizontal: 9,
     paddingVertical: 4.5,
-    paddingHorizontal: 8,
-  },
-  profileSwitcherTxt: {
-    marginLeft: 4,
-    color: '#2563EB',
-    fontSize: 9.5,
-    fontWeight: '800',
-    flex: 1,
-  },
-
-  scroll: { paddingTop: 12 },
-
-  /* SOS */
-  sosBanner: {
-    backgroundColor: '#DC2626',
     borderRadius: 12,
+  },
+  viewMoreText: {
+    color: '#1769E0',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    elevation: 1,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+
+  /* ── 5. Emergency SOS ── */
+  sosBanner: {
+    backgroundColor: '#FFF1F2',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: 16,
-    marginBottom: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    elevation: 2,
-    shadowColor: '#DC2626',
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    elevation: 1,
+    shadowColor: '#EF4444',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
   },
-  disclaimerBanner: {
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  sosLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  sosIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sosTexts: {
+    flex: 1,
+  },
+  sosTitle: {
+    color: '#DC2626',
+    fontWeight: '900',
+    fontSize: 12.5,
+    letterSpacing: 0.5,
+  },
+  sosSub: {
+    color: '#64748B',
+    fontSize: 10.5,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  sosArrowWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  /* ── 6. Priority Visit ── */
+  priorityAptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    elevation: 1,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+  },
+  priorityDateBubble: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#EDF2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  priorityDateMon: {
+    color: '#1769E0',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  priorityDateDay: {
+    color: '#0F172A',
+    fontWeight: '900',
+    fontSize: 16,
+    marginTop: -2,
+  },
+  priorityAptInfo: {
+    flex: 1,
+    marginRight: 6,
+  },
+  priorityBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: 9,
+    marginBottom: 2,
+  },
+  priorityTypeBadge: {
+    color: '#1769E0',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  inProgBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  inProgBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  completedBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  completedBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  bookedBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  bookedBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
+  priorityDocName: {
+    color: '#0F172A',
+    fontWeight: '800',
+    fontSize: 13.5,
+    marginBottom: 2,
+  },
+  priorityAptMeta: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 22,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  emptyTxt: {
+    color: '#94A3B8',
+    marginTop: 8,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  emptyAction: {
+    color: '#1769E0',
+    marginTop: 6,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+
+  /* Medical Disclaimer Banner */
+  disclaimerBanner: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 10,
     marginHorizontal: 16,
     marginBottom: 10,
     borderWidth: 1,
@@ -1451,102 +1886,46 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 8.5,
     color: '#991B1B',
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 12,
   },
-  sosLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  sosIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.22)', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  sosTexts: { flex: 1 },
-  sosTitle: { color: '#FFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.4 },
-  sosSub: { color: 'rgba(255,255,255,0.85)', fontSize: 9, marginTop: 1, fontWeight: '600' },
 
-  /* Carousel */
-  carouselSection: { marginBottom: 14 },
-  carouselHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8 },
-  carouselTitle: { color: '#1E293B', fontWeight: '800', fontSize: 13 },
-  carouselHint: { color: '#94A3B8', fontSize: 10 },
-  carouselList: { paddingLeft: 16, paddingRight: 24 },
-  cardSlide: { marginRight: CARD_GAP },
-
-  /* ID Card */
-  idCard: { borderRadius: 16, padding: 14 },
-  idTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  idTopLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 5, marginRight: 8 },
-  idCardLabel: { color: 'rgba(255,255,255,0.7)', fontWeight: '800', fontSize: 9, letterSpacing: 0.4, flexShrink: 1 },
-  activeChip: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12, paddingHorizontal: 7, paddingVertical: 2.5, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  activeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#4ADE80' },
-  activeChipText: { color: '#FFF', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.4 },
-  patientName: { color: '#FFF', fontSize: 16.5, fontWeight: '900', letterSpacing: 0.2, marginBottom: 8 },
-  idMidRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  idRight: { alignItems: 'flex-end' },
-  idSubLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 8, fontWeight: '800', letterSpacing: 0.8, marginBottom: 1 },
-  idMRN: { color: '#FFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
-  idDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginBottom: 7 },
-  facilityRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  facilityTxt: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '600', flex: 1 },
-  qrHint: { padding: 2 },
-
-  /* Dots */
-  dotRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8, gap: 5 },
-  dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#CBD5E1' },
-  dotActive: { width: 14, backgroundColor: COLORS.primary, borderRadius: 3 },
-
-  /* Sections */
-  section: { paddingHorizontal: 16, marginBottom: 14 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { color: '#1E293B', fontWeight: '900', fontSize: 14 },
-  servicesCountBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  servicesCountText: { color: '#64748B', fontSize: 9.5, fontWeight: '700' },
-
-  /* Service Grid (4-Column Modern Micro-Launcher) */
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    backgroundColor: '#FFFFFF',
+  /* Inpatient Stay Banner */
+  inpatientBanner: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: '#F0F9FF',
     borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    borderColor: '#BAE6FD',
   },
-  serviceColItem: { width: '25%', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 2 },
-  serviceIconSquircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+  inpatientLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  inpatientIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#E0F2FE',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 5,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.04)',
   },
-  serviceColLabel: { color: '#334155', fontWeight: '700', fontSize: 10, textAlign: 'center', lineHeight: 13, paddingHorizontal: 2 },
-
-  /* Appointments */
-  aptRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F1F5F9' },
-  dateBubble: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  dateMon: { color: COLORS.primary, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.5 },
-  dateDay: { color: '#1E293B', fontWeight: '900', fontSize: 15, marginTop: -2 },
-  aptInfo: { flex: 1 },
-  deptLabel: { color: COLORS.primary, fontSize: 8.5, fontWeight: '800', letterSpacing: 0.5, marginBottom: 1 },
-  docName: { color: '#1E293B', fontWeight: '800', fontSize: 13, marginBottom: 2 },
-  aptMeta: { color: '#94A3B8', fontSize: 10.5, fontWeight: '500' },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, alignItems: 'center' },
-  emptyTxt: { color: '#94A3B8', marginTop: 8, fontWeight: '600', fontSize: 12 },
-  emptyAction: { color: COLORS.primary, marginTop: 6, fontWeight: '900', fontSize: 12 },
+  inpatientTitle: {
+    color: '#0369A1',
+    fontWeight: '800',
+    fontSize: 12.5,
+  },
+  inpatientSub: {
+    color: '#0284C7',
+    fontSize: 10.5,
+    fontWeight: '600',
+    marginTop: 2,
+  },
 
   /* QR Modal */
-  modal: {
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 70 : 50,
-  },
   qrBox: {
     backgroundColor: '#FFF',
     borderRadius: 22,
@@ -1562,50 +1941,57 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  qrHospTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#EFF6FF', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3.5, marginBottom: 8 },
-  qrHospName: { color: COLORS.primary, fontWeight: '800', fontSize: 10 },
-  qrTitle: { color: '#0F172A', fontWeight: '900', fontSize: 16, marginBottom: 10 },
-  qrWrap: { backgroundColor: '#F8FAFC', padding: 10, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: '#F1F5F9' },
-  qrId: { color: '#0F172A', fontWeight: '800', marginBottom: 2, letterSpacing: 0.8, fontSize: 12 },
-  qrBlood: { color: '#64748B', marginBottom: 12, fontWeight: '600', fontSize: 11 },
-  qrClose: { width: '100%', borderRadius: 10, backgroundColor: COLORS.primary, height: 38, justifyContent: 'center' },
-  streakSummaryCard: { borderRadius: 14, overflow: 'hidden', elevation: 2, shadowColor: '#FF5F6D', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
-  streakSummaryGrad: { paddingVertical: 9, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  streakSummaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  streakSummaryIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.22)', justifyContent: 'center', alignItems: 'center' },
-  streakSummaryTitle: { color: '#FFF', fontWeight: '900', fontSize: 12 },
-  streakSummarySub: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 9.5, marginTop: 1 },
-
-  /* Notification Bell & Drawer Styles */
-  notifBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#EF4444',
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
+  qrHospTag: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    zIndex: 10,
+    gap: 5,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    marginBottom: 8,
   },
-  notifBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9.5,
+  qrHospName: {
+    color: COLORS.primary,
     fontWeight: '800',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-    lineHeight: 12,
+    fontSize: 10,
   },
-  notifModalOverlay: {
-    justifyContent: 'flex-start',
-    paddingTop: Platform.OS === 'ios' ? 56 : 48,
-    paddingHorizontal: 0,
-    margin: 0,
+  qrTitle: {
+    color: '#0F172A',
+    fontWeight: '900',
+    fontSize: 16,
+    marginBottom: 10,
   },
+  qrWrap: {
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  qrId: {
+    color: '#0F172A',
+    fontWeight: '800',
+    marginBottom: 2,
+    letterSpacing: 0.8,
+    fontSize: 12,
+  },
+  qrBlood: {
+    color: '#64748B',
+    marginBottom: 12,
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  qrClose: {
+    width: '100%',
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    height: 38,
+    justifyContent: 'center',
+  },
+
+  /* Notifications Modal */
   notifModalBox: {
     backgroundColor: '#FFF',
     borderRadius: 20,
@@ -1693,40 +2079,5 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
     fontSize: 13,
-  },
-
-  /* Inpatient Stay Banner */
-  inpatientBanner: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: '#F0F9FF',
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-  },
-  inpatientLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  inpatientIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: '#E0F2FE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inpatientTitle: {
-    color: '#0369A1',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  inpatientSub: {
-    color: '#0284C7',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
   },
 });

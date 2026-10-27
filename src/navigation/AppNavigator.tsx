@@ -4,6 +4,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DigitalAtriumLoader } from '@/components/SanctuaryComponents';
 
+import OnboardingScreen from '@/screens/OnboardingScreen';
+import { hasCompletedOnboarding } from '@/services/onboardingService';
 import LoginScreen from '@/screens/LoginScreen';
 import RegisterScreen from '@/screens/RegisterScreen';
 import ProfileSetupScreen from '@/screens/ProfileSetupScreen';
@@ -47,15 +49,23 @@ const Stack = createStackNavigator<RootStackParamList>();
 export default function AppNavigator() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isOnboarded, setIsOnboarded] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkStartupState = async () => {
       try {
-        console.log('[AppNavigator] Checking authentication state...');
-        const token = await AsyncStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
+        console.log('[AppNavigator] Checking onboarding and authentication state...');
+        
+        // Concurrently check onboarding completion and stored access token
+        const [onboardingDone, token] = await Promise.all([
+          hasCompletedOnboarding(),
+          AsyncStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN),
+        ]);
+
+        setIsOnboarded(onboardingDone);
 
         if (!token) {
-          console.log('[AppNavigator] No token found, showing login screen');
+          console.log('[AppNavigator] No token found, initial route determined by onboarding');
           setIsAuthenticated(false);
           setIsLoading(false);
           return;
@@ -79,37 +89,38 @@ export default function AppNavigator() {
           setIsAuthenticated(false);
         }
       } catch (e: any) {
-        console.error('[AppNavigator] Unexpected error in checkAuth:', e);
+        console.error('[AppNavigator] Unexpected error in checkStartupState:', e);
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkAuth();
+    checkStartupState();
   }, []);
 
   if (isLoading) {
     return <DigitalAtriumLoader message="Initializing Secure Portal..." />;
   }
 
+  // Determine initial route based on fresh-launch vs returning user rules:
+  // 1. Authenticated user -> Dashboard
+  // 2. Fresh installation (onboarding not completed) -> Onboarding
+  // 3. Logged-out returning user -> Login
+  const initialRoute: keyof RootStackParamList = isAuthenticated
+    ? 'Dashboard'
+    : !isOnboarded
+    ? 'Onboarding'
+    : 'Login';
+
   return (
     <Stack.Navigator
-      /**
-       * "Dashboard" is the entry point for authenticated users.
-       * It renders BottomTabNavigator which contains:
-       *   Home (DashboardScreen), Appointments, Vitals, Payments, Profile
-       *
-       * Any navigate('Appointments') / navigate('Vitals') / etc. call within
-       * those tab screens resolves to the Tab navigator first (switches tab),
-       * rather than pushing a new Stack frame.
-       *
-       * Detail / flow screens (BookAppointment, SOS, Reports, …) live in this
-       * Stack so they have a full-screen look with no bottom tab bar.
-       */
-      initialRouteName={isAuthenticated ? 'Dashboard' : 'Login'}
+      initialRouteName={initialRoute}
       screenOptions={{ headerShown: false }}
     >
+      {/* ── First-Launch Onboarding ────────────────────────────────────── */}
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+
       {/* ── Auth ───────────────────────────────────────────────────────── */}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
