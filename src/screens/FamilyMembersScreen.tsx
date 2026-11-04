@@ -9,10 +9,12 @@ import {
   Platform,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ChevronLeft,
   Users,
@@ -58,6 +60,15 @@ export default function FamilyMembersScreen() {
   const [selectedRelation, setSelectedRelation] = useState<BloodRelation>('Other Relative');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [savingRelation, setSavingRelation] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('patient_profile_avatar')
+      .then((saved: string | null) => {
+        if (saved) setCurrentAvatar(saved);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     loadMembers();
@@ -231,7 +242,7 @@ export default function FamilyMembersScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+      <StatusBar barStyle="dark-content" />
 
       {/* ── Top Header (Clean, no Add button) ────────────────────────────── */}
       <View style={styles.headerBar}>
@@ -322,6 +333,7 @@ export default function FamilyMembersScreen() {
             const activeId = currentActiveMember?._id || '';
             const displayRelation = familyService.getRelativeRelation(activeId, m, relationsMap);
             const badgeStyle = getRelationBadgeColor(displayRelation);
+            const memberAvatar = isCurrent ? (m.avatar || currentAvatar) : m.avatar;
 
             return (
               <View
@@ -333,7 +345,11 @@ export default function FamilyMembersScreen() {
               >
                 <View style={styles.cardHeaderRow}>
                   <View style={styles.memberAvatarCircle}>
-                    {getRelationIcon(displayRelation)}
+                    {memberAvatar ? (
+                      <Image source={{ uri: memberAvatar }} style={styles.memberAvatarImg} resizeMode="cover" />
+                    ) : (
+                      getRelationIcon(displayRelation)
+                    )}
                   </View>
 
                   <View style={styles.memberMetaWrap}>
@@ -768,6 +784,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#DBEAFE',
+    overflow: 'hidden',
+  },
+  memberAvatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   memberMetaWrap: {
     marginLeft: 12,

@@ -830,10 +830,6 @@ function StepDoctor({
             onPress={() => onHospitalSort('nearby')}
             activeOpacity={0.8}
           >
-            <Compass
-              size={12}
-              color={hospitalSort === 'nearby' ? '#FFFFFF' : '#64748B'}
-            />
             <SanctuaryText
               variant="label_sm"
               style={[
@@ -851,10 +847,6 @@ function StepDoctor({
             onPress={() => onHospitalSort('relevance')}
             activeOpacity={0.8}
           >
-            <Sparkles
-              size={12}
-              color={hospitalSort === 'relevance' ? '#FFFFFF' : '#64748B'}
-            />
             <SanctuaryText
               variant="label_sm"
               style={[
@@ -872,10 +864,6 @@ function StepDoctor({
             onPress={() => onHospitalSort('rating')}
             activeOpacity={0.8}
           >
-            <Star
-              size={12}
-              color={hospitalSort === 'rating' ? '#FFFFFF' : '#64748B'}
-            />
             <SanctuaryText
               variant="label_sm"
               style={[
@@ -893,10 +881,6 @@ function StepDoctor({
             onPress={() => onHospitalSort('name')}
             activeOpacity={0.8}
           >
-            <ArrowUpDown
-              size={12}
-              color={hospitalSort === 'name' ? '#FFFFFF' : '#64748B'}
-            />
             <SanctuaryText
               variant="label_sm"
               style={[

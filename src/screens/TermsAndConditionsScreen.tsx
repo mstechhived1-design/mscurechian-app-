@@ -1,12 +1,8 @@
 /**
  * TermsAndConditionsScreen
  *
- * Displays the full MS CureChain Terms & Conditions document including
- * special clauses for patient appointment booking.
- *
- * Can be reached from:
- *  - Profile / Settings
- *  - The T&C link inside the BookAppointment review step
+ * Displays the full MS CureChain Terms & Conditions & Privacy Policy document
+ * styled to professional healthcare standards with simple, elegant flash cards.
  */
 
 import React, { useRef, useState } from 'react';
@@ -16,9 +12,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  Animated,
+  StatusBar,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import {
   ChevronLeft,
@@ -28,12 +23,11 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Lock,
+  Sparkles,
 } from 'lucide-react-native';
 import { SanctuaryText } from '@/components/SanctuaryComponents';
 import { COLORS } from '@/constants/designSystem';
-
-// ─── Section Data ─────────────────────────────────────────────────────────────
-
 import { RootStackParamList } from '@/navigation/types';
 
 type TCTabRouteProp = RouteProp<RootStackParamList, 'TermsAndConditions'>;
@@ -59,7 +53,7 @@ const SECTIONS: Section[] = [
     number: '2',
     title: 'Eligibility & Authority',
     content: [
-      'The Software is intended for use only by hospitals, clinics, and healthcare organizations.',
+      'The Software is intended for use by patients, registered hospitals, clinics, and authorized healthcare organizations.',
       'You represent and warrant that you are legally authorized to access the Software and are acting within your assigned role.',
       'If you are accepting these Terms on behalf of an organization, you confirm that you have the authority to bind that organization.',
     ],
@@ -69,27 +63,26 @@ const SECTIONS: Section[] = [
     number: '3',
     title: 'Scope of Services',
     content: [
-      'Patient registration',
-      'OPD/IPD workflows',
-      'Billing & invoicing',
-      'Pharmacy & lab workflows',
-      'Reports & audit logs',
-      'MS CureChain does NOT provide medical advice, diagnosis, treatment, or clinical judgment.',
+      'Patient profile & family member health management',
+      'Doctor discovery & OPD/IPD appointment booking',
+      'Electronic prescriptions & medication dose tracking',
+      'Diagnostic lab test records & discharge summaries',
+      'Offline emergency medical vault for critical care access',
+      'MS CureChain is a secure technology platform and does NOT directly provide medical advice, diagnosis, treatment, or clinical judgment.',
     ],
   },
   {
     id: 's4',
     number: '4',
-    title: 'Patient Appointment Booking',
+    title: 'Patient Appointment Booking & 24-Hr Refund Policy',
     content: [
       'Appointment bookings made through the MS CureChain patient app are subject to doctor availability and hospital schedule.',
-      'Fees paid for appointment booking are eligible for a refund only if the cancellation is made at least 24 hours before the scheduled slot. Approved refunds will be credited back to the original payment method within 24 hours.',
+      'Fees paid for appointment booking are eligible for a 100% full refund if the cancellation is made at least 24 hours before the scheduled slot. Approved refunds will be credited back to your original payment method within 24 hours.',
       'Appointments are confirmed only after successful payment. An unconfirmed (pending payment) slot may be released to other patients.',
       'You must arrive at least 10 minutes before your scheduled appointment time. Late arrivals may result in rescheduling at the hospital\'s discretion.',
       'You are responsible for providing accurate personal and medical information during booking.',
-      'MS CureChain is a technology platform only and is NOT responsible for the clinical quality of the consultation.',
-      'Cancellation or rescheduling requests must be made at least 24 hours in advance. Last-minute cancellations may incur a cancellation fee as per hospital policy.',
-      'Appointment reminders are sent via push notification and SMS as a courtesy. Non-receipt of a reminder does not excuse non-attendance.',
+      'In case of hospital-side cancellation or doctor unavailability, a full refund is automatically initiated within 24 hours.',
+      'Appointment reminders are sent via push notification and SMS as a courtesy service.',
     ],
     highlight: true,
   },
@@ -110,10 +103,10 @@ const SECTIONS: Section[] = [
     number: '6',
     title: 'Account Registration & Security',
     content: [
-      'Access is granted only to authorized users created by the hospital.',
+      'Access is granted only to registered patients and authorized users.',
       'You are responsible for maintaining confidentiality of login credentials and for all actions performed using your account.',
-      'Unauthorized access must be reported immediately.',
-      'MS Tech Hive is not responsible for losses caused by compromised credentials.',
+      'Unauthorized access or security incidents must be reported immediately to support@mscurechain.com.',
+      'MS Tech Hive is not responsible for losses caused by compromised user device credentials.',
     ],
   },
   {
@@ -121,13 +114,13 @@ const SECTIONS: Section[] = [
     number: '7',
     title: 'Acceptable Use Policy',
     content: [
-      'Do NOT share accounts or passwords.',
-      'Do NOT upload false, misleading, or unlawful data.',
-      'Do NOT attempt to reverse engineer or copy the Software.',
-      'Do NOT circumvent security controls.',
-      'Do NOT use the Software outside healthcare operations.',
+      'Do NOT share accounts or passwords with unauthorized third parties.',
+      'Do NOT upload false, misleading, or unlawful health documents.',
+      'Do NOT attempt to reverse engineer, decompile, or copy the Software.',
+      'Do NOT circumvent security controls, authentication systems, or rate limits.',
+      'Do NOT use the Software outside authorized healthcare operations.',
       'Do NOT introduce malware, scripts, or harmful code.',
-      'Violation may lead to immediate suspension or termination.',
+      'Violation may lead to immediate suspension or termination of your account.',
     ],
   },
   {
@@ -135,22 +128,22 @@ const SECTIONS: Section[] = [
     number: '8',
     title: 'Data Ownership & Responsibility',
     content:
-      'All patient and hospital data entered into MS CureChain belongs exclusively to the hospital. MS Tech Hive acts only as a data processor and technology provider. The hospital is solely responsible for data accuracy, lawful collection, patient consent, and data retention policies.',
+      'All patient and hospital data entered into MS CureChain belongs exclusively to the patient and respective hospital. MS Tech Hive acts only as a secure data processor and technology provider. The hospital and patient maintain ownership of their clinical history.',
   },
   {
     id: 's8',
     number: '9',
-    title: 'Data Protection & Privacy',
+    title: 'Data Protection & Encryption',
     content:
-      'MS Tech Hive implements reasonable administrative, technical, and organizational safeguards. Data may be stored on secure servers, primarily located in India. By using the Software, you consent to processing of data as per applicable Indian laws, including the Digital Personal Data Protection Act, 2023.',
+      'MS Tech Hive implements industry-standard AES-256 bit encryption and TLS 1.3 transit security. Data is hosted strictly on secure servers located in India. By using the Software, you consent to processing of data as per applicable Indian laws, including the Digital Personal Data Protection Act (DPDPA), 2023.',
   },
   {
     id: 's9',
     number: '10',
     title: 'Third-Party Services',
     content: [
-      'The Software may integrate with SMS gateways, payment gateways, and cloud hosting providers.',
-      'MS Tech Hive is not responsible for outages, errors, or failures of third-party services.',
+      'The Software integrates with secure SMS gateways, certified payment gateways, and cloud infrastructure providers.',
+      'MS Tech Hive is not liable for temporary carrier SMS delivery delays or external bank payment gateway downtime.',
     ],
   },
   {
@@ -158,64 +151,47 @@ const SECTIONS: Section[] = [
     number: '11',
     title: 'Regulatory & Medical Disclaimer',
     content: [
-      'MS CureChain is a technology enablement platform only.',
-      'MS Tech Hive does NOT guarantee NABH accreditation.',
-      'MS Tech Hive does NOT guarantee ABDM or Ayushman compliance.',
-      'MS Tech Hive does NOT ensure audit success.',
-      'All regulatory compliance obligations rest solely with the hospital.',
+      'MS CureChain is a digital technology enablement platform only.',
+      'Medical care, diagnosis, and prescription treatments are provided solely by certified healthcare practitioners.',
+      'In cases of severe emergency, patients are advised to visit the nearest emergency room immediately.',
     ],
-    highlight: true,
   },
   {
     id: 's11',
     number: '12',
     title: 'Service Availability & Modifications',
     content:
-      'The Software is provided on a best-effort basis. MS Tech Hive may modify features, release updates, or temporarily suspend services for maintenance. No uninterrupted or error-free service is guaranteed.',
+      'The Software is provided on a high-availability best-effort basis. MS Tech Hive may release regular security patches, UI enhancements, or scheduled maintenance updates.',
   },
   {
     id: 's12',
     number: '13',
-    title: 'Fees & Payments',
+    title: 'Intellectual Property',
     content:
-      'Fees are payable as per agreed commercial terms. Failure to pay may result in suspension, data access restriction, or termination.',
+      'MS CureChain, including all branding, source code, UI designs, workflows, and documentation, is the exclusive intellectual property of MS Tech Hive Pvt. Ltd.',
   },
   {
     id: 's13',
     number: '14',
-    title: 'Intellectual Property',
-    content:
-      'MS CureChain, including all source code, UI, workflows, trademarks, and documentation, is the exclusive intellectual property of MS Tech Hive Pvt. Ltd. No license is granted except for limited use under these Terms.',
+    title: 'Limitation of Liability',
+    content: [
+      'MS Tech Hive is not liable for indirect or consequential damages.',
+      'Not liable for medical outcomes resulting from practitioner consultations.',
+      'Total technology liability is capped as per agreed platform terms.',
+    ],
   },
   {
     id: 's14',
     number: '15',
-    title: 'Disclaimer of Warranties',
+    title: 'Governing Law & Dispute Resolution',
     content:
-      'The Software is provided "AS IS" and "AS AVAILABLE". MS Tech Hive disclaims all warranties, express or implied, including fitness for a particular purpose.',
+      'These Terms are governed by Indian law. Disputes shall be resolved amicably or by arbitration under the Arbitration and Conciliation Act, 1996, in accordance with Indian jurisdiction.',
   },
   {
     id: 's15',
     number: '16',
-    title: 'Limitation of Liability',
-    content: [
-      'MS Tech Hive is not liable for indirect or consequential damages.',
-      'Not liable for medical outcomes or regulatory penalties.',
-      'Total liability is capped at fees paid in the preceding six (6) months.',
-    ],
-  },
-  {
-    id: 's16',
-    number: '17',
-    title: 'Governing Law & Dispute Resolution',
-    content:
-      'These Terms are governed by Indian law. Disputes shall be resolved by arbitration under the Arbitration and Conciliation Act, 1996.',
-  },
-  {
-    id: 's17',
-    number: '18',
     title: 'Contact Information',
-    content: 'legal@mscurechain.com\nsupport@mscurechain.com',
+    content: 'Email: support@mscurechain.com\nLegal: legal@mscurechain.com\nWebsite: https://mscurechain.com',
   },
 ];
 
@@ -223,70 +199,75 @@ const PRIVACY_SECTIONS: Section[] = [
   {
     id: 'p1',
     number: '1',
-    title: 'Introduction',
-    content: 'MS Tech Hive Private Limited (“MS Tech Hive”, “we”, “us”, “our”) owns and operates MS CureChain Hospital Management System and its mobile applications. This policy explains what information we collect, how we use it, and how it is protected. Our data protection protocols are designed to comply with global healthcare standards and the Digital Personal Data Protection Act, 2023.',
+    title: 'Introduction & Scope',
+    content:
+      'MS Tech Hive Private Limited (“MS Tech Hive”, “we”, “us”, “our”) owns and operates MS CureChain Hospital Management System and its mobile applications. This policy explains what information we collect, how we use it, and how it is protected. Our data protection protocols are designed in strict compliance with the Digital Personal Data Protection Act (DPDPA), 2023, and global healthcare privacy standards.',
   },
   {
     id: 'p2',
     number: '2',
     title: 'Information We Collect',
     content: [
-      'Personal Details: Full Name, Mobile Number, Email Address, and encrypted Password.',
-      'Sensitive Health Data: We collect medical metrics including weight, height, BMI, blood group, vitals (BP, Heart Rate, SpO2), symptoms, and clinical history to provide diagnostic insights and tracking.',
-      'Profile Information: Date of Birth, Gender, and Blood Group to provide tailored healthcare services.',
-      'Medical Records: Appointment history, Lab reports, Prescriptions, and Vitals (AES-256 bit encrypted).',
-      'Device Data: IP address, push notification tokens, and hardware identifiers for security.',
+      'Personal Identifiers: Full Name, 10-digit Mobile Number, Email Address, Gender, and Date of Birth.',
+      'Clinical & Health Data: Medical history, blood group, allergies, vitals (BP, Heart Rate, SpO2), prescribed medicines, and diagnostic lab test reports.',
+      'Family Profile Data: Linked family dependent names, relationships, and emergency contact details.',
+      'Appointment & Billing Details: Doctor consultation history, hospital visits, and transaction invoices.',
+      'Device Security Data: Hardware identifier, OS version, and push notification tokens to ensure authorized access.',
     ],
     highlight: true,
   },
   {
     id: 'p3',
     number: '3',
-    title: 'Prominent Disclosure: App Permissions',
+    title: 'App Permissions & Transparency',
     content: [
-      'CAMERA PERMISSION (android.permission.CAMERA): This app requires access to your device camera to enable the QR Scanner (for quick doctor discovery and appointment booking) and the Food Scanner (for nutritional analysis). We do NOT record, store, or share your camera feed. Images are processed in real-time or only uploaded when you explicitly choose to attach a document to your medical record.',
-      'LOCATION PERMISSION (android.permission.ACCESS_FINE_LOCATION): Used to help you find nearby hospitals and clinics based on your current geographical area to facilitate your healthcare journey.',
-      'STORAGE PERMISSION (android.permission.WRITE_EXTERNAL_STORAGE): Required to allow you to securely download and save medical reports, prescriptions, and lab results directly to your device.',
-      'NOTIFICATIONS: Used to send critical health alerts, appointment reminders, and status updates regarding your medical records.',
+      'CAMERA (android.permission.CAMERA): Used exclusively for scanning hospital doctor QR codes and capturing optional prescription/Aadhaar documents. We do NOT record, stream, or retain background camera feeds.',
+      'LOCATION (android.permission.ACCESS_FINE_LOCATION): Used to calculate distance and recommend nearby verified hospitals in your area.',
+      'STORAGE (android.permission.WRITE_EXTERNAL_STORAGE): Allows you to download lab test PDFs, medical receipts, and prescription slips to your device.',
+      'NOTIFICATIONS: Delivers critical medicine reminders, consultation call alerts, and appointment status updates.',
     ],
     highlight: true,
   },
   {
     id: 'p4',
     number: '4',
-    title: 'Data Sovereignty & Security',
-    content: 'All patient and hospital data entered into MS CureChain belongs exclusively to the patient and the respective hospital. We implement AES-256 bit encryption for all patient-identifiable data at rest and in transit. Data is hosted primarily on secure servers within India.',
+    title: 'Zero-Data Selling Guarantee',
+    content: [
+      'We do NOT sell, rent, or trade your personal health data with advertisers, third-party brokers, or pharmaceutical marketers.',
+      'Your medical records are shared only with the specific doctor, hospital, or diagnostic lab with whom you book an appointment.',
+      'All data processing complies strictly with Indian statutory regulations and the DPDPA, 2023.',
+    ],
+    highlight: true,
   },
   {
     id: 'p5',
     number: '5',
-    title: 'Data Usage & Sharing',
-    content: [
-      'We do NOT sell or trade your personal health data with third-party marketers.',
-      'Data is shared only with healthcare providers you book appointments with.',
-      'Limited data may be shared with government regulatory bodies like ABDM (Ayushman Bharat Digital Mission) when required for national health records.',
-    ],
+    title: 'Data Sovereignty & Encryption',
+    content:
+      'All patient data is stored within certified enterprise data centers located in India. We employ end-to-end TLS 1.3 transit encryption and AES-256 bit rest encryption for all sensitive health records, ensuring uncompromised security.',
   },
   {
     id: 'p-deletion',
     number: '6',
-    title: 'Permanent Account Deletion',
-    content: 'You have the right to delete your account permanently. This can be initiated via Profile → Settings → Delete Account. Once requested, your identity, medical profile, and all associated clinical data will be purged from our active database within 7 days. This action is irreversible.',
+    title: 'Right to Erasure & Account Deletion',
+    content:
+      'You hold full control over your digital identity. You may request permanent account deletion at any time via Profile → Delete Account. Upon confirmation, your authentication credentials, personal profile, and associated app vault records are permanently purged.',
     highlight: true,
   },
   {
     id: 'p6',
     number: '7',
-    title: 'Contact Information',
-    content: 'For any privacy concerns or data access requests, please contact our Data Protection Officer at privacy@mscurechain.com.',
+    title: 'Data Protection Officer Contact',
+    content:
+      'For privacy inquiries, grievance redressal, or data audit requests, please reach our Data Protection Officer at privacy@mscurechain.com.',
   },
 ];
 
-// ─── Collapsible Section ──────────────────────────────────────────────────────
+// ─── Collapsible Flash Card Component ──────────────────────────────────────────
 
 function AccordionSection({ section }: { section: Section }) {
   const [open, setOpen] = useState(
-    section.highlight || section.id === 's1' || section.id === 's4',
+    section.highlight || section.id === 's1' || section.id === 's4' || section.id === 'p1' || section.id === 'p2',
   );
 
   const isHighlighted = !!section.highlight;
@@ -297,26 +278,27 @@ function AccordionSection({ section }: { section: Section }) {
   return (
     <View
       style={[
-        Sty.card,
-        isHighlighted && Sty.cardHighlight,
+        Sty.flashCard,
+        isHighlighted && Sty.flashCardHighlighted,
+        open && Sty.flashCardOpen,
       ]}
     >
       <TouchableOpacity
         style={Sty.cardHeader}
         onPress={() => setOpen((v) => !v)}
-        activeOpacity={0.75}
+        activeOpacity={0.7}
       >
         <View
           style={[
-            Sty.numberBadge,
-            isHighlighted && Sty.numberBadgeHighlight,
+            Sty.numberPill,
+            isHighlighted && Sty.numberPillHighlighted,
           ]}
         >
           <SanctuaryText
             variant="label_sm"
             style={[
               Sty.numberTxt,
-              isHighlighted && { color: '#fff' },
+              isHighlighted && Sty.numberTxtHighlighted,
             ]}
           >
             {section.number}
@@ -327,26 +309,34 @@ function AccordionSection({ section }: { section: Section }) {
           variant="label_lg"
           style={[
             Sty.cardTitle,
-            isHighlighted && Sty.cardTitleHighlight,
+            isHighlighted && Sty.cardTitleHighlighted,
           ]}
           numberOfLines={2}
         >
           {section.title}
         </SanctuaryText>
 
-        {open ? (
-          <ChevronUp size={16} color={isHighlighted ? '#1E40AF' : '#94A3B8'} />
-        ) : (
-          <ChevronDown size={16} color="#94A3B8" />
-        )}
+        <View style={Sty.chevronWrap}>
+          {open ? (
+            <ChevronUp size={18} color={isHighlighted ? '#1769E0' : '#64748B'} />
+          ) : (
+            <ChevronDown size={18} color="#94A3B8" />
+          )}
+        </View>
       </TouchableOpacity>
 
       {open && (
         <View style={Sty.cardBody}>
+          <View style={Sty.bodyDivider} />
           {Array.isArray(section.content) ? (
             contentItems.map((item, idx) => (
               <View key={idx} style={Sty.bulletRow}>
-                <View style={Sty.bullet} />
+                <View
+                  style={[
+                    Sty.bulletDot,
+                    isHighlighted && { backgroundColor: '#1769E0' },
+                  ]}
+                />
                 <SanctuaryText variant="body_sm" style={Sty.bulletTxt}>
                   {item}
                 </SanctuaryText>
@@ -363,110 +353,138 @@ function AccordionSection({ section }: { section: Section }) {
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Main Screen Component ───────────────────────────────────────────────────
 
 export default function TermsAndConditionsScreen() {
   const navigation = useNavigation();
   const route = useRoute<TCTabRouteProp>();
-  const scrollRef = useRef<ScrollView>(null);
-  const [activeTab, setActiveTab] = useState<'terms' | 'privacy'>(route.params?.initialTab || 'terms');
+  const scrollRef = useRef<any>(null);
+  const [activeTab, setActiveTab] = useState<'terms' | 'privacy'>(
+    route.params?.initialTab || 'terms',
+  );
 
   const currentSections = activeTab === 'terms' ? SECTIONS : PRIVACY_SECTIONS;
 
   return (
     <View style={Sty.root}>
+      <StatusBar barStyle="dark-content" />
 
-      {/* ── Header ── */}
-      <LinearGradient
-        colors={['#0F172A', '#1E293B']}
-        style={Sty.header}
-      >
+      {/* ── Top Header: Clean, Professional White ── */}
+      <View style={Sty.headerBar}>
         <TouchableOpacity
           style={Sty.backBtn}
           onPress={() => navigation.goBack()}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <ChevronLeft size={22} color="#fff" />
+          <ChevronLeft size={22} color="#0F172A" />
         </TouchableOpacity>
 
         <View style={Sty.headerCenter}>
-          <View style={Sty.headerIconWrap}>
-            <Shield size={24} color="#60A5FA" />
+          <View style={Sty.headerTitleRow}>
+            <Shield size={18} color="#1769E0" strokeWidth={2.4} />
+            <SanctuaryText variant="headline_sm" style={Sty.headerTitle}>
+              Terms &amp; Privacy
+            </SanctuaryText>
           </View>
-          <SanctuaryText variant="headline_sm" style={Sty.headerTitle}>
-            Terms &amp; Privacy
-          </SanctuaryText>
-          <SanctuaryText variant="body_sm" style={Sty.headerSub}>
+          <SanctuaryText variant="body_xs" style={Sty.headerSub}>
             MS CureChain · MS Tech Hive Pvt. Ltd.
           </SanctuaryText>
         </View>
-      </LinearGradient>
 
-      {/* ── Tabs ── */}
-      <View style={Sty.tabBar}>
-        <TouchableOpacity 
-          style={[Sty.tabItem, activeTab === 'terms' && Sty.tabActive]}
-          onPress={() => setActiveTab('terms')}
-        >
-          <SanctuaryText variant="label_sm" style={[Sty.tabTxt, activeTab === 'terms' && Sty.tabTxtActive]}>
-            Terms of Service
-          </SanctuaryText>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[Sty.tabItem, activeTab === 'privacy' && Sty.tabActive]}
-          onPress={() => setActiveTab('privacy')}
-        >
-          <SanctuaryText variant="label_sm" style={[Sty.tabTxt, activeTab === 'privacy' && Sty.tabTxtActive]}>
-            Privacy Policy
-          </SanctuaryText>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
-      {/* ── Last Updated banner ── */}
-      <View style={Sty.updateBanner}>
-        <AlertCircle size={13} color="#D97706" />
-        <SanctuaryText variant="label_sm" style={Sty.updateTxt}>
-          Last Updated: April 23, 2026 · Effective immediately upon login or booking
-        </SanctuaryText>
+      {/* ── Segment Tabs: Clean Minimalist ── */}
+      <View style={Sty.tabContainer}>
+        <View style={Sty.tabPillWrap}>
+          <TouchableOpacity
+            style={[Sty.tabPill, activeTab === 'terms' && Sty.tabPillActive]}
+            onPress={() => {
+              setActiveTab('terms');
+              scrollRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+            activeOpacity={0.8}
+          >
+            <FileText
+              size={15}
+              color={activeTab === 'terms' ? '#1769E0' : '#64748B'}
+            />
+            <SanctuaryText
+              variant="label_sm"
+              style={[Sty.tabTxt, activeTab === 'terms' && Sty.tabTxtActive]}
+            >
+              Terms of Service
+            </SanctuaryText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[Sty.tabPill, activeTab === 'privacy' && Sty.tabPillActive]}
+            onPress={() => {
+              setActiveTab('privacy');
+              scrollRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+            activeOpacity={0.8}
+          >
+            <Lock
+              size={15}
+              color={activeTab === 'privacy' ? '#1769E0' : '#64748B'}
+            />
+            <SanctuaryText
+              variant="label_sm"
+              style={[Sty.tabTxt, activeTab === 'privacy' && Sty.tabTxtActive]}
+            >
+              Privacy Policy
+            </SanctuaryText>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* ── Highlight Notice ── */}
-      <View style={Sty.noticeBand}>
-        <CheckCircle2 size={15} color="#059669" />
-        <SanctuaryText variant="body_sm" style={Sty.noticeTxt}>
-          Section 4 covers Patient Appointment Booking terms — please read before confirming.
-        </SanctuaryText>
-      </View>
-
-      {/* ── Content ── */}
+      {/* ── Content Area with Flash Cards ── */}
       <ScrollView
         ref={scrollRef}
         style={Sty.scroll}
         contentContainerStyle={Sty.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Product header */}
-        <View style={Sty.productHeader}>
-          <FileText size={18} color={COLORS.primary} />
-          <SanctuaryText variant="label_lg" style={Sty.productName}>
-            MS CureChain – Hospital Management System
+        {/* Subtle, Professional Trust Banner */}
+        <View style={Sty.trustBanner}>
+          <View style={Sty.trustChipsRow}>
+            <View style={Sty.trustChipGold}>
+              <AlertCircle size={12} color="#B45309" />
+              <SanctuaryText variant="label_sm" style={Sty.trustChipGoldTxt}>
+                Updated April 2026
+              </SanctuaryText>
+            </View>
+
+            <View style={Sty.trustChipGreen}>
+              <CheckCircle2 size={12} color="#059669" />
+              <SanctuaryText variant="label_sm" style={Sty.trustChipGreenTxt}>
+                DPDPA 2023 Compliant
+              </SanctuaryText>
+            </View>
+          </View>
+
+          <SanctuaryText variant="body_xs" style={Sty.trustNoticeTxt}>
+            {activeTab === 'terms'
+              ? 'Section 4 details Patient Appointment Booking & 24-hr refund guidelines.'
+              : 'Zero-data-selling guarantee: Your medical records are encrypted and protected.'}
           </SanctuaryText>
         </View>
-        <SanctuaryText variant="body_sm" style={Sty.productTagline}>
-          A Product of MS Tech Hive Private Limited
-        </SanctuaryText>
 
+        {/* Section List: Simple, Elegant Flash Cards */}
         {currentSections.map((sec) => (
           <AccordionSection key={sec.id} section={sec} />
         ))}
 
-        {/* Footer */}
-        <View style={Sty.footer}>
-          <SanctuaryText variant="body_sm" style={Sty.footerTxt}>
-            By using the MS CureChain patient app you confirm you have read and accepted all the terms above.
+        {/* Professional Footer Card */}
+        <View style={Sty.footerCard}>
+          <Shield size={22} color="#1769E0" />
+          <SanctuaryText variant="label_md" style={Sty.footerTitle}>
+            MS CureChain Healthcare Network
           </SanctuaryText>
-          <SanctuaryText variant="label_sm" style={Sty.footerEmail}>
-            📧 legal@mscurechain.com
+          <SanctuaryText variant="body_xs" style={Sty.footerTxt}>
+            Questions regarding our policies or data protection? Reach our compliance team directly.
           </SanctuaryText>
           <SanctuaryText variant="label_sm" style={Sty.footerEmail}>
             📧 support@mscurechain.com
@@ -480,189 +498,281 @@ export default function TermsAndConditionsScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const Sty = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
+  root: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
 
-  // Tab Bar
-  tabBar: {
+  // ── Top Header (Professional White, No Deep Blue) ──
+  headerBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    paddingBottom: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F1F5F9',
   },
-  tabItem: {
-    paddingVertical: 14,
-    marginRight: 24,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  tabActive: {
-    borderBottomColor: COLORS.primary,
+  headerCenter: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerTitle: {
+    color: '#0F172A',
+    fontWeight: '800',
+    fontSize: 17,
+  },
+  headerSub: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+
+  // ── Tab Bar ──
+  tabContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  tabPillWrap: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 3,
+  },
+  tabPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  tabPillActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   tabTxt: {
     color: '#64748B',
+    fontSize: 12.5,
     fontWeight: '600',
   },
   tabTxtActive: {
-    color: COLORS.primary,
+    color: '#1769E0',
+    fontWeight: '800',
   },
 
-  // Header
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 56 : 36,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerCenter: { alignItems: 'center' },
-  headerIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    backgroundColor: 'rgba(96,165,250,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 20,
-    textAlign: 'center',
-  },
-  headerSub: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-
-  // Banners
-  updateBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FDE68A',
-  },
-  updateTxt: { color: '#92400E', fontSize: 11, fontWeight: '600', flex: 1 },
-
-  noticeBand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#A7F3D0',
-  },
-  noticeTxt: { color: '#065F46', fontSize: 12, fontWeight: '600', flex: 1 },
-
-  // Scroll
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-
-  // Product header
-  productHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-    marginTop: 4,
-  },
-  productName: {
-    color: '#1E293B',
-    fontWeight: '900',
-    fontSize: 14,
+  // ── Content Scroll ──
+  scroll: {
     flex: 1,
   },
-  productTagline: {
-    color: '#64748B',
-    fontSize: 12,
-    marginBottom: 18,
-    marginLeft: 2,
+  scrollContent: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 36,
   },
 
-  // Card
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
+  // ── Trust & Policy Notice Banner ──
+  trustBanner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 12,
   },
-  cardHighlight: {
+  trustChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  trustChipGold: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  trustChipGoldTxt: {
+    color: '#92400E',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  trustChipGreen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  trustChipGreenTxt: {
+    color: '#065F46',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  trustNoticeTxt: {
+    color: '#475569',
+    fontSize: 11.5,
+    lineHeight: 17,
+  },
+
+  // ── Professional Flash Cards ──
+  flashCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  flashCardHighlighted: {
     borderColor: '#BFDBFE',
-    backgroundColor: '#F0F7FF',
+    backgroundColor: '#FAFCFF',
+  },
+  flashCardOpen: {
+    borderColor: '#93C5FD',
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 10,
   },
-  numberBadge: {
+  numberPill: {
     width: 28,
     height: 28,
-    borderRadius: 9,
-    backgroundColor: '#EAF1FF',
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
-  numberBadgeHighlight: { backgroundColor: COLORS.primary },
-  numberTxt: { color: COLORS.primary, fontSize: 11, fontWeight: '900' },
+  numberPillHighlighted: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  numberTxt: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  numberTxtHighlighted: {
+    color: '#1769E0',
+  },
   cardTitle: {
     flex: 1,
-    color: '#1E293B',
-    fontWeight: '800',
-    fontSize: 14,
+    color: '#0F172A',
+    fontWeight: '700',
+    fontSize: 13.5,
+    letterSpacing: -0.2,
   },
-  cardTitleHighlight: { color: '#1E40AF' },
+  cardTitleHighlighted: {
+    color: '#1E40AF',
+  },
+  chevronWrap: {
+    width: 24,
+    alignItems: 'center',
+  },
+  bodyDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginBottom: 12,
+  },
   cardBody: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 4,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 0,
   },
-
-  // Content
-  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  bullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.primary,
-    marginTop: 6,
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 8,
+  },
+  bulletDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#94A3B8',
+    marginTop: 6.5,
     flexShrink: 0,
   },
-  bulletTxt: { color: '#475569', fontSize: 13, lineHeight: 20, flex: 1 },
-  plainTxt: { color: '#475569', fontSize: 13, lineHeight: 22 },
+  bulletTxt: {
+    color: '#334155',
+    fontSize: 12.5,
+    lineHeight: 19,
+    flex: 1,
+  },
+  plainTxt: {
+    color: '#334155',
+    fontSize: 12.5,
+    lineHeight: 20,
+  },
 
-  // Footer
-  footer: {
-    marginTop: 20,
-    padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 16,
+  // ── Footer Card ──
+  footerCard: {
+    marginTop: 10,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  footerTxt: { color: '#64748B', fontSize: 12, textAlign: 'center', lineHeight: 19 },
-  footerEmail: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
+  footerTitle: {
+    color: '#0F172A',
+    fontWeight: '800',
+    fontSize: 13.5,
+    marginTop: 4,
+  },
+  footerTxt: {
+    color: '#64748B',
+    fontSize: 11.5,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  footerEmail: {
+    color: '#1769E0',
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginTop: 4,
+  },
 });

@@ -1,285 +1,231 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   Animated,
   TouchableOpacity,
   Pressable,
-  Image,
-  Easing,
   Platform,
+  Modal,
+  Image,
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowRight, ChevronRight, ShieldCheck, Sparkles } from 'lucide-react-native';
+import { QrCode, Languages, X, Check } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { RootStackParamList } from '@/navigation/types';
-import { COLORS } from '@/constants/designSystem';
-import { setOnboardingCompleted } from '@/services/onboardingService';
+import { RootStackParamList } from '../navigation/types';
+import { setOnboardingCompleted } from '../services/onboardingService';
+import { PERMISSIONS_STORAGE_KEY } from './AppPermissionsScreen';
 
-import ConnectedEcosystemSvg from '@/components/onboarding/ConnectedEcosystemSvg';
-import DoctorBookingSvg from '@/components/onboarding/DoctorBookingSvg';
-import MedicalRecordsSvg from '@/components/onboarding/MedicalRecordsSvg';
-import ConnectedCareSvg from '@/components/onboarding/ConnectedCareSvg';
+// ── Flashcard High-Resolution Illustration Assets ──
+const FLASHCARD_IMG_1 = require('../../assets/flashcards/Digital Healthcare App Illustration.png');
+const FLASHCARD_IMG_2 = require('../../assets/flashcards/Digital Health ID Card Illustration.png');
+const FLASHCARD_IMG_3 = require('../../assets/flashcards/Doctor and Patient Handshake Illustration.png');
+const FLASHCARD_IMG_4 = require('../../assets/flashcards/Global Connections Infographic.png');
+const FLASHCARD_IMG_5 = require('../../assets/flashcards/MSCureChain Handheld App Illustration.png');
 
-interface OnboardingCardItem {
+interface FlashCardItem {
   id: string;
-  headline: string;
+  title: string;
   description: string;
-  badge: string;
-  component: (props: { width: number; height: number }) => React.ReactElement;
+  image: any;
 }
 
-const ONBOARDING_CARDS: OnboardingCardItem[] = [
-  {
-    id: 'card-1',
-    headline: 'Your Healthcare, Connected',
-    description: 'One platform for your healthcare journey.',
-    badge: 'HEALTHCARE ECOSYSTEM',
-    component: (props) => <ConnectedEcosystemSvg {...props} />,
-  },
-  {
-    id: 'card-2',
-    headline: 'The Right Doctor, Within Reach',
-    description: 'Discover hospitals, explore doctors and book appointments with ease.',
-    badge: 'DOCTOR DISCOVERY & BOOKING',
-    component: (props) => <DoctorBookingSvg {...props} />,
-  },
-  {
-    id: 'card-3',
-    headline: 'Your Health Records, Organized',
-    description: 'Access your medical reports, prescriptions and visit history in one place.',
-    badge: 'DIGITAL MEDICAL VAULT',
-    component: (props) => <MedicalRecordsSvg {...props} />,
-  },
-  {
-    id: 'card-4',
-    headline: 'Connected Care for Every Visit',
-    description: 'Stay connected with your healthcare providers and manage your healthcare journey.',
-    badge: 'CONTINUOUS PATIENT CARE',
-    component: (props) => <ConnectedCareSvg {...props} />,
-  },
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', label: 'English', native: 'English' },
+  { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
+  { code: 'te', label: 'Telugu', native: 'తెలుగు' },
 ];
 
 export default function OnboardingScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { t, i18n } = useTranslation();
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [langModalVisible, setLangModalVisible] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<any>(null);
   const isNavigatingRef = useRef(false);
 
-  // Entrance animation values
-  const entranceAnim = useRef(new Animated.Value(0)).current;
+  const currentLangCode = (i18n.language || 'en').split('-')[0];
+  const currentLangObj =
+    SUPPORTED_LANGUAGES.find((l) => l.code === currentLangCode) || SUPPORTED_LANGUAGES[0];
 
-  useEffect(() => {
-    // Smooth 600ms entrance animation
-    Animated.timing(entranceAnim, {
-      toValue: 1,
-      duration: 620,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [entranceAnim]);
+  // Dynamic Flash Cards responding immediately to language changes via i18n
+  const flashCards: FlashCardItem[] = useMemo(
+    () => [
+      {
+        id: 'card-1',
+        title: t('onboarding.card1Title', { defaultValue: 'What is MSCureChain?' }),
+        description: t('onboarding.card1Desc', {
+          defaultValue:
+            'It is a citizen-facing application that will enable you to view, manage, and do consent-based sharing of health records.',
+        }),
+        image: FLASHCARD_IMG_1,
+      },
+      {
+        id: 'card-2',
+        title: t('onboarding.card2Title', { defaultValue: 'What is your Health ID?' }),
+        description: t('onboarding.card2Desc', {
+          defaultValue:
+            'It is an easy-to-remember personal health record account, which you can use to enable the exchange of health records.',
+        }),
+        image: FLASHCARD_IMG_2,
+      },
+      {
+        id: 'card-3',
+        title: t('onboarding.card3Title', { defaultValue: 'Scan to Share at Hospitals' }),
+        description: t('onboarding.card3Desc', {
+          defaultValue:
+            'Scan hospital counter QR codes to instantly share your profile, skip long lines, and get instant OPD tokens.',
+        }),
+        image: FLASHCARD_IMG_3,
+      },
+      {
+        id: 'card-4',
+        title: t('onboarding.card4Title', { defaultValue: 'Search Network Hospitals' }),
+        description: t('onboarding.card4Desc', {
+          defaultValue:
+            'Search any nearby health facility, doctor, or department and get health records.',
+        }),
+        image: FLASHCARD_IMG_4,
+      },
+      {
+        id: 'card-5',
+        title: t('onboarding.card5Title', { defaultValue: 'Easy Access' }),
+        description: t('onboarding.card5Desc', {
+          defaultValue:
+            'All your health records, including lab reports, prescriptions, and digital certificates, are at your fingertips!',
+        }),
+        image: FLASHCARD_IMG_5,
+      },
+    ],
+    [t]
+  );
 
-  // Handle completion (either by Skip or Get Started)
-  const handleComplete = useCallback(async () => {
-    if (isNavigatingRef.current) return;
-    isNavigatingRef.current = true;
-
+  const handleLanguageChange = async (code: string) => {
     try {
-      await setOnboardingCompleted();
+      await i18n.changeLanguage(code);
+      await AsyncStorage.setItem('user-language', code);
     } catch (e) {
-      console.warn('[Onboarding] Error persisting completion flag:', e);
+      console.warn('[Onboarding] Error changing language:', e);
+    } finally {
+      setLangModalVisible(false);
     }
+  };
 
-    // Reset navigation so Onboarding is discarded from stack history
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
+  // Navigate to Registration or Login with Permissions check
+  const handleAuthAction = useCallback(
+    async (target: 'Register' | 'Login') => {
+      if (isNavigatingRef.current) return;
+      isNavigatingRef.current = true;
+
+      try {
+        await setOnboardingCompleted();
+        const permissionsAck = await AsyncStorage.getItem(PERMISSIONS_STORAGE_KEY);
+
+        if (!permissionsAck) {
+          navigation.navigate('AppPermissions', { returnTo: target });
+        } else {
+          navigation.navigate(target);
+        }
+      } catch (e) {
+        console.warn('[Onboarding] Error during auth transition:', e);
+        navigation.navigate(target);
+      } finally {
+        setTimeout(() => {
+          isNavigatingRef.current = false;
+        }, 800);
+      }
+    },
+    [navigation]
+  );
+
+  const handleOpenQR = useCallback(() => {
+    navigation.navigate('QRScanner');
   }, [navigation]);
 
-  // Handle Next button press
-  const handleNext = useCallback(() => {
-    if (activeIndex < ONBOARDING_CARDS.length - 1) {
-      const nextIndex = activeIndex + 1;
-      flatListRef.current?.scrollToIndex({
-        index: nextIndex,
-        animated: true,
-      });
-      setActiveIndex(nextIndex);
-    } else {
-      handleComplete();
-    }
-  }, [activeIndex, handleComplete]);
-
-  // Sync activeIndex on momentum scroll end
   const onMomentumScrollEnd = useCallback(
     (e: any) => {
       const contentOffsetX = e.nativeEvent.contentOffset.x;
       const newIndex = Math.round(contentOffsetX / screenWidth);
-      if (newIndex >= 0 && newIndex < ONBOARDING_CARDS.length) {
+      if (newIndex >= 0 && newIndex < flashCards.length) {
         setActiveIndex(newIndex);
       }
     },
-    [screenWidth]
+    [screenWidth, flashCards.length]
   );
 
   // Responsive hero dimensions
   const heroWidth = Math.min(screenWidth - 32, 340);
-  const heroHeight = Math.min(screenHeight * 0.38, 280);
+  const heroHeight = Math.min(screenHeight * 0.44, 300);
 
-  // Entrance interpolations
-  const entranceOpacity = entranceAnim;
-  const entranceScale = entranceAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.96, 1],
-  });
-  const entranceTranslateY = entranceAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [22, 0],
-  });
-
-  // Skip button opacity: visible on cards 0, 1, 2; fades out on card 3
-  const skipOpacity = scrollX.interpolate({
-    inputRange: [screenWidth * 1.8, screenWidth * 2.8, screenWidth * 3],
-    outputRange: [1, 0.4, 0],
-    extrapolate: 'clamp',
-  });
-
-  const renderCardItem = ({ item, index }: { item: OnboardingCardItem; index: number }) => {
-    // Subtle parallax effect on card content during horizontal swipe
-    const inputRange = [(index - 1) * screenWidth, index * screenWidth, (index + 1) * screenWidth];
-
-    const visualTranslateX = scrollX.interpolate({
-      inputRange,
-      outputRange: [screenWidth * 0.18, 0, -screenWidth * 0.18],
-      extrapolate: 'clamp',
-    });
-
-    const textTranslateX = scrollX.interpolate({
-      inputRange,
-      outputRange: [screenWidth * 0.1, 0, -screenWidth * 0.1],
-      extrapolate: 'clamp',
-    });
-
+  const renderCardItem = ({ item }: { item: FlashCardItem; index: number }) => {
     return (
       <View style={[styles.cardContainer, { width: screenWidth }]}>
-        {/* Animated Hero SVG Visual Container */}
-        <Animated.View
-          style={[
-            styles.heroVisualWrapper,
-            {
-              width: heroWidth,
-              height: heroHeight,
-              transform: [{ translateX: visualTranslateX }],
-            },
-          ]}
-        >
-          {item.component({ width: heroWidth, height: heroHeight })}
-        </Animated.View>
+        {/* Hero Visual Container */}
+        <View style={[styles.heroVisualWrapper, { width: heroWidth, height: heroHeight }]}>
+          <Image
+            source={item.image}
+            style={styles.heroImage}
+            resizeMode="contain"
+          />
+        </View>
 
-        {/* Text & Typography Container */}
-        <Animated.View
-          style={[
-            styles.textSection,
-            {
-              transform: [{ translateX: textTranslateX }],
-            },
-          ]}
-        >
-          {/* Subtle Category Badge */}
-          <View style={styles.badgeContainer}>
-            <View style={styles.badgeDot} />
-            <Text style={styles.badgeText}>{item.badge}</Text>
-          </View>
-
-          {/* Headline */}
-          <Text style={styles.headlineText} numberOfLines={2} adjustsFontSizeToFit>
-            {item.headline}
+        {/* Text Section */}
+        <View style={styles.textSection}>
+          <Text style={styles.headlineText} numberOfLines={2}>
+            {item.title}
           </Text>
-
-          {/* Description */}
           <Text style={styles.descriptionText}>{item.description}</Text>
-        </Animated.View>
+        </View>
       </View>
     );
   };
-
-  const isLastCard = activeIndex === ONBOARDING_CARDS.length - 1;
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* ── Soft Healthcare Ambient Gradient Background ── */}
-      <LinearGradient
-        colors={['#EFF6FF', '#E0F2FE', '#F8FAFC']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Decorative subtle ambient backdrop glows */}
-      <View style={styles.ambientGlowTopRight} pointerEvents="none" />
-      <View style={styles.ambientGlowBottomLeft} pointerEvents="none" />
-
-      {/* ── Header: MS CureChain Logo & Skip Button ── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
-        <View style={styles.brandRow}>
-          <View style={styles.logoBadge}>
-            <Image
-              source={require('../../assets/image.png')}
-              style={styles.brandLogo}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.brandTextCol}>
-            <Text style={styles.brandTitle}>MS CureChain</Text>
-            <Text style={styles.brandSubtitle}>Patient Portal</Text>
-          </View>
-        </View>
-
-        {/* Skip Action on the first 3 cards */}
-        <Animated.View
-          style={{ opacity: skipOpacity }}
-          pointerEvents={isLastCard ? 'none' : 'auto'}
+      {/* ── Top Utility Header: QR Scanner Shortcut & Language Switcher ── */}
+      <View style={[styles.topHeader, { paddingTop: Math.max(insets.top, 14) }]}>
+        {/* QR Scanner Shortcut Circle */}
+        <TouchableOpacity
+          onPress={handleOpenQR}
+          activeOpacity={0.7}
+          style={styles.qrBadgeButton}
+          accessibilityLabel="Scan QR Code"
+          accessibilityRole="button"
         >
-          <TouchableOpacity
-            onPress={handleComplete}
-            activeOpacity={0.7}
-            style={styles.skipButton}
-            accessibilityLabel="Skip onboarding"
-            accessibilityRole="button"
-          >
-            <Text style={styles.skipText}>Skip</Text>
-            <ChevronRight size={14} color="#64748B" />
-          </TouchableOpacity>
-        </Animated.View>
+          <QrCode size={19} color="#0F2A4A" strokeWidth={2.2} />
+        </TouchableOpacity>
+
+        {/* Language Selector Pill */}
+        <TouchableOpacity
+          onPress={() => setLangModalVisible(true)}
+          activeOpacity={0.7}
+          style={styles.languageButton}
+          accessibilityLabel="Change Language"
+          accessibilityRole="button"
+        >
+          <Languages size={17} color="#0F2A4A" strokeWidth={2} style={styles.langIcon} />
+          <Text style={styles.languageText}>{currentLangObj.label}</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* ── Main Carousel with Smooth Initial Entrance ── */}
-      <Animated.View
-        style={[
-          styles.carouselWrapper,
-          {
-            opacity: entranceOpacity,
-            transform: [{ scale: entranceScale }, { translateY: entranceTranslateY }],
-          },
-        ]}
-      >
+      {/* ── Main Flash Cards Carousel ── */}
+      <View style={styles.carouselWrapper}>
         <Animated.FlatList
           ref={flatListRef}
-          data={ONBOARDING_CARDS}
+          data={flashCards}
           keyExtractor={(item) => item.id}
           renderItem={renderCardItem}
           horizontal
@@ -287,71 +233,109 @@ export default function OnboardingScreen() {
           bounces={false}
           showsHorizontalScrollIndicator={false}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-            useNativeDriver: true,
+            useNativeDriver: false,
           })}
           scrollEventThrottle={16}
           onMomentumScrollEnd={onMomentumScrollEnd}
           style={styles.flatList}
         />
-      </Animated.View>
+      </View>
 
-      {/* ── Bottom Controls: Pagination & Navigation CTA ── */}
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        {/* Animated Expanding Pill Pagination Indicators (100% Native Driver Compatible) */}
+      {/* ── Bottom Section: Expanding Pill Indicators & Dual Action Buttons ── */}
+      <View style={[styles.bottomSection, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        {/* 5 Dots / Expanding Pill Indicators */}
         <View style={styles.paginationRow}>
-          {ONBOARDING_CARDS.map((_, i) => {
-            const inputRange = [(i - 1) * screenWidth, i * screenWidth, (i + 1) * screenWidth];
-
-            const dotScaleX = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.33, 1, 0.33],
-              extrapolate: 'clamp',
-            });
-
-            const dotOpacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0, 1, 0],
-              extrapolate: 'clamp',
-            });
-
+          {flashCards.map((_, i) => {
+            const isActive = activeIndex === i;
             return (
-              <View key={`indicator-slot-${i}`} style={styles.dotSlot}>
-                {/* Inactive Dot Base */}
-                <View style={styles.inactiveDot} />
-                {/* Active Expanding Pill (animates via scaleX & opacity on native UI thread) */}
-                <Animated.View
-                  style={[
-                    styles.activePill,
-                    {
-                      opacity: dotOpacity,
-                      transform: [{ scaleX: dotScaleX }],
-                    },
-                  ]}
-                />
-              </View>
+              <View
+                key={`dot-${i}`}
+                style={[
+                  styles.dotBase,
+                  isActive ? styles.dotActive : styles.dotInactive,
+                ]}
+              />
             );
           })}
         </View>
 
-        {/* Action Button: Next (Cards 1–3) -> Get Started (Card 4) */}
-        <Pressable
-          onPress={handleNext}
-          style={({ pressed }) => [
-            styles.ctaButton,
-            isLastCard ? styles.ctaButtonLast : styles.ctaButtonNext,
-            pressed && styles.ctaButtonPressed,
-          ]}
-          accessibilityLabel={isLastCard ? 'Get Started' : 'Next page'}
-          accessibilityRole="button"
-        >
-          <Text style={styles.ctaButtonText}>{isLastCard ? 'Get Started' : 'Next'}</Text>
-          {isLastCard ? (
-            <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.5} style={styles.ctaIcon} />
-          ) : (
-            <ChevronRight size={18} color="#FFFFFF" strokeWidth={2.5} style={styles.ctaIcon} />
-          )}
-        </Pressable>
+        {/* Dual Bottom CTA Buttons: Register (Outlined) & Login (Solid Orange) */}
+        <View style={styles.actionButtonsRow}>
+          {/* Register Button */}
+          <Pressable
+            onPress={() => handleAuthAction('Register')}
+            style={({ pressed }) => [
+              styles.btnRegister,
+              pressed && styles.btnPressedOutline,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Register"
+          >
+            <Text style={styles.btnRegisterText}>{t('onboarding.register', { defaultValue: 'Register' })}</Text>
+          </Pressable>
+
+          {/* Login Button */}
+          <Pressable
+            onPress={() => handleAuthAction('Login')}
+            style={({ pressed }) => [
+              styles.btnLogin,
+              pressed && styles.btnPressedSolid,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Login"
+          >
+            <Text style={styles.btnLoginText}>{t('onboarding.login', { defaultValue: 'Login' })}</Text>
+          </Pressable>
+        </View>
       </View>
+
+      {/* ── Language Selector Modal ── */}
+      <Modal
+        visible={langModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLangModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('onboarding.chooseLanguage', { defaultValue: 'Choose Language' })}</Text>
+              <TouchableOpacity
+                onPress={() => setLangModalVisible(false)}
+                style={styles.modalCloseButton}
+              >
+                <X size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.languageOptionsList}>
+              {SUPPORTED_LANGUAGES.map((lang) => {
+                const isSelected = lang.code === currentLangCode;
+                return (
+                  <TouchableOpacity
+                    key={lang.code}
+                    onPress={() => handleLanguageChange(lang.code)}
+                    style={[styles.languageItem, isSelected && styles.languageItemSelected]}
+                    activeOpacity={0.7}
+                  >
+                    <View>
+                      <Text style={[styles.languageItemLabel, isSelected && styles.languageItemLabelSelected]}>
+                        {lang.label}
+                      </Text>
+                      <Text style={styles.languageItemNative}>{lang.native}</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.checkBadge}>
+                        <Check size={16} color="#FFFFFF" strokeWidth={2.5} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -359,89 +343,43 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EFF6FF',
-    position: 'relative',
+    backgroundColor: '#FFFFFF',
   },
-  ambientGlowTopRight: {
-    position: 'absolute',
-    top: -60,
-    right: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(56, 189, 248, 0.18)',
-  },
-  ambientGlowBottomLeft: {
-    position: 'absolute',
-    bottom: 60,
-    left: -80,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: 'rgba(2, 132, 199, 0.12)',
-  },
-  header: {
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 8,
+    paddingBottom: 6,
     zIndex: 10,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
     backgroundColor: '#FFFFFF',
+  },
+  qrBadgeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: '#0F2A4A',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#005AB5',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
-  brandLogo: {
-    width: 30,
-    height: 30,
-  },
-  brandTextCol: {
-    marginLeft: 10,
-  },
-  brandTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_700Bold',
-    letterSpacing: -0.3,
-  },
-  brandSubtitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#005AB5',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_600SemiBold',
-    marginTop: -1,
-  },
-  skipButton: {
+  languageButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(203, 213, 225, 0.6)',
+    backgroundColor: '#F8FAFC',
   },
-  skipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    marginRight: 2,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_600SemiBold',
+  langIcon: {
+    marginRight: 6,
+  },
+  languageText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F2A4A',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_700Bold',
   },
   carouselWrapper: {
     flex: 1,
@@ -452,125 +390,184 @@ const styles = StyleSheet.create({
   cardContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
   },
   heroVisualWrapper: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginVertical: 10,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
   textSection: {
-    alignItems: 'center',
-    maxWidth: 340,
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 90, 181, 0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#005AB5',
-    marginRight: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#005AB5',
-    letterSpacing: 0.8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_700Bold',
+    width: '100%',
+    paddingHorizontal: 26,
+    paddingBottom: 16,
+    alignItems: 'flex-start',
   },
   headlineText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'center',
-    lineHeight: 31,
+    color: '#0F2A4A',
     marginBottom: 10,
-    letterSpacing: -0.4,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Manrope_800ExtraBold',
+    letterSpacing: -0.3,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_700Bold',
   },
   descriptionText: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#475569',
-    textAlign: 'center',
+    fontSize: 14.5,
     lineHeight: 22,
+    color: '#334155',
+    letterSpacing: -0.1,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_400Regular',
   },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(226, 232, 240, 0.6)',
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+  bottomSection: {
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    backgroundColor: '#FFFFFF',
   },
   paginationRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dotSlot: {
-    width: 26,
-    height: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
+    marginBottom: 26,
+    height: 12,
   },
-  inactiveDot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  dotBase: {
+    height: 6.5,
+    borderRadius: 3.5,
+    marginHorizontal: 3.5,
+  },
+  dotActive: {
+    width: 32,
+    backgroundColor: '#0F2A4A',
+  },
+  dotInactive: {
+    width: 13,
     backgroundColor: '#CBD5E1',
   },
-  activePill: {
-    width: 24,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.primary,
-  },
-  ctaButton: {
+  actionButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  btnRegister: {
+    flex: 1,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#D9531E',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
-    borderRadius: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    shadowColor: '#005AB5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    alignItems: 'center',
   },
-  ctaButtonNext: {
-    backgroundColor: COLORS.primary,
-    minWidth: 110,
-  },
-  ctaButtonLast: {
-    backgroundColor: '#005AB5',
-    minWidth: 145,
-  },
-  ctaButtonPressed: {
-    transform: [{ scale: 0.96 }],
-    opacity: 0.92,
-  },
-  ctaButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+  btnRegisterText: {
+    fontSize: 16,
     fontWeight: '700',
+    color: '#D9531E',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_700Bold',
   },
-  ctaIcon: {
-    marginLeft: 6,
+  btnPressedOutline: {
+    backgroundColor: 'rgba(217, 83, 30, 0.08)',
+  },
+  btnLogin: {
+    flex: 1,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#D9531E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#D9531E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  btnLoginText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_700Bold',
+  },
+  btnPressedSolid: {
+    backgroundColor: '#B84013',
+  },
+
+  /* ── Modal Styles ── */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F2A4A',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Inter_700Bold',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  languageOptionsList: {
+    gap: 10,
+  },
+  languageItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  languageItemSelected: {
+    borderColor: '#D9531E',
+    backgroundColor: '#FFF7ED',
+  },
+  languageItemLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F2A4A',
+  },
+  languageItemLabelSelected: {
+    color: '#D9531E',
+  },
+  languageItemNative: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  checkBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#D9531E',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

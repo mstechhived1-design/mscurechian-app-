@@ -136,10 +136,10 @@ export default function RegisterScreen() {
   const isSmallScreen = screenHeight < 720;
   const isMediumScreen = screenHeight >= 720 && screenHeight < 840;
   const defaultHeroHeight = Math.max(
-    110,
+    220,
     Math.min(
-      Math.round(screenHeight * (isSmallScreen ? 0.17 : isMediumScreen ? 0.20 : 0.23)),
-      205
+      Math.round(screenHeight * (isSmallScreen ? 0.32 : isMediumScreen ? 0.36 : 0.38)),
+      340
     )
   );
   const heroHeight = isKeyboardVisible ? 0 : defaultHeroHeight;

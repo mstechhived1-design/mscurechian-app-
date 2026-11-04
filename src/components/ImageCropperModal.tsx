@@ -302,7 +302,7 @@ export default function ImageCropperModal({
   return (
     <Modal visible={isOpen} animationType="slide" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#0A1D16" />
+        <StatusBar barStyle="light-content" />
 
         {/* Header (Dhruva Parity) */}
         <View style={styles.header}>

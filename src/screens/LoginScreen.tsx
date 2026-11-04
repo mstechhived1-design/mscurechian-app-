@@ -115,10 +115,10 @@ export default function LoginScreen() {
   // - When keyboard is OPEN: Collapses to 0 so inputs and "Log In" button are 100% visible above keyboard!
   // - When keyboard is CLOSED: Dynamically scales with mobile phone height
   const defaultHeroHeight = Math.max(
-    110,
+    220,
     Math.min(
-      Math.round(screenHeight * (isSmallScreen ? 0.17 : isMediumScreen ? 0.21 : 0.24)),
-      210
+      Math.round(screenHeight * (isSmallScreen ? 0.32 : isMediumScreen ? 0.36 : 0.38)),
+      340
     )
   );
   const heroHeight = isKeyboardVisible ? 0 : defaultHeroHeight;

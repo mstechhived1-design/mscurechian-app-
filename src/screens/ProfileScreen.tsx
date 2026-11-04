@@ -70,6 +70,7 @@ import LanguageSelector from '@/components/LanguageSelector';
 import { DigitalAtriumLoader } from '@/components/SanctuaryComponents';
 import GlassModal from '@/components/GlassModal';
 import ImageCropperModal from '../components/ImageCropperModal';
+import { uploadProfileImageToCloudinary } from '@/services/cloudinaryService';
 import {
   checkBiometricAvailability,
   isBiometricLoginEnabled,
@@ -199,7 +200,7 @@ export default function ProfileScreen() {
     setIsPhotoUploading(true);
 
     try {
-      // Manipulate image to square profile dimensions
+      // 1. Manipulate image to square profile dimensions
       const manipResult = await ImageManipulator.manipulateAsync(
         croppedUri,
         [{ resize: { width: 480, height: 480 } }],
@@ -207,28 +208,30 @@ export default function ProfileScreen() {
       );
 
       const base64Data = manipResult.base64 ? `data:image/jpeg;base64,${manipResult.base64}` : croppedUri;
-      const finalUri = manipResult.uri || croppedUri;
 
-      // Update local storage and component state immediately
-      setSelectedAvatar(finalUri);
-      await AsyncStorage.setItem('patient_profile_avatar', finalUri);
+      // 2. Upload to Cloudinary global CDN
+      const cloudinaryUrl = await uploadProfileImageToCloudinary(base64Data);
+
+      // 3. Update local storage and component state with permanent Cloudinary URL
+      setSelectedAvatar(cloudinaryUrl);
+      await AsyncStorage.setItem('patient_profile_avatar', cloudinaryUrl);
 
       if (profile?.user) {
         setProfile((prev: any) => ({
           ...prev,
           user: {
             ...prev?.user,
-            avatar: finalUri,
+            avatar: cloudinaryUrl,
           },
         }));
       }
 
-      // Persist avatar to MongoDB backend
+      // 4. Persist permanent Cloudinary URL to MongoDB backend
       await apiClient.patch(PATIENT_ENDPOINTS.UPDATE_PROFILE, {
-        avatar: base64Data,
+        avatar: cloudinaryUrl,
       });
 
-      Alert.alert('Success', 'Profile photo updated and saved to your account!');
+      Alert.alert('Success', 'Profile photo uploaded to cloud and saved!');
       fetchProfile();
     } catch (err: any) {
       console.error('Photo upload failed:', err);
@@ -278,8 +281,10 @@ export default function ProfileScreen() {
       const data = response.data;
       setProfile(data);
 
-      if (data?.user?.avatar && !selectedAvatar) {
-        setSelectedAvatar(data.user.avatar);
+      const cloudAvatar = data?.user?.avatar || data?.avatar || data?.profilePic || data?.user?.profilePic || null;
+      if (cloudAvatar) {
+        setSelectedAvatar(cloudAvatar);
+        AsyncStorage.setItem('patient_profile_avatar', cloudAvatar).catch(() => {});
       }
 
       // Initialize edit form
@@ -377,6 +382,15 @@ export default function ProfileScreen() {
       setBiometricToggling(false);
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      AsyncStorage.getItem('patient_profile_avatar')
+        .then((saved) => { if (saved) setSelectedAvatar(saved); })
+        .catch(() => {});
+      fetchProfile();
+    }, [])
+  );
 
   useEffect(() => {
     fetchProfile();
@@ -610,7 +624,7 @@ export default function ProfileScreen() {
         {/* ── 2. Rapido Categorized Menu Items List ── */}
         <View style={styles.rapidoMenuList}>
           {/* Help */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.rapidoMenuItem}
             onPress={() => navigation.navigate('Chat')}
             activeOpacity={0.7}
@@ -624,7 +638,7 @@ export default function ProfileScreen() {
               </View>
             </View>
             <ChevronRight size={19} color="#9CA3AF" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* Payment */}
           <TouchableOpacity

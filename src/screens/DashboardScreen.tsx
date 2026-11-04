@@ -78,13 +78,13 @@ const BannerDhruva = require('../../assets/banner/banner_dhruva.png');
 const BannerEcosystem = require('../../assets/banner/banner_ecosystem.png');
 
 const { width } = Dimensions.get('window');
-const CARD_GAP = 10;
-const PEEK_CARD_W = width - 48; // Peek mode: shows edge of next card (multiple cards)
-const FULL_CARD_W = width - 32; // Full mode: single card takes all space
+const CARD_GAP = 8;
+const PEEK_CARD_W = width - 16; // Peek mode: shows edge of next card (multiple cards)
+const FULL_CARD_W = width - 16; // Full mode: single card takes all space
 
 // Full-width edge-to-edge banner resized based on mobile width
 const HERO_WIDTH = width;
-const HERO_HEIGHT = Math.round(width * (738 / 1920));
+const HERO_HEIGHT = Math.round(width * 0.54);
 
 // Solid Vibrant Royal Blue for Patient Health Card (matching reference mockup, no gradients)
 const CARD_BG_COLOR = '#1769E0';
@@ -440,6 +440,12 @@ export default function DashboardScreen() {
       const prof = data.profile;
       setProfile(prof);
 
+      const cloudAvatar = prof?.user?.avatar || prof?.avatar || prof?.profilePic || null;
+      if (cloudAvatar) {
+        setLocalAvatar(cloudAvatar);
+        AsyncStorage.setItem('patient_profile_avatar', cloudAvatar).catch(() => {});
+      }
+
       offlineVaultService.cacheOpportunistically({
         profile: prof,
         prescriptions: data.prescriptions,
@@ -599,7 +605,7 @@ export default function DashboardScreen() {
   const globalID = profile?.mrn || 'HHO620000153';
   const bloodGroup = profile?.user?.bloodGroup || profile?.bloodGroup || 'O+';
   const cardList = hospitalCards;
-  const CARD_WIDTH = cardList.length > 1 ? PEEK_CARD_W : FULL_CARD_W;
+  const CARD_WIDTH = width - 16;
 
   // ── Render Patient Health Card (Solid Vibrant Royal Blue, No Gradients) ─
   const renderIDCard = ({ item }: { item: HospitalReg; index: number }) => {
@@ -701,11 +707,19 @@ export default function DashboardScreen() {
               onPress={() => navigation.navigate('Profile')}
               activeOpacity={0.85}
             >
-              <Avatar.Image
-                size={42}
-                source={patientAvatar ? { uri: patientAvatar } : require('../../assets/image.png')}
-                style={styles.avatar}
-              />
+              {patientAvatar ? (
+                <Image
+                  source={{ uri: patientAvatar }}
+                  style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#F1F5F9' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image
+                  source={require('../../assets/image.png')}
+                  style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#F1F5F9' }}
+                  resizeMode="contain"
+                />
+              )}
             </TouchableOpacity>
 
             <View style={styles.patientInfoBlock}>
@@ -727,13 +741,6 @@ export default function DashboardScreen() {
             >
               <Bell size={20} color="#0F172A" />
               {unreadCount > 0 && <View style={styles.notifBadge} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => navigation.navigate('QRScanner')}
-              activeOpacity={0.7}
-            >
-              <QrCode size={20} color="#0F172A" />
             </TouchableOpacity>
           </View>
         </View>
@@ -787,21 +794,7 @@ export default function DashboardScreen() {
             )}
           />
 
-          {/* Hero Carousel Dots */}
-          <View style={styles.heroDotRow}>
-            {HERO_SLIDES.map((_, i) => (
-              <TouchableOpacity
-                key={i}
-                onPress={() => {
-                  heroRef.current?.scrollToIndex({ index: i, animated: true });
-                  setActiveHeroSlide(i);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.heroDot, i === activeHeroSlide && styles.heroDotActive]} />
-              </TouchableOpacity>
-            ))}
-          </View>
+          
         </View>
 
         {/* Offline Zero-Network Mode Banner */}
@@ -842,7 +835,7 @@ export default function DashboardScreen() {
             decelerationRate="fast"
             contentContainerStyle={[
               styles.carouselList,
-              cardList.length <= 1 && { paddingRight: 16 },
+              cardList.length <= 1 && { paddingRight: 8 },
             ]}
             getItemLayout={(_, index) => ({
               length: CARD_WIDTH + CARD_GAP,
@@ -909,14 +902,9 @@ export default function DashboardScreen() {
           onPress={() => navigation.navigate('SOS')}
           activeOpacity={0.85}
         >
-          <View style={styles.sosLeft}>
-            <View style={styles.sosIconWrap}>
-              <ShieldAlert size={22} color="#FFFFFF" />
-            </View>
-            <View style={styles.sosTexts}>
-              <Text style={styles.sosTitle}>EMERGENCY SOS</Text>
-              <Text style={styles.sosSub}>Get immediate assistance in case of emergency</Text>
-            </View>
+          <View style={styles.sosTexts}>
+            <Text style={styles.sosTitle}>EMERGENCY SOS</Text>
+            <Text style={styles.sosSub}>Get immediate assistance in case of emergency</Text>
           </View>
           <View style={styles.sosArrowWrap}>
             <ChevronRight size={18} color="#FFFFFF" strokeWidth={2.5} />
@@ -1461,12 +1449,12 @@ const styles = StyleSheet.create({
   },
   heroCardSlide: {
     marginRight: 0,
-    borderRadius: 0,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
   },
   heroBannerImage: {
-    borderRadius: 0,
+    borderRadius: 16,
   },
   heroDotRow: {
     flexDirection: 'row',
@@ -1493,11 +1481,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   carouselList: {
-    paddingLeft: 16,
-    paddingRight: 24,
+    paddingLeft: 8,
+    paddingRight: 8,
   },
   cardSlide: {
-    marginRight: CARD_GAP,
+    marginRight: 8,
   },
   idCard: {
     backgroundColor: CARD_BG_COLOR,
@@ -1643,7 +1631,7 @@ const styles = StyleSheet.create({
 
   /* ── 4. Digital Services ── */
   section: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     marginBottom: 16,
   },
   sectionHeader: {
@@ -1698,7 +1686,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 16,
+    marginHorizontal: 8,
     marginBottom: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,

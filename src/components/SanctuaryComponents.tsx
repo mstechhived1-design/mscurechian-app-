@@ -105,7 +105,7 @@ export const DigitalAtriumLoader = ({ fullscreen = true, message, subMessage }: 
     {fullscreen && (
       <Image
         source={require('../../assets/image.png')}
-        style={{ width: 84, height: 84, marginBottom: 20 }}
+        style={{ width: 110, height: 110, marginBottom: 24 }}
         resizeMode="contain"
       />
     )}

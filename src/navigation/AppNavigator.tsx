@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DigitalAtriumLoader } from '@/components/SanctuaryComponents';
 
 import OnboardingScreen from '@/screens/OnboardingScreen';
+import AppPermissionsScreen from '@/screens/AppPermissionsScreen';
 import { hasCompletedOnboarding } from '@/services/onboardingService';
 import LoginScreen from '@/screens/LoginScreen';
 import RegisterScreen from '@/screens/RegisterScreen';
@@ -118,8 +119,9 @@ export default function AppNavigator() {
       initialRouteName={initialRoute}
       screenOptions={{ headerShown: false }}
     >
-      {/* ── First-Launch Onboarding ────────────────────────────────────── */}
+      {/* ── First-Launch Onboarding & Permissions ────────────────────────── */}
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      <Stack.Screen name="AppPermissions" component={AppPermissionsScreen} />
 
       {/* ── Auth ───────────────────────────────────────────────────────── */}
       <Stack.Screen name="Login" component={LoginScreen} />

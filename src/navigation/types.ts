@@ -5,6 +5,7 @@ import type {
 
 export type RootStackParamList = {
   Onboarding: undefined;
+  AppPermissions: { returnTo?: 'Login' | 'Register' | 'Dashboard' } | undefined;
   Login: undefined;
   Register: undefined;
   ProfileSetup: undefined;

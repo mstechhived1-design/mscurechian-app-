@@ -6,6 +6,7 @@ import {
   Calendar,
   ReceiptText,
   User,
+  QrCode,
 } from 'lucide-react-native';
 
 import DashboardScreen from '@/screens/DashboardScreen';
@@ -16,6 +17,7 @@ import ProfileScreen from '@/screens/ProfileScreen';
 export type BottomTabParamList = {
   Home: undefined;
   Appointments: undefined;
+  ScanQR: undefined;
   Payments: undefined;
   Profile: undefined;
 };
@@ -83,6 +85,25 @@ export default function BottomTabNavigator() {
         }}
       />
       <Tab.Screen
+        name="ScanQR"
+        component={DashboardScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).navigate('QRScanner');
+          },
+        })}
+        options={{
+          tabBarLabel: 'Scan QR',
+          tabBarIcon: () => (
+            <View style={styles.qrCenterCircle}>
+              <QrCode size={22} color="#FFFFFF" strokeWidth={2.4} />
+            </View>
+          ),
+          tabBarItemStyle: styles.qrTabItem,
+        }}
+      />
+      <Tab.Screen
         name="Payments"
         component={PaymentsScreen}
         options={{
@@ -131,6 +152,23 @@ const styles = StyleSheet.create({
     height: 28,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  qrCenterCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: PRIMARY_BLUE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -12,
+    shadowColor: PRIMARY_BLUE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  qrTabItem: {
+    paddingTop: 0,
   },
   activeIndicator: {
     position: 'absolute',

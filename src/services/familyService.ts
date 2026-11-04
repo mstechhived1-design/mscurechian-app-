@@ -547,6 +547,15 @@ class FamilyService {
       }
 
       await AsyncStorage.setItem(FAMILY_STORAGE_KEYS.RELATIONS_MAP, JSON.stringify(map));
+
+      // Cloud sync to MongoDB backend
+      try {
+        await apiClient.patch(`/patients/family-members/${targetMember._id}/relation`, {
+          relationship: relation,
+        });
+      } catch (cloudErr) {
+        console.warn('[FamilyService] Cloud sync notice:', cloudErr);
+      }
       this.notifyRelationsChange();
       return { success: true, message: `Relationship set to ${relation}` };
     } catch (err: any) {
