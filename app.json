@@ -11,7 +11,8 @@
     },
     "android": {
       "package": "com.mscurechain.patientapp",
-      "versionCode": 10,
+      "versionCode": 11,
+      "largeHeap": true,
       "permissions": [
         "CAMERA",
         "ACCESS_COARSE_LOCATION",
@@ -31,7 +32,14 @@
       "expo-camera",
       "expo-location",
       "expo-notifications",
-      "expo-build-properties",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useLegacyPackaging": true
+          }
+        }
+      ],
       "expo-font",
       "expo-sharing",
       "expo-status-bar",
