@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  Animated,
+  FlatList,
   TouchableOpacity,
   Pressable,
   Platform,
@@ -51,7 +51,6 @@ export default function OnboardingScreen() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [langModalVisible, setLangModalVisible] = useState(false);
-  const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<any>(null);
   const isNavigatingRef = useRef(false);
 
@@ -223,7 +222,7 @@ export default function OnboardingScreen() {
 
       {/* ── Main Flash Cards Carousel ── */}
       <View style={styles.carouselWrapper}>
-        <Animated.FlatList
+        <FlatList
           ref={flatListRef}
           data={flashCards}
           keyExtractor={(item) => item.id}
@@ -232,12 +231,11 @@ export default function OnboardingScreen() {
           pagingEnabled
           bounces={false}
           showsHorizontalScrollIndicator={false}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-            useNativeDriver: false,
-          })}
-          scrollEventThrottle={16}
           onMomentumScrollEnd={onMomentumScrollEnd}
           style={styles.flatList}
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={3}
         />
       </View>
 
