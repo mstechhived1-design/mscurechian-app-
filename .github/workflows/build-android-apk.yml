@@ -38,6 +38,12 @@ jobs:
       - name: Generate Native Android Project (Expo Prebuild)
         run: npx expo prebuild --platform android --no-install
 
+      - name: Configure Gradle for AGP 9
+        run: |
+          sed -i 's/gradle-9.3.1-bin.zip/gradle-9.4.1-bin.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/proguard-android.txt/proguard-android-optimize.txt/g' android/app/build.gradle
+          sed -i '/apply plugin: "org.jetbrains.kotlin.android"/d' android/app/build.gradle
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 

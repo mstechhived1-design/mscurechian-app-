@@ -1,8 +1,9 @@
 {
   "name": "mscurechain-patient-app",
   "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.js",
   "scripts": {
+    "postinstall": "node scripts/patch-ci.js",
     "start": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start",
     "start:clean": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo start -c",
     "android": "cross-env NODE_OPTIONS=--max-old-space-size=8192 expo run:android",
