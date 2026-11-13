@@ -4,11 +4,111 @@ const path = require('path');
 // 1. Patch expo-constants
 const constantsFile = path.join(__dirname, '../node_modules/expo-constants/scripts/get-app-config-android.gradle');
 if (fs.existsSync(constantsFile)) {
-  let content = fs.readFileSync(constantsFile, 'utf8');
-  if (content.includes('project.android.libraryVariants.all')) {
-    content = content.replace(/project\.android\.libraryVariants\.all/g, "project.android.hasProperty('libraryVariants') ? project.android.libraryVariants.all : [].each");
-    fs.writeFileSync(constantsFile, content, 'utf8');
+  const cleanConstantsGradle = `// Gradle script for generating serialized public app config (from app.config.js/ts or app.json) and bundling it into the APK
+
+import org.apache.tools.ant.taskdefs.condition.Os
+
+def expoConstantsDir = project.providers.exec {
+  workingDir(projectDir)
+  commandLine("node", "-e", "console.log(require('path').dirname(require.resolve('expo-constants/package.json')));")
+}.standardOutput.asText.get().trim()
+
+def config = project.hasProperty("react") ? project.react : [];
+def nodeExecutableAndArgs = config.nodeExecutableAndArgs ?: ["node"]
+
+afterEvaluate {
+  def expoGradleExtension = gradle.extensions.findByName("expoGradle")
+  def customProjectRoot = expoGradleExtension?.projectRoot
+  def projectRoot = file("\${customProjectRoot ?: rootProject.projectDir}")
+
+  def hasVariants = false
+  try {
+    hasVariants = project.android.hasProperty("libraryVariants") && project.android.libraryVariants != null
+  } catch (Exception e) {
+    hasVariants = false
   }
+
+  if (hasVariants) {
+    try {
+      project.android.libraryVariants.all { variant ->
+        def assetsDir = file("\$buildDir/generated/assets/expo-constants/\${variant.name}")
+        def configMode = variant.buildType.name == "debug" || variant.buildType.name == "debugOptimized" ? "development" : "production"
+
+        def createConfigTask = tasks.register("create\${variant.name.capitalize()}ExpoConfig", Exec) {
+          description = 'expo-constants: Create app.config.'
+          doFirst {
+            assetsDir.deleteDir()
+            assetsDir.mkdirs()
+          }
+          outputs.upToDateWhen { false }
+          outputs.dir assetsDir
+          workingDir projectRoot
+          if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            commandLine("cmd", "/c", *nodeExecutableAndArgs, "\$expoConstantsDir/scripts/getAppConfig.js", projectRoot, assetsDir, "android", "false", configMode)
+          } else {
+            commandLine(*nodeExecutableAndArgs, "\$expoConstantsDir/scripts/getAppConfig.js", projectRoot, assetsDir, "android", "false", configMode)
+          }
+        }
+
+        variant.preBuildProvider.configure { it.dependsOn(createConfigTask) }
+        project.android.sourceSets.maybeCreate(variant.name).assets.srcDirs += assetsDir
+      }
+    } catch (Exception ignored) {
+      hasVariants = false
+    }
+  }
+
+  if (!hasVariants) {
+    ['debug', 'release', 'debugOptimized'].each { variantName ->
+      def targetBuildDir = project.layout.buildDirectory.asFile.getOrNull() ?: file("\$buildDir")
+      def assetsDir = file("\$targetBuildDir/generated/assets/expo-constants/\${variantName}")
+      def configMode = (variantName == "debug" || variantName == "debugOptimized") ? "development" : "production"
+
+      def createConfigTask = tasks.register("create\${variantName.capitalize()}ExpoConfig", Exec) {
+        description = 'expo-constants: Create app.config.'
+        doFirst {
+          assetsDir.deleteDir()
+          assetsDir.mkdirs()
+        }
+        outputs.upToDateWhen { false }
+        outputs.dir assetsDir
+        workingDir projectRoot
+        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+          commandLine("cmd", "/c", *nodeExecutableAndArgs, "\$expoConstantsDir/scripts/getAppConfig.js", projectRoot, assetsDir, "android", "false", configMode)
+        } else {
+          commandLine(*nodeExecutableAndArgs, "\$expoConstantsDir/scripts/getAppConfig.js", projectRoot, assetsDir, "android", "false", configMode)
+        }
+      }
+
+      tasks.named("preBuild").configure { it.dependsOn(createConfigTask) }
+      project.android.sourceSets.maybeCreate(variantName).assets.srcDirs += assetsDir
+    }
+  }
+
+  def targetBuildDir = project.layout.buildDirectory.asFile.getOrNull() ?: file("\$buildDir")
+  def fingerprintAssetsDir = file("\$targetBuildDir/generated/assets/expo-constants-fingerprint")
+
+  def createFingerprintTask = tasks.register('createExpoFingerprint', Exec) {
+    description = 'expo-constants: Embed the project fingerprint (app.fingerprint) in debug builds.'
+    doFirst {
+      fingerprintAssetsDir.deleteDir()
+      fingerprintAssetsDir.mkdirs()
+    }
+    outputs.upToDateWhen { false }
+    outputs.dir fingerprintAssetsDir
+    workingDir projectRoot
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+      commandLine("cmd", "/c", *nodeExecutableAndArgs, "\$expoConstantsDir/scripts/createFingerprintFile.js", projectRoot, fingerprintAssetsDir, "android")
+    } else {
+      commandLine(*nodeExecutableAndArgs, "\$expoConstantsDir/scripts/createFingerprintFile.js", projectRoot, fingerprintAssetsDir, "android")
+    }
+  }
+
+  tasks.named("preBuild").configure { it.dependsOn(createFingerprintTask) }
+  project.android.sourceSets.maybeCreate('debug').assets.srcDirs += fingerprintAssetsDir
+}
+`;
+  fs.writeFileSync(constantsFile, cleanConstantsGradle, 'utf8');
 }
 
 // 2. Patch expo-modules-core
